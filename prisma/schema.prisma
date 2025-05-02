@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Movie {
+  id                 String               @id @default(uuid())
+  title              String               @unique
+  year               Int?
+  director           String?
+  description        String?
+  genres             String[]
+  streamingPlatforms String[]
+  movieSuggestions   MovieSuggestion[]
+  movieSentiments    MovieSentiment[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+}
+
+model EmotionalState {
+  id            Int               @id @default(autoincrement())
+  name          String            @unique
+  description   String?
+  mainSentiment MainSentiment     @relation(fields: [mainSentimentId], references: [id])
+  mainSentimentId Int
+  journeySteps  JourneyStep[]     // Relação com os passos da jornada
+  isActive      Boolean           @default(true)
+  movieSuggestions MovieSuggestion[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([mainSentimentId])
+}
+
+model JourneyStep {
+  id              String          @id @default(uuid())
+  emotionalState  EmotionalState  @relation(fields: [emotionalStateId], references: [id])
+  emotionalStateId Int
+  order           Int             // Mantemos order como Int para ordenação interna
+  stepId          String          // Novo campo para identificação hierárquica (1, 2A, 2B, etc)
+  question        String          // Pergunta a ser exibida
+  options         JourneyOption[] // Opções disponíveis neste passo
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([emotionalStateId])
+}
+
+model JourneyOption {
+  id            Int           @id @default(autoincrement())
+  journeyStep   JourneyStep   @relation(fields: [journeyStepId], references: [id])
+  journeyStepId String        // Atualizado para String para corresponder ao novo tipo do id do JourneyStep
+  text          String        // Texto da opção
+  nextStepId    String?      // Atualizado para String para corresponder ao novo tipo do id do JourneyStep
+  isFinal       Boolean       @default(false) // Indica se esta opção leva a uma sugestão
+  movieSuggestions MovieSuggestion[] // Relação com as sugestões de filmes
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([journeyStepId])
+}
+
+model MovieSuggestion {
+  id              Int            @id @default(autoincrement())
+  movie           Movie          @relation(fields: [movieId], references: [id])
+  movieId         String
+  emotionalState  EmotionalState @relation(fields: [emotionalStateId], references: [id])
+  emotionalStateId Int
+  journeyOption   JourneyOption  @relation(fields: [journeyOptionId], references: [id])
+  journeyOptionId Int
+  reason          String         // Razão para a sugestão neste contexto
+  relevance       Int           @default(1) // Peso/relevância da sugestão
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([movieId])
+  @@index([emotionalStateId])
+  @@index([journeyOptionId])
+}
+
+model MainSentiment {
+  id            Int             @id @default(autoincrement())
+  name          String          @unique
+  description   String?
+  keywords      String[]        @default([])
+  emotionalStates EmotionalState[]
+  subSentiments SubSentiment[]
+  movieSentiment MovieSentiment[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model SubSentiment {
+  id             Int           @id @default(autoincrement())
+  name           String        @unique
+  description    String?
+  keywords       String[]      @default([])
+  mainSentiment  MainSentiment @relation(fields: [mainSentimentId], references: [id])
+  mainSentimentId Int
+  movieSentiment MovieSentiment[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([mainSentimentId])
+}
+
+model MovieSentiment {
+  movie             Movie           @relation(fields: [movieId], references: [id])
+  movieId           String
+  mainSentiment     MainSentiment   @relation(fields: [mainSentimentId], references: [id])
+  mainSentimentId   Int
+  subSentiment      SubSentiment    @relation(fields: [subSentimentId], references: [id])
+  subSentimentId    Int
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@id([movieId, mainSentimentId, subSentimentId])
+  @@index([mainSentimentId])
+  @@index([subSentimentId])
+}
