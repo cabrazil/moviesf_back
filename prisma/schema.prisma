@@ -18,6 +18,7 @@ model Movie {
   streamingPlatforms String[]
   movieSuggestions   MovieSuggestion[]
   movieSentiments    MovieSentiment[]
+  movieSuggestionFlows MovieSuggestionFlow[]
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 }
@@ -88,6 +89,7 @@ model MainSentiment {
   name          String          @unique
   description   String?
   keywords      String[]        @default([])
+  journeyFlow   JourneyFlow?
   emotionalStates EmotionalState[]
   subSentiments SubSentiment[]
   movieSentiment MovieSentiment[]
@@ -122,4 +124,57 @@ model MovieSentiment {
   @@id([movieId, mainSentimentId, subSentimentId])
   @@index([mainSentimentId])
   @@index([subSentimentId])
+}
+
+model JourneyFlow {
+  id              Int             @id @default(autoincrement())
+  mainSentiment   MainSentiment   @relation(fields: [mainSentimentId], references: [id])
+  mainSentimentId Int             @unique
+  steps           JourneyStepFlow[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model JourneyStepFlow {
+  id              Int             @id @default(autoincrement())
+  journeyFlow     JourneyFlow     @relation(fields: [journeyFlowId], references: [id])
+  journeyFlowId   Int
+  stepId          String          // Identificador único do passo (ex: "1", "2A", "2B")
+  order           Int             // Ordem do passo na jornada
+  question        String          // Pergunta a ser exibida
+  options         JourneyOptionFlow[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([journeyFlowId])
+}
+
+model JourneyOptionFlow {
+  id              Int             @id @default(autoincrement())
+  journeyStepFlow JourneyStepFlow @relation(fields: [journeyStepFlowId], references: [id])
+  journeyStepFlowId Int
+  optionId        String          // Identificador único da opção
+  text            String          // Texto da opção
+  nextStepId      String?         // ID do próximo passo ou null se for final
+  isEndState      Boolean         @default(false) // Indica se esta opção leva a sugestões de filmes
+  movieSuggestions MovieSuggestionFlow[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([journeyStepFlowId])
+}
+
+model MovieSuggestionFlow {
+  id              Int             @id @default(autoincrement())
+  journeyOptionFlow JourneyOptionFlow @relation(fields: [journeyOptionFlowId], references: [id])
+  journeyOptionFlowId Int
+  movie           Movie           @relation(fields: [movieId], references: [id])
+  movieId         String
+  reason          String          // Razão para a sugestão neste contexto
+  relevance       Int            @default(1) // Relevância da sugestão
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([journeyOptionFlowId])
+  @@index([movieId])
 }

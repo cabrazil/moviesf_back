@@ -127,4 +127,57 @@ router.delete('/sub-sentiments/:id', async (req, res) => {
   }
 });
 
+router.get('/data', async (req, res) => {
+  try {
+    const [movies, mainSentiments, journeyFlows, journeyStepFlows, journeyOptionFlows, movieSuggestionFlows] = await Promise.all([
+      prisma.movie.findMany(),
+      prisma.mainSentiment.findMany({
+        include: {
+          journeyFlow: {
+            include: {
+              steps: {
+                include: {
+                  options: {
+                    include: {
+                      movieSuggestions: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }),
+      prisma.journeyFlow.findMany({
+        include: {
+          steps: true
+        }
+      }),
+      prisma.journeyStepFlow.findMany({
+        include: {
+          options: true
+        }
+      }),
+      prisma.journeyOptionFlow.findMany({
+        include: {
+          movieSuggestions: true
+        }
+      }),
+      prisma.movieSuggestionFlow.findMany()
+    ]);
+
+    res.json({
+      movies,
+      mainSentiments,
+      journeyFlows,
+      journeyStepFlows,
+      journeyOptionFlows,
+      movieSuggestionFlows
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dados:', error);
+    res.status(500).json({ error: 'Erro ao buscar dados do banco' });
+  }
+});
+
 export default router; 

@@ -21,23 +21,143 @@ async function main() {
   await prisma.subSentiment.deleteMany();
   await prisma.mainSentiment.deleteMany();
 
-  // Criar sentimentos principais
-  const mainSentiments = await createMainSentiments();
-  
-  // Criar estados emocionais
-  const emotionalStates = await createEmotionalStates();
-  
-  // Criar filmes
-  const movies = await createMovies();
-  
-  // Criar passos da jornada e opções
-  const journeySteps = await createJourneySteps(emotionalStates);
-  
-  // Criar relações entre filmes e sentimentos
-  await createMovieSentiments(movies, mainSentiments);
-  
-  // Criar sugestões de filmes baseadas em estados emocionais
-  await createMovieSuggestions(movies, emotionalStates, journeySteps);
+  // Criar alguns filmes de exemplo
+  const movies = await Promise.all([
+    prisma.movie.create({
+      data: {
+        title: "Todo Mundo em Pânico",
+        year: 2000,
+        director: "Keenen Ivory Wayans",
+        description: "Uma paródia de filmes de terror e suspense",
+        genres: ["Comédia", "Paródia"],
+        streamingPlatforms: ["Netflix", "Amazon Prime"]
+      }
+    }),
+    prisma.movie.create({
+      data: {
+        title: "O Diário de Bridget Jones",
+        year: 2001,
+        director: "Sharon Maguire",
+        description: "Uma comédia romântica sobre uma mulher em busca do amor",
+        genres: ["Comédia", "Romance"],
+        streamingPlatforms: ["Netflix", "HBO Max"]
+      }
+    }),
+    prisma.movie.create({
+      data: {
+        title: "Superbad",
+        year: 2007,
+        director: "Greg Mottola",
+        description: "Dois amigos do ensino médio tentam comprar álcool para uma festa",
+        genres: ["Comédia", "Adolescente"],
+        streamingPlatforms: ["Netflix", "Amazon Prime"]
+      }
+    })
+  ]);
+
+  // Criar sentimento principal "Feliz / Alegre"
+  const happySentiment = await prisma.mainSentiment.create({
+    data: {
+      name: "Feliz / Alegre",
+      description: "Sentimento de alegria e felicidade",
+      keywords: ["feliz", "alegre", "contente"],
+      journeyFlow: {
+        create: {
+          steps: {
+            create: [
+              {
+                stepId: "1",
+                order: 1,
+                question: "Como você está se sentindo principalmente neste momento?",
+                options: {
+                  create: [
+                    {
+                      optionId: "1A",
+                      text: "Com muitas gargalhadas e um humor contagiante?",
+                      nextStepId: "2A",
+                      isEndState: false
+                    },
+                    {
+                      optionId: "1B",
+                      text: "Com calor no coração e uma sensação adorável?",
+                      nextStepId: "2B",
+                      isEndState: false
+                    }
+                  ]
+                }
+              },
+              {
+                stepId: "2A",
+                order: 2,
+                question: "Excelente! Você prefere um humor mais...",
+                options: {
+                  create: [
+                    {
+                      optionId: "2A1",
+                      text: "Escancarado e físico (pastelão, situações absurdas)?",
+                      nextStepId: null,
+                      isEndState: true,
+                      movieSuggestions: {
+                        create: [
+                          {
+                            movieId: movies[0].id,
+                            reason: "Comédia pastelão com situações hilárias",
+                            relevance: 1
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      optionId: "2A2",
+                      text: "Inteligente e com diálogos afiados?",
+                      nextStepId: null,
+                      isEndState: true,
+                      movieSuggestions: {
+                        create: [
+                          {
+                            movieId: movies[2].id,
+                            reason: "Comédia inteligente com humor refinado",
+                            relevance: 1
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                stepId: "2B",
+                order: 2,
+                question: "Adorável! Você está mais no clima de...",
+                options: {
+                  create: [
+                    {
+                      optionId: "2B1",
+                      text: "Uma comédia romântica com um final doce e feliz?",
+                      nextStepId: null,
+                      isEndState: true,
+                      movieSuggestions: {
+                        create: [
+                          {
+                            movieId: movies[1].id,
+                            reason: "Comédia romântica leve e divertida",
+                            relevance: 1
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  });
+
+  console.log('Dados iniciais criados com sucesso!');
+  console.log('Sentimento principal criado:', happySentiment);
 }
 
 async function createMainSentiments(): Promise<MainSentimentWithSubs[]> {

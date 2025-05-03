@@ -12,9 +12,9 @@ const port = process.env.PORT || 3000;
 
 // Configuração CORS mais específica
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Vite usa a porta 5173 por padrão
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Aceita ambas as origens
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type'],
 }));
 
 app.use(express.json());
