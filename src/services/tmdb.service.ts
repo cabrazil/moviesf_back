@@ -28,6 +28,12 @@ interface TMDBMovie {
   relevanceScore?: number;
 }
 
+interface TMDBPaginatedResponse<T> {
+  results: T[];
+  total_pages: number;
+  total_results: number;
+}
+
 export class TMDBService {
   private readonly baseUrl = 'https://api.themoviedb.org/3';
   private readonly apiKey: string;
@@ -127,7 +133,7 @@ export class TMDBService {
 
   async getConfiguration(): Promise<TMDBConfig> {
     try {
-      const response = await axios.get(`${this.baseUrl}/configuration`, {
+      const response = await axios.get<TMDBConfig>(`${this.baseUrl}/configuration`, {
         headers: this.getHeaders()
       });
       return response.data;
@@ -137,13 +143,9 @@ export class TMDBService {
     }
   }
 
-  async searchMovies(query: string, page: number = 1): Promise<{
-    results: TMDBMovie[];
-    total_pages: number;
-    total_results: number;
-  }> {
+  async searchMovies(query: string, page: number = 1): Promise<TMDBPaginatedResponse<TMDBMovie>> {
     try {
-      const response = await axios.get(`${this.baseUrl}/search/movie`, {
+      const response = await axios.get<TMDBPaginatedResponse<TMDBMovie>>(`${this.baseUrl}/search/movie`, {
         headers: this.getHeaders(),
         params: {
           query,
@@ -161,7 +163,7 @@ export class TMDBService {
 
   async getMovieDetails(movieId: number): Promise<TMDBMovie> {
     try {
-      const response = await axios.get(`${this.baseUrl}/movie/${movieId}`, {
+      const response = await axios.get<TMDBMovie>(`${this.baseUrl}/movie/${movieId}`, {
         headers: this.getHeaders(),
         params: {
           language: 'pt-BR'
@@ -174,13 +176,9 @@ export class TMDBService {
     }
   }
 
-  async getPopularMovies(page: number = 1): Promise<{
-    results: TMDBMovie[];
-    total_pages: number;
-    total_results: number;
-  }> {
+  async getPopularMovies(page: number = 1): Promise<TMDBPaginatedResponse<TMDBMovie>> {
     try {
-      const response = await axios.get(`${this.baseUrl}/movie/popular`, {
+      const response = await axios.get<TMDBPaginatedResponse<TMDBMovie>>(`${this.baseUrl}/movie/popular`, {
         headers: this.getHeaders(),
         params: {
           page,

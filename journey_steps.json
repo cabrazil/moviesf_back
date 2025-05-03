@@ -1,0 +1,64 @@
+{
+  "journeySteps": [
+    {
+      "sentiment": "central feeling",
+      "first_step": "central phrase",
+      "options1": {
+            "name": "...com muitas gargalhadas e um humor contagiante?",
+            "next_step": "Excelente! Você prefere um humor mais...",
+            "options": [
+              {
+                "option1": "...com muitas gargalhadas e um humor contagiante?",
+                "movies": ["Movie 1", "Movie 2", "Movie 3"]    
+              },
+              {
+                "option2": "...com calor no coração e uma sensação adorável?",
+                "movies": ["Movie 1", "Movie 2", "Movie 3"]
+              },
+              {
+                "option3": "...empolgado(a) e cheio(a) de energia?",
+                "movies": ["Movie 1", "Movie 2", "Movie 3"]
+              },
+              {
+                "option4": "...com um humor mais sutil e delicado?",
+                "movies": ["Movie 1", "Movie 2", "Movie 3"]
+              }
+            ]
+      },
+      "options2": {
+            "name": "...com calor no coração e uma sensação adorável?",
+            "next_step": "Adorável! Você está mais no clima de...",
+            "options": [
+              {
+                "option1": "...uma comédia romântica com um final doce e feliz?", 
+                "movies": ["Movie 1", "Movie 2", "Movie 3"]    
+              },
+              {
+                "option2": "...uma comédia romântica com um final doce e feliz?",
+                "movies": ["Movie 1", "Movie 2", "Movie 3"]
+              },
+              {
+                "option3": "...uma comédia romântica com um final doce e feliz?",
+                "movies": ["Movie 1", "Movie 2", "Movie 3"]
+              },
+              {
+                "option4": "...uma comédia romântica com um final doce e feliz?",
+                "movies": ["Movie 1", "Movie 2", "Movie 3"]
+              }
+            ]
+      }
+    }
+  ]
+}
+
+
+
+
+
+
+
+
+
+
+
+          
