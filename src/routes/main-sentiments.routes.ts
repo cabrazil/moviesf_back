@@ -60,7 +60,19 @@ router.get('/:id/journey-flow', async (req, res) => {
                   include: {
                     movieSuggestions: {
                       include: {
-                        movie: true
+                        movie: {
+                          select: {
+                            id: true,
+                            title: true,
+                            description: true,
+                            year: true,
+                            director: true,
+                            genres: true,
+                            streamingPlatforms: true,
+                            thumbnail: true,
+                            original_title: true
+                          }
+                        }
                       }
                     }
                   },

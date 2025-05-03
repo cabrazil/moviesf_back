@@ -45,7 +45,8 @@ CREATE TABLE "MovieSuggestionFlow" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "MovieSuggestionFlow_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "MovieSuggestionFlow_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "MovieSuggestionFlow_journeyOptionFlowId_movieId_key" UNIQUE ("journeyOptionFlowId", "movieId")
 );
 
 -- CreateIndex

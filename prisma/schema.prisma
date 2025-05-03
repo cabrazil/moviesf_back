@@ -3,81 +3,83 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model Movie {
-  id                 String               @id @default(uuid())
-  title              String               @unique
-  year               Int?
-  director           String?
-  description        String?
-  genres             String[]
-  streamingPlatforms String[]
-  movieSuggestions   MovieSuggestion[]
-  movieSentiments    MovieSentiment[]
+  id                   String                @id @default(uuid())
+  title                String                @unique
+  year                 Int?
+  director             String?
+  genres               String[]
+  streamingPlatforms   String[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  description          String?
+  thumbnail            String?
+  original_title       String?
+  movieSentiments      MovieSentiment[]
+  movieSuggestions     MovieSuggestion[]
   movieSuggestionFlows MovieSuggestionFlow[]
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
 }
 
 model EmotionalState {
-  id            Int               @id @default(autoincrement())
-  name          String            @unique
-  description   String?
-  mainSentiment MainSentiment     @relation(fields: [mainSentimentId], references: [id])
-  mainSentimentId Int
-  journeySteps  JourneyStep[]     // Relação com os passos da jornada
-  isActive      Boolean           @default(true)
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  description      String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  mainSentimentId  Int
+  mainSentiment    MainSentiment     @relation(fields: [mainSentimentId], references: [id])
+  journeySteps     JourneyStep[]
   movieSuggestions MovieSuggestion[]
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
 
   @@index([mainSentimentId])
 }
 
 model JourneyStep {
-  id              String          @id @default(uuid())
-  emotionalState  EmotionalState  @relation(fields: [emotionalStateId], references: [id])
+  id               String          @id @default(uuid())
   emotionalStateId Int
-  order           Int             // Mantemos order como Int para ordenação interna
-  stepId          String          // Novo campo para identificação hierárquica (1, 2A, 2B, etc)
-  question        String          // Pergunta a ser exibida
-  options         JourneyOption[] // Opções disponíveis neste passo
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  order            Int
+  question         String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  stepId           String
+  options          JourneyOption[]
+  emotionalState   EmotionalState  @relation(fields: [emotionalStateId], references: [id])
 
   @@index([emotionalStateId])
 }
 
 model JourneyOption {
-  id            Int           @id @default(autoincrement())
-  journeyStep   JourneyStep   @relation(fields: [journeyStepId], references: [id])
-  journeyStepId String        // Atualizado para String para corresponder ao novo tipo do id do JourneyStep
-  text          String        // Texto da opção
-  nextStepId    String?      // Atualizado para String para corresponder ao novo tipo do id do JourneyStep
-  isFinal       Boolean       @default(false) // Indica se esta opção leva a uma sugestão
-  movieSuggestions MovieSuggestion[] // Relação com as sugestões de filmes
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id               Int               @id @default(autoincrement())
+  journeyStepId    String
+  text             String
+  nextStepId       String?
+  isFinal          Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  journeyStep      JourneyStep       @relation(fields: [journeyStepId], references: [id])
+  movieSuggestions MovieSuggestion[]
 
   @@index([journeyStepId])
 }
 
 model MovieSuggestion {
-  id              Int            @id @default(autoincrement())
-  movie           Movie          @relation(fields: [movieId], references: [id])
-  movieId         String
-  emotionalState  EmotionalState @relation(fields: [emotionalStateId], references: [id])
+  id               Int            @id @default(autoincrement())
+  movieId          String
   emotionalStateId Int
-  journeyOption   JourneyOption  @relation(fields: [journeyOptionId], references: [id])
-  journeyOptionId Int
-  reason          String         // Razão para a sugestão neste contexto
-  relevance       Int           @default(1) // Peso/relevância da sugestão
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  reason           String
+  relevance        Int            @default(1)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  journeyOptionId  Int
+  emotionalState   EmotionalState @relation(fields: [emotionalStateId], references: [id])
+  journeyOption    JourneyOption  @relation(fields: [journeyOptionId], references: [id])
+  movie            Movie          @relation(fields: [movieId], references: [id])
 
   @@index([movieId])
   @@index([emotionalStateId])
@@ -85,41 +87,41 @@ model MovieSuggestion {
 }
 
 model MainSentiment {
-  id            Int             @id @default(autoincrement())
-  name          String          @unique
-  description   String?
-  keywords      String[]        @default([])
-  journeyFlow   JourneyFlow?
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  description     String?
+  keywords        String[]         @default([])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   emotionalStates EmotionalState[]
-  subSentiments SubSentiment[]
-  movieSentiment MovieSentiment[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  journeyFlow     JourneyFlow?
+  movieSentiment  MovieSentiment[]
+  subSentiments   SubSentiment[]
 }
 
 model SubSentiment {
-  id             Int           @id @default(autoincrement())
-  name           String        @unique
-  description    String?
-  keywords       String[]      @default([])
-  mainSentiment  MainSentiment @relation(fields: [mainSentimentId], references: [id])
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  description     String?
+  keywords        String[]         @default([])
   mainSentimentId Int
-  movieSentiment MovieSentiment[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  movieSentiment  MovieSentiment[]
+  mainSentiment   MainSentiment    @relation(fields: [mainSentimentId], references: [id])
 
   @@index([mainSentimentId])
 }
 
 model MovieSentiment {
-  movie             Movie           @relation(fields: [movieId], references: [id])
-  movieId           String
-  mainSentiment     MainSentiment   @relation(fields: [mainSentimentId], references: [id])
-  mainSentimentId   Int
-  subSentiment      SubSentiment    @relation(fields: [subSentimentId], references: [id])
-  subSentimentId    Int
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  movieId         String
+  mainSentimentId Int
+  subSentimentId  Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  mainSentiment   MainSentiment @relation(fields: [mainSentimentId], references: [id])
+  movie           Movie         @relation(fields: [movieId], references: [id])
+  subSentiment    SubSentiment  @relation(fields: [subSentimentId], references: [id])
 
   @@id([movieId, mainSentimentId, subSentimentId])
   @@index([mainSentimentId])
@@ -127,54 +129,55 @@ model MovieSentiment {
 }
 
 model JourneyFlow {
-  id              Int             @id @default(autoincrement())
-  mainSentiment   MainSentiment   @relation(fields: [mainSentimentId], references: [id])
-  mainSentimentId Int             @unique
+  id              Int               @id @default(autoincrement())
+  mainSentimentId Int               @unique
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  mainSentiment   MainSentiment     @relation(fields: [mainSentimentId], references: [id])
   steps           JourneyStepFlow[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
 }
 
 model JourneyStepFlow {
-  id              Int             @id @default(autoincrement())
-  journeyFlow     JourneyFlow     @relation(fields: [journeyFlowId], references: [id])
-  journeyFlowId   Int
-  stepId          String          // Identificador único do passo (ex: "1", "2A", "2B")
-  order           Int             // Ordem do passo na jornada
-  question        String          // Pergunta a ser exibida
-  options         JourneyOptionFlow[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id            Int                 @id @default(autoincrement())
+  journeyFlowId Int
+  stepId        String
+  order         Int
+  question      String
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  options       JourneyOptionFlow[]
+  journeyFlow   JourneyFlow         @relation(fields: [journeyFlowId], references: [id])
 
   @@index([journeyFlowId])
 }
 
 model JourneyOptionFlow {
-  id              Int             @id @default(autoincrement())
-  journeyStepFlow JourneyStepFlow @relation(fields: [journeyStepFlowId], references: [id])
+  id                Int                   @id @default(autoincrement())
   journeyStepFlowId Int
-  optionId        String          // Identificador único da opção
-  text            String          // Texto da opção
-  nextStepId      String?         // ID do próximo passo ou null se for final
-  isEndState      Boolean         @default(false) // Indica se esta opção leva a sugestões de filmes
-  movieSuggestions MovieSuggestionFlow[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  optionId          String
+  text              String
+  nextStepId        String?
+  isEndState        Boolean               @default(false)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  journeyStepFlow   JourneyStepFlow       @relation(fields: [journeyStepFlowId], references: [id])
+  movieSuggestions  MovieSuggestionFlow[]
 
   @@index([journeyStepFlowId])
 }
 
 model MovieSuggestionFlow {
-  id              Int             @id @default(autoincrement())
-  journeyOptionFlow JourneyOptionFlow @relation(fields: [journeyOptionFlowId], references: [id])
+  id                  Int               @id @default(autoincrement())
   journeyOptionFlowId Int
-  movie           Movie           @relation(fields: [movieId], references: [id])
-  movieId         String
-  reason          String          // Razão para a sugestão neste contexto
-  relevance       Int            @default(1) // Relevância da sugestão
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  movieId             String
+  reason              String
+  relevance           Int               @default(1)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  journeyOptionFlow   JourneyOptionFlow @relation(fields: [journeyOptionFlowId], references: [id])
+  movie               Movie             @relation(fields: [movieId], references: [id])
 
+  @@unique([journeyOptionFlowId, movieId], map: "movie_suggestion_flow_unique_constraint")
   @@index([journeyOptionFlowId])
   @@index([movieId])
 }
