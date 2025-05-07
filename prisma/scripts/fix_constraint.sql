@@ -1,10 +1,10 @@
--- Primeiro, remover a restrição existente
+-- Remove a constraint existente se ela existir
 DO $$ 
 BEGIN
     IF EXISTS (
         SELECT 1 
-        FROM information_schema.table_constraints 
-        WHERE constraint_name = 'MovieSuggestionFlow_journeyOptionFlowId_movieId_key'
+        FROM pg_constraint 
+        WHERE conname = 'MovieSuggestionFlow_journeyOptionFlowId_movieId_key'
     ) THEN
         ALTER TABLE "MovieSuggestionFlow" 
         DROP CONSTRAINT "MovieSuggestionFlow_journeyOptionFlowId_movieId_key";

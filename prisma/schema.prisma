@@ -178,7 +178,6 @@ model MovieSuggestionFlow {
   journeyOptionFlow   JourneyOptionFlow @relation(fields: [journeyOptionFlowId], references: [id])
   movie               Movie             @relation(fields: [movieId], references: [id])
 
-  @@unique([journeyOptionFlowId, movieId], map: "movie_suggestion_flow_unique_constraint")
   @@index([journeyOptionFlowId])
   @@index([movieId])
 }

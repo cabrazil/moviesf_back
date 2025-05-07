@@ -1,0 +1,4 @@
+# This is an empty migration.
+
+migration_name = "20250502214430_remove_unique_constraint"
+checksum = "1234567890" 

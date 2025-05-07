@@ -106,7 +106,7 @@ const genreReflections: { [key: string]: string } = {
 // Mapeamento de plataformas de streaming
 const streamingPlatforms: { [key: string]: string[] } = {
   'Netflix': ['Netflix'],
-  'Amazon Prime Video': ['Amazon Prime Video'],
+  'Prime Video': ['Prime Video'],
   'Disney+': ['Disney+'],
   'HBO Max': ['HBO Max'],
   'Apple TV+': ['Apple TV+'],
@@ -114,7 +114,7 @@ const streamingPlatforms: { [key: string]: string[] } = {
   'Peacock': ['Peacock'],
   'Hulu': ['Hulu'],
   'YouTube': ['YouTube'],
-  'Google Play Movies': ['Google Play Movies'],
+  'Google Play': ['Google Play'],
   'Apple iTunes': ['Apple iTunes'],
   'Vudu': ['Vudu'],
   'Microsoft Store': ['Microsoft Store']

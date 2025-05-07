@@ -19,4 +19,21 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Buscar sub-sentimentos de um sentimento principal
+router.get('/:id/sub-sentiments', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const subSentiments = await prisma.subSentiment.findMany({
+      where: {
+        mainSentimentId: Number(id)
+      }
+    });
+
+    return res.json(subSentiments);
+  } catch (error) {
+    console.error('Erro ao buscar sub-sentimentos:', error);
+    return res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router; 

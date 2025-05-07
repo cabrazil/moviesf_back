@@ -14,7 +14,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "ts-node prisma/seed.ts",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "db:backup": "ts-node prisma/scripts/backup-database.ts",
+    "db:restore": "ts-node prisma/scripts/restore-database.ts"
   },
   "keywords": [],
   "author": "",
