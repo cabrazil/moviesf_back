@@ -46,6 +46,12 @@ interface TMDBWatchProvidersResponse {
       flatrate?: Array<{
         provider_name: string;
       }>;
+      rent?: Array<{
+        provider_name: string;
+      }>;
+      buy?: Array<{
+        provider_name: string;
+      }>;
     };
   };
 }
@@ -103,21 +109,29 @@ const genreReflections: { [key: string]: string } = {
   'Western': 'Explora temas de justiça, honra e o conflito entre civilização e natureza.'
 };
 
-// Mapeamento de plataformas de streaming
-const streamingPlatforms: { [key: string]: string[] } = {
-  'Netflix': ['Netflix'],
-  'Prime Video': ['Prime Video'],
-  'Disney+': ['Disney+'],
-  'HBO Max': ['HBO Max'],
-  'Apple TV+': ['Apple TV+'],
-  'Paramount+': ['Paramount+'],
-  'Peacock': ['Peacock'],
-  'Hulu': ['Hulu'],
-  'YouTube': ['YouTube'],
-  'Google Play': ['Google Play'],
-  'Apple iTunes': ['Apple iTunes'],
-  'Vudu': ['Vudu'],
-  'Microsoft Store': ['Microsoft Store']
+// Mapeamento de plataformas do TMDB para nosso padrão
+const platformMapping: { [key: string]: string } = {
+  'Netflix': 'Netflix',
+  'Prime Video': 'Prime Video',
+  'Amazon Prime Video': 'Prime Video',
+  'Amazon Video': 'Prime Video',
+  'Disney Plus': 'Disney+',
+  'Disney+': 'Disney+',
+  'HBO Max': 'Max',
+  'Max': 'Max',
+  'Max Amazon Channel': 'Max',
+  'Apple TV Plus': 'Apple TV+',
+  'Apple TV+': 'Apple TV+',
+  'Paramount Plus': 'Paramount+',
+  'Paramount+': 'Paramount+',
+  'Peacock': 'Peacock',
+  'Hulu': 'Hulu',
+  'YouTube': 'YouTube',
+  'Google Play Movies': 'Google Play',
+  'Google Play': 'Google Play',
+  'Apple iTunes': 'Apple iTunes',
+  'Vudu': 'Vudu',
+  'Microsoft Store': 'Microsoft Store'
 };
 
 async function getMovieStreamingInfo(movieId: number): Promise<string[]> {
@@ -128,36 +142,99 @@ async function getMovieStreamingInfo(movieId: number): Promise<string[]> {
       }
     });
 
-    const providers = response.data.results?.BR?.flatrate || [];
-    return providers.map(provider => provider.provider_name);
+    // Log para debug
+    console.log('Provedores TMDB:', JSON.stringify(response.data.results?.BR, null, 2));
+
+    // Pegar todos os tipos de provedores (flatrate, rent, buy)
+    const allProviders = [
+      ...(response.data.results?.BR?.flatrate || []),
+      ...(response.data.results?.BR?.rent || [])
+    ];
+
+    // Mapear e filtrar provedores únicos
+    const mappedProviders = allProviders
+      .map(provider => {
+        // Log para debug
+        console.log(`Mapeando provedor: ${provider.provider_name}`);
+        return platformMapping[provider.provider_name];
+      })
+      .filter(Boolean);
+
+    // Remover duplicatas
+    return [...new Set(mappedProviders)];
   } catch (error) {
     console.error(`Erro ao buscar informações de streaming: ${error}`);
     return [];
   }
 }
 
-function generateReflection(movie: TMDBMovie, keywords: string[]): string {
+// function generateReflection(movie: TMDBMovie, keywords: string[]): string {
+//   try {
+//     const genreReflectionsList = movie.genres
+//       .map(genre => genreReflections[genre.name])
+//       .filter(Boolean);
+
+//     const reflectionParts = [
+//       ...genreReflectionsList,
+//       ...keywords.map(keyword => `Explora temas relacionados a ${keyword.toLowerCase()}.`)
+//     ];
+
+//     // Limitar a reflexão às 3 primeiras linhas
+//     const limitedReflection = reflectionParts.slice(0, 3).join(' ');
+
+//     return limitedReflection || `Filme sugerido baseado em ${movie.title}`;
+//   } catch (error) {
+//     console.error(`Erro ao gerar reflexão para ${movie.title}:`, error);
+//     return `Filme sugerido baseado em ${movie.title}`;
+//   }
+// }
+
+async function generateReflectionWithOpenAI(movie: TMDBMovie, keywords: string[]): Promise<string> {
+  const prompt = `
+Sinopse: ${movie.overview}
+Gêneros: ${movie.genres.map(g => g.name).join(', ')}
+Palavras-chave: ${keywords.join(', ')}
+
+Com base nessas informações, escreva uma reflexão curta, inspiradora e única sobre o filme, conectando os temas principais e o impacto emocional da história. 
+A reflexão deve ter no máximo 30 palavras e terminar com um ponto final.
+Não repita o nome do filme.
+`;
+
   try {
-    const genreReflectionsList = movie.genres
-      .map(genre => genreReflections[genre.name])
-      .filter(Boolean);
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 80,
+        temperature: 0.7
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    const reflectionParts = [
-      ...genreReflectionsList,
-      ...keywords.map(keyword => `Explora temas relacionados a ${keyword.toLowerCase()}.`)
-    ];
+    // Log para depuração
+    console.log('Resposta da OpenAI:', JSON.stringify(response.data, null, 2));
 
-    // Limitar a reflexão às 3 primeiras linhas
-    const limitedReflection = reflectionParts.slice(0, 3).join(' ');
-
-    return limitedReflection || `Filme sugerido baseado em ${movie.title}`;
+    const data = response.data as { choices?: { message?: { content?: string } }[] };
+    const content = data.choices?.[0]?.message?.content;
+    if (content) {
+      return content.trim();
+    } else {
+      console.error('Formato inesperado da resposta da OpenAI:', response.data);
+      return `Filme sugerido baseado em ${movie.title}`;
+    }
   } catch (error) {
-    console.error(`Erro ao gerar reflexão para ${movie.title}:`, error);
+    console.error('Erro ao gerar reflexão com OpenAI:', error);
     return `Filme sugerido baseado em ${movie.title}`;
   }
 }
 
-async function getMovieDirector(movieId: number): Promise<string | null> {
+async function getMovieDirectors(movieId: number): Promise<string | null> {
   try {
     const response = await axios.get<TMDBMovieCredits>(`${TMDB_API_URL}/movie/${movieId}/credits`, {
       params: {
@@ -166,10 +243,20 @@ async function getMovieDirector(movieId: number): Promise<string | null> {
       }
     });
 
-    const director = response.data.crew.find(person => person.job === 'Director');
-    return director ? director.name : null;
+    // Pegar todos os diretores
+    const directors = response.data.crew
+      .filter(person => person.job === 'Director')
+      .map(person => person.name);
+
+    // Se não encontrar diretores, retorna null
+    if (directors.length === 0) {
+      return null;
+    }
+
+    // Retorna os diretores separados por vírgula
+    return directors.join(', ');
   } catch (error) {
-    console.error(`Erro ao buscar diretor do filme ID ${movieId}:`, error);
+    console.error(`Erro ao buscar diretores do filme ID ${movieId}:`, error);
     return null;
   }
 }
@@ -251,10 +338,10 @@ async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBM
       return null;
     }
 
-    // Buscar o diretor
-    const director = await getMovieDirector(movie.id);
-    if (director) {
-      console.log(`Diretor encontrado: ${director}`);
+    // Buscar os diretores
+    const directors = await getMovieDirectors(movie.id);
+    if (directors) {
+      console.log(`Diretores encontrados: ${directors}`);
     }
 
     // Buscar palavras-chave
@@ -270,13 +357,13 @@ async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBM
     const platforms = await getMovieStreamingInfo(movie.id);
     
     // Gerar reflexão
-    const reflection = generateReflection({ ...movie, genres: details.data.genres }, keywords);
+    const reflection = await generateReflectionWithOpenAI({ ...movie, genres: details.data.genres }, keywords);
 
     return {
       movie: { ...movie, genres: details.data.genres },
       reflection,
       platforms,
-      director: director || null
+      director: directors || null
     };
   } catch (error) {
     console.error(`Erro ao buscar filme ${title}:`, error);
@@ -309,6 +396,11 @@ async function processMoviesFromFile(filePath: string) {
 
     for await (const line of rl) {
       lineNumber++;
+
+      // Ignorar linhas em branco ou comentários
+      if (!line.trim() || line.trim().startsWith('#')) {
+        continue;
+      }
       
       // Pular cabeçalho se existir
       if (lineNumber === 1 && line.toLowerCase().includes('movie title')) {
@@ -359,7 +451,7 @@ async function processMoviesFromFile(filePath: string) {
           const { movie, reflection, platforms, director } = result;
           console.log(`Filme encontrado no TMDB: ${movie.title} (${movie.release_date})`);
           console.log(`Título original: ${movie.original_title}`);
-          console.log(`Diretor: ${director || 'Não encontrado'}`);
+          console.log(`Diretores: ${director || 'Não encontrado'}`);
           console.log(`Reflexão gerada: ${reflection}`);
           console.log(`Plataformas encontradas: ${platforms.join(', ')}`);
           
@@ -388,12 +480,12 @@ async function processMoviesFromFile(filePath: string) {
             duplicateCount++;
             
             // Verificar se já existe a sugestão para este JourneyOptionFlow
-            const existingSuggestion = await prisma.movieSuggestionFlow.findUnique({
+            const existingSuggestion = await prisma.movieSuggestionFlow.findFirst({
               where: {
-                journeyOptionFlowId_movieId: {
-                  journeyOptionFlowId: parsedJourneyOptionFlowId,
-                  movieId: existingMovie.id
-                }
+                AND: [
+                  { journeyOptionFlowId: parsedJourneyOptionFlowId },
+                  { movieId: existingMovie.id }
+                ]
               }
             });
 
