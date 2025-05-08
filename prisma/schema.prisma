@@ -3,9 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  directUrl    = env("DIRECT_URL")
   relationMode = "prisma"
 }
 
@@ -22,82 +22,19 @@ model Movie {
   thumbnail            String?
   original_title       String?
   movieSentiments      MovieSentiment[]
-  movieSuggestions     MovieSuggestion[]
   movieSuggestionFlows MovieSuggestionFlow[]
 }
 
-model EmotionalState {
-  id               Int               @id @default(autoincrement())
-  name             String            @unique
-  description      String?
-  isActive         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  mainSentimentId  Int
-  mainSentiment    MainSentiment     @relation(fields: [mainSentimentId], references: [id])
-  journeySteps     JourneyStep[]
-  movieSuggestions MovieSuggestion[]
-
-  @@index([mainSentimentId])
-}
-
-model JourneyStep {
-  id               String          @id @default(uuid())
-  emotionalStateId Int
-  order            Int
-  question         String
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  stepId           String
-  options          JourneyOption[]
-  emotionalState   EmotionalState  @relation(fields: [emotionalStateId], references: [id])
-
-  @@index([emotionalStateId])
-}
-
-model JourneyOption {
-  id               Int               @id @default(autoincrement())
-  journeyStepId    String
-  text             String
-  nextStepId       String?
-  isFinal          Boolean           @default(false)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  journeyStep      JourneyStep       @relation(fields: [journeyStepId], references: [id])
-  movieSuggestions MovieSuggestion[]
-
-  @@index([journeyStepId])
-}
-
-model MovieSuggestion {
-  id               Int            @id @default(autoincrement())
-  movieId          String
-  emotionalStateId Int
-  reason           String
-  relevance        Int            @default(1)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  journeyOptionId  Int
-  emotionalState   EmotionalState @relation(fields: [emotionalStateId], references: [id])
-  journeyOption    JourneyOption  @relation(fields: [journeyOptionId], references: [id])
-  movie            Movie          @relation(fields: [movieId], references: [id])
-
-  @@index([movieId])
-  @@index([emotionalStateId])
-  @@index([journeyOptionId])
-}
-
 model MainSentiment {
-  id              Int              @id @default(autoincrement())
-  name            String           @unique
-  description     String?
-  keywords        String[]         @default([])
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  emotionalStates EmotionalState[]
-  journeyFlow     JourneyFlow?
-  movieSentiment  MovieSentiment[]
-  subSentiments   SubSentiment[]
+  id             Int              @id @default(autoincrement())
+  name           String           @unique
+  description    String?
+  keywords       String[]         @default([])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  journeyFlow    JourneyFlow?
+  movieSentiment MovieSentiment[]
+  subSentiments  SubSentiment[]
 }
 
 model SubSentiment {
@@ -168,7 +105,7 @@ model JourneyOptionFlow {
 }
 
 model MovieSuggestionFlow {
-  id                  Int               @id @default(autoincrement())
+  id                  Int               @id(map: "movie_suggestion_flows_pkey") @default(autoincrement())
   journeyOptionFlowId Int
   movieId             String
   reason              String
@@ -178,6 +115,6 @@ model MovieSuggestionFlow {
   journeyOptionFlow   JourneyOptionFlow @relation(fields: [journeyOptionFlowId], references: [id])
   movie               Movie             @relation(fields: [movieId], references: [id])
 
-  @@index([journeyOptionFlowId])
-  @@index([movieId])
+  @@index([journeyOptionFlowId], map: "movie_suggestion_flows_journeyOptionFlowId_idx")
+  @@index([movieId], map: "movie_suggestion_flows_movieId_idx")
 }

@@ -24,8 +24,7 @@ router.get('/', async (req, res) => {
     const movies = await prisma.movie.findMany({
       include: {
         movieSentiments: true,
-        movieSuggestions: true,
-        movieSuggestionFlows: true,
+        movieSuggestionFlows: true
       },
     });
     res.json(movies);

@@ -180,4 +180,27 @@ router.get('/data', async (req, res) => {
   }
 });
 
+// Listar todos os fluxos de opção
+router.get('/journey-options', async (req, res) => {
+  try {
+    const journeyOptionFlows = await prisma.journeyOptionFlow.findMany({
+      include: {
+        journeyStepFlow: {
+          include: {
+            journeyFlow: {
+              include: {
+                mainSentiment: true
+              }
+            }
+          }
+        }
+      }
+    });
+    res.json(journeyOptionFlows);
+  } catch (error) {
+    console.error('Erro ao buscar fluxos de opção:', error);
+    res.status(500).json({ error: 'Erro ao buscar fluxos de opção' });
+  }
+});
+
 export default router; 
