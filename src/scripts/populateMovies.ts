@@ -17,6 +17,8 @@ interface TMDBMovie {
   original_title: string;
   release_date: string;
   vote_average: number;
+  vote_count: number;
+  adult: boolean;
   poster_path: string | null;
   overview: string;
   genres: { id: number; name: string }[];
@@ -28,6 +30,15 @@ interface TMDBMovieDetails {
   id: number;
   genres: { id: number; name: string }[];
   keywords: { id: number; name: string }[];
+  release_dates: {
+    results: Array<{
+      iso_3166_1: string;
+      release_dates: Array<{
+        certification: string;
+        type: number;
+      }>;
+    }>;
+  };
 }
 
 interface TMDBResponse {
@@ -69,6 +80,14 @@ interface TMDBMovieCredits {
     name: string;
     job: string;
   }>;
+}
+
+interface GoogleTranslateResponse {
+  data: {
+    translations: Array<{
+      translatedText: string;
+    }>;
+  };
 }
 
 const titleMapping: { [key: string]: string } = {
@@ -261,7 +280,91 @@ async function getMovieDirectors(movieId: number): Promise<string | null> {
   }
 }
 
-async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBMovie; reflection: string; platforms: string[]; director: string | null } | null> {
+async function getBrazilianCertification(movieId: number): Promise<string | null> {
+  try {
+    const response = await axios.get<TMDBMovieDetails>(`${TMDB_API_URL}/movie/${movieId}`, {
+      params: {
+        api_key: TMDB_API_KEY,
+        append_to_response: 'release_dates',
+        language: 'pt-BR'
+      }
+    });
+
+    const brazilRelease = response.data.release_dates.results.find(
+      release => release.iso_3166_1 === 'BR'
+    );
+
+    if (!brazilRelease || !brazilRelease.release_dates.length) {
+      return null;
+    }
+
+    // Priorizar certificação do cinema (type: 3)
+    const cinemaRelease = brazilRelease.release_dates.find(
+      release => release.type === 3
+    );
+
+    // Se não encontrar certificação do cinema, usar a primeira disponível
+    const certification = cinemaRelease?.certification || brazilRelease.release_dates[0].certification;
+
+    return certification || null;
+  } catch (error) {
+    console.error(`Erro ao buscar certificação para o filme ID ${movieId}:`, error);
+    return null;
+  }
+}
+
+async function translateText(text: string): Promise<string> {
+  try {
+    const response = await axios.post<GoogleTranslateResponse>(
+      `https://translation.googleapis.com/language/translate/v2?key=${process.env.GOOGLE_TRANSLATE_API_KEY}`,
+      {
+        q: text,
+        source: 'en',
+        target: 'pt',
+        format: 'text'
+      }
+    );
+
+    return response.data.data.translations[0].translatedText;
+  } catch (error) {
+    console.error(`Erro ao traduzir texto "${text}":`, error);
+    return text; // Retorna o texto original em caso de erro
+  }
+}
+
+async function getMovieKeywords(movieId: number): Promise<string[]> {
+  try {
+    const response = await axios.get<TMDBKeywordsResponse>(`${TMDB_API_URL}/movie/${movieId}/keywords`, {
+      params: {
+        api_key: TMDB_API_KEY
+      }
+    });
+
+    // Obter as palavras-chave em inglês
+    const englishKeywords = response.data.keywords.map(keyword => keyword.name);
+
+    // Traduzir cada palavra-chave para português
+    const translatedKeywords = await Promise.all(
+      englishKeywords.map(async (keyword) => {
+        try {
+          const translated = await translateText(keyword);
+          console.log(`Traduzindo: "${keyword}" -> "${translated}"`);
+          return translated;
+        } catch (error) {
+          console.error(`Erro ao traduzir palavra-chave "${keyword}":`, error);
+          return keyword;
+        }
+      })
+    );
+
+    return translatedKeywords;
+  } catch (error) {
+    console.error(`Erro ao buscar palavras-chave para o filme ID ${movieId}:`, error);
+    return [];
+  }
+}
+
+async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBMovie; reflection: string; platforms: string[]; director: string | null; certification: string | null; keywords: string[] } | null> {
   try {
     console.log(`Buscando filme no TMDB: ${title}${year ? ` (${year})` : ''}`);
     
@@ -345,16 +448,14 @@ async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBM
     }
 
     // Buscar palavras-chave
-    const keywordsResponse = await axios.get<TMDBKeywordsResponse>(`${TMDB_API_URL}/movie/${movie.id}/keywords`, {
-      params: {
-        api_key: TMDB_API_KEY
-      }
-    });
-
-    const keywords = keywordsResponse.data?.keywords?.map(k => k.name) || [];
+    const keywords = await getMovieKeywords(movie.id);
+    console.log(`Palavras-chave encontradas: ${keywords.join(', ')}`);
     
     // Buscar informações de streaming
     const platforms = await getMovieStreamingInfo(movie.id);
+    
+    // Buscar certificação brasileira
+    const certification = await getBrazilianCertification(movie.id);
     
     // Gerar reflexão
     const reflection = await generateReflectionWithOpenAI({ ...movie, genres: details.data.genres }, keywords);
@@ -363,7 +464,9 @@ async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBM
       movie: { ...movie, genres: details.data.genres },
       reflection,
       platforms,
-      director: directors || null
+      director: directors || null,
+      certification,
+      keywords
     };
   } catch (error) {
     console.error(`Erro ao buscar filme ${title}:`, error);
@@ -448,12 +551,17 @@ async function processMoviesFromFile(filePath: string) {
         const result = await searchMovie(title, parsedYear);
         
         if (result) {
-          const { movie, reflection, platforms, director } = result;
+          const { movie, reflection, platforms, director, certification, keywords } = result;
           console.log(`Filme encontrado no TMDB: ${movie.title} (${movie.release_date})`);
           console.log(`Título original: ${movie.original_title}`);
           console.log(`Diretores: ${director || 'Não encontrado'}`);
           console.log(`Reflexão gerada: ${reflection}`);
           console.log(`Plataformas encontradas: ${platforms.join(', ')}`);
+          console.log(`Certificação: ${certification || 'Não disponível'}`);
+          console.log(`Palavras-chave: ${keywords.join(', ')}`);
+          console.log(`Média de votos: ${movie.vote_average}`);
+          console.log(`Total de votos: ${movie.vote_count}`);
+          console.log(`Adulto: ${movie.adult}`);
           
           // Verificar se o filme já existe no banco
           const existingMovie = await prisma.movie.findFirst({
@@ -516,7 +624,12 @@ async function processMoviesFromFile(filePath: string) {
             thumbnail: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
             genres: movie.genres.map(genre => genre.name),
             streamingPlatforms: platforms,
-            director: director || null
+            director: director || null,
+            vote_average: movie.vote_average,
+            vote_count: movie.vote_count,
+            adult: movie.adult,
+            certification: certification,
+            keywords: keywords
           };
 
           // Criar novo filme

@@ -21,6 +21,11 @@ model Movie {
   description          String?
   thumbnail            String?
   original_title       String?
+  vote_average         Decimal?              @db.Decimal(3, 1)
+  vote_count           Int?
+  certification        String?               @db.VarChar(255)
+  adult                Boolean?              @default(false)
+  keywords             String[]
   movieSentiments      MovieSentiment[]
   movieSuggestionFlows MovieSuggestionFlow[]
 }
