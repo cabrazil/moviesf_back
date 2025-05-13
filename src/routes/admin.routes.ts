@@ -203,4 +203,56 @@ router.get('/journey-options', async (req, res) => {
   }
 });
 
+// Buscar detalhes de um fluxo de opção específico
+router.get('/journey-option-flows/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const journeyOptionFlow = await prisma.journeyOptionFlow.findUnique({
+      where: { id: Number(id) },
+      include: {
+        journeyStepFlow: {
+          include: {
+            journeyFlow: {
+              include: {
+                mainSentiment: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        movieSuggestions: {
+          include: {
+            movie: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                year: true,
+                director: true,
+                genres: true,
+                streamingPlatforms: true,
+                thumbnail: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!journeyOptionFlow) {
+      return res.status(404).json({ error: 'Fluxo de opção não encontrado' });
+    }
+
+    res.json(journeyOptionFlow);
+  } catch (error) {
+    console.error('Erro ao buscar detalhes do fluxo de opção:', error);
+    res.status(500).json({ error: 'Erro ao buscar detalhes do fluxo de opção' });
+  }
+});
+
 export default router; 
