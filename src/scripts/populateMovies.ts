@@ -101,7 +101,9 @@ const titleMapping: { [key: string]: string } = {
   'Um Sonho Possível': 'The Blind Side',
   'Karatê Kid': 'The Karate Kid',
   'O Homem que Mudou o Jogo': 'Moneyball',
-  'Soul': 'Soul 2020'
+  'Soul': 'Soul 2020',
+  'Fora de Rumo': 'Off the Map',
+  'O Homem das Trevas': 'The Dark Man'
 };
 
 // Mapeamento de gêneros para reflexões
@@ -162,7 +164,7 @@ async function getMovieStreamingInfo(movieId: number): Promise<string[]> {
     });
 
     // Log para debug
-    console.log('Provedores TMDB:', JSON.stringify(response.data.results?.BR, null, 2));
+    // console.log('Provedores TMDB:', JSON.stringify(response.data.results?.BR, null, 2));
 
     // Pegar todos os tipos de provedores (flatrate, rent, buy)
     const allProviders = [
@@ -237,7 +239,7 @@ Não repita o nome do filme.
     );
 
     // Log para depuração
-    console.log('Resposta da OpenAI:', JSON.stringify(response.data, null, 2));
+    // console.log('Resposta da OpenAI:', JSON.stringify(response.data, null, 2));
 
     const data = response.data as { choices?: { message?: { content?: string } }[] };
     const content = data.choices?.[0]?.message?.content;
@@ -348,7 +350,7 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
       englishKeywords.map(async (keyword) => {
         try {
           const translated = await translateText(keyword);
-          console.log(`Traduzindo: "${keyword}" -> "${translated}"`);
+          // console.log(`Traduzindo: "${keyword}" -> "${translated}"`);
           return translated;
         } catch (error) {
           console.error(`Erro ao traduzir palavra-chave "${keyword}":`, error);
@@ -371,7 +373,7 @@ async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBM
     // Remover o ano do título se existir
     const cleanTitle = title.replace(/\s*\d{4}$/, '').trim();
     
-    // Tentar primeiro com o título e ano como parâmetros separados
+    // Tentar primeiro com o título em português
     let response = await axios.get<TMDBResponse>(`${TMDB_API_URL}/search/movie`, {
       params: {
         api_key: TMDB_API_KEY,
@@ -382,15 +384,31 @@ async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBM
       }
     });
 
-    // Se não encontrar, tentar com o título em inglês
-    if (response.data.results.length === 0 && titleMapping[cleanTitle]) {
-      console.log(`Tentando buscar com o título em inglês: ${titleMapping[cleanTitle]}`);
+    // Se não encontrar, traduzir para inglês e tentar novamente
+    if (response.data.results.length === 0) {
+      console.log(`Traduzindo título para inglês...`);
+      const translatedTitle = await translateText(cleanTitle);
+      console.log(`Título traduzido: ${translatedTitle}`);
+      
       response = await axios.get<TMDBResponse>(`${TMDB_API_URL}/search/movie`, {
         params: {
           api_key: TMDB_API_KEY,
           language: 'pt-BR',
-          query: titleMapping[cleanTitle],
+          query: translatedTitle,
           year: year,
+          page: 1
+        }
+      });
+    }
+
+    // Se ainda não encontrar, tentar uma busca mais flexível
+    if (response.data.results.length === 0) {
+      console.log(`Tentando busca mais flexível para: ${cleanTitle}`);
+      response = await axios.get<TMDBResponse>(`${TMDB_API_URL}/search/movie`, {
+        params: {
+          api_key: TMDB_API_KEY,
+          language: 'pt-BR',
+          query: cleanTitle,
           page: 1
         }
       });
@@ -399,6 +417,31 @@ async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBM
     if (response.data.results.length === 0) {
       console.log(`Nenhum resultado encontrado para: ${title}`);
       return null;
+    }
+
+    // Mostrar resultados encontrados
+    console.log('\nResultados encontrados:');
+    response.data.results.slice(0, 5).forEach((movie, index) => {
+      const releaseYear = movie.release_date ? parseInt(movie.release_date.split('-')[0]) : 'N/A';
+      console.log(`${index + 1}. ${movie.title} (${movie.original_title}) - ${releaseYear}`);
+    });
+
+    // Função para calcular similaridade entre strings
+    function calculateSimilarity(str1: string, str2: string): number {
+      const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      // Se uma string contém a outra, retorna alta similaridade
+      if (s1.includes(s2) || s2.includes(s1)) {
+        return 0.8;
+      }
+      
+      // Contar palavras em comum
+      const words1 = s1.split(/\s+/);
+      const words2 = s2.split(/\s+/);
+      const commonWords = words1.filter(word => words2.includes(word));
+      
+      return commonWords.length / Math.max(words1.length, words2.length);
     }
 
     // Verificar se encontramos o filme correto
@@ -410,15 +453,18 @@ async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBM
         return false;
       }
 
-      // Verificar se o título corresponde (ignorando maiúsculas/minúsculas)
-      const titleMatch = m.title.toLowerCase() === cleanTitle.toLowerCase() || 
-                        m.original_title.toLowerCase() === cleanTitle.toLowerCase() ||
-                        (titleMapping[cleanTitle] && m.original_title.toLowerCase() === titleMapping[cleanTitle].toLowerCase());
+      // Calcular similaridade entre os títulos
+      const titleSimilarity = calculateSimilarity(cleanTitle, m.title);
+      const originalTitleSimilarity = calculateSimilarity(cleanTitle, m.original_title);
+      
+      // Se a similaridade for alta o suficiente, considera como match
+      const isMatch = titleSimilarity > 0.6 || originalTitleSimilarity > 0.6;
+      
+      if (isMatch) {
+        console.log(`Match encontrado: ${m.title} (similaridade: ${Math.max(titleSimilarity, originalTitleSimilarity).toFixed(2)})`);
+      }
 
-      // Verificar se é um filme de animação (para o caso do Soul)
-      const isAnimation = m.genre_ids?.includes(16); // 16 é o ID do gênero Animação no TMDB
-
-      return titleMatch && (!year || releaseYear === year) && (cleanTitle.toLowerCase() === 'soul' ? isAnimation : true);
+      return isMatch;
     });
 
     if (!movie) {
