@@ -10,10 +10,10 @@ datasource db {
 }
 
 model Movie {
-  id                   String                @id @default(uuid())
-  title                String                @unique
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                String                @unique @db.VarChar(255)
   year                 Int?
-  director             String?
+  director             String?               @db.VarChar(255)
   genres               String[]
   streamingPlatforms   String[]
   createdAt            DateTime              @default(now())
@@ -30,9 +30,14 @@ model Movie {
   movieSuggestionFlows MovieSuggestionFlow[]
 }
 
+model Genre {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
 model MainSentiment {
   id             Int              @id @default(autoincrement())
-  name           String           @unique
+  name           String           @unique @db.VarChar(255)
   description    String?
   keywords       String[]         @default([])
   createdAt      DateTime         @default(now())
@@ -43,21 +48,22 @@ model MainSentiment {
 }
 
 model SubSentiment {
-  id              Int              @id @default(autoincrement())
-  name            String           @unique
-  description     String?
-  keywords        String[]         @default([])
-  mainSentimentId Int
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  movieSentiment  MovieSentiment[]
-  mainSentiment   MainSentiment    @relation(fields: [mainSentimentId], references: [id])
+  id                 Int                 @id @default(autoincrement())
+  name               String              @unique @db.VarChar(255)
+  description        String?
+  keywords           String[]            @default([])
+  mainSentimentId    Int
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  movieSentiment     MovieSentiment[]
+  mainSentiment      MainSentiment       @relation(fields: [mainSentimentId], references: [id])
+  journeyOptionFlows JourneyOptionFlow[]
 
   @@index([mainSentimentId])
 }
 
 model MovieSentiment {
-  movieId         String
+  movieId         String        @db.Uuid
   mainSentimentId Int
   subSentimentId  Int
   createdAt       DateTime      @default(now())
@@ -83,7 +89,7 @@ model JourneyFlow {
 model JourneyStepFlow {
   id            Int                 @id @default(autoincrement())
   journeyFlowId Int
-  stepId        String
+  stepId        String              @db.VarChar(255)
   order         Int
   question      String
   createdAt     DateTime            @default(now())
@@ -95,24 +101,27 @@ model JourneyStepFlow {
 }
 
 model JourneyOptionFlow {
-  id                Int                   @id @default(autoincrement())
-  journeyStepFlowId Int
-  optionId          String
-  text              String
-  nextStepId        String?
-  isEndState        Boolean               @default(false)
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  journeyStepFlow   JourneyStepFlow       @relation(fields: [journeyStepFlowId], references: [id])
-  movieSuggestions  MovieSuggestionFlow[]
+  id                       Int                   @id @default(autoincrement())
+  journeyStepFlowId        Int
+  optionId                 String                @db.VarChar(255)
+  text                     String
+  nextStepId               String?               @db.VarChar(255)
+  isEndState               Boolean               @default(false)
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  associatedSubSentimentId Int?
+  journeyStepFlow          JourneyStepFlow       @relation(fields: [journeyStepFlowId], references: [id])
+  movieSuggestions         MovieSuggestionFlow[]
+  associatedSubSentiment   SubSentiment?         @relation(fields: [associatedSubSentimentId], references: [id])
 
   @@index([journeyStepFlowId])
+  @@index([associatedSubSentimentId])
 }
 
 model MovieSuggestionFlow {
-  id                  Int               @id(map: "movie_suggestion_flows_pkey") @default(autoincrement())
+  id                  Int               @id @default(autoincrement())
   journeyOptionFlowId Int
-  movieId             String
+  movieId             String            @db.Uuid
   reason              String
   relevance           Int               @default(1)
   createdAt           DateTime          @default(now())
