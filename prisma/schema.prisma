@@ -26,13 +26,17 @@ model Movie {
   certification        String?               @db.VarChar(255)
   adult                Boolean?              @default(false)
   keywords             String[]
+  genreIds             Int[]
   movieSentiments      MovieSentiment[]
   movieSuggestionFlows MovieSuggestionFlow[]
+  genreRelations       Genre[]               @relation("MovieGenres")
 }
 
 model Genre {
-  id   Int    @id @default(autoincrement())
-  name String @unique
+  id            Int                 @id @default(autoincrement())
+  name          String              @unique
+  subSentiments GenreSubSentiment[]
+  movies        Movie[]             @relation("MovieGenres")
 }
 
 model MainSentiment {
@@ -58,6 +62,7 @@ model SubSentiment {
   movieSentiment     MovieSentiment[]
   mainSentiment      MainSentiment       @relation(fields: [mainSentimentId], references: [id])
   journeyOptionFlows JourneyOptionFlow[]
+  genres             GenreSubSentiment[]
 
   @@index([mainSentimentId])
 }
@@ -131,4 +136,31 @@ model MovieSuggestionFlow {
 
   @@index([journeyOptionFlowId], map: "movie_suggestion_flows_journeyOptionFlowId_idx")
   @@index([movieId], map: "movie_suggestion_flows_movieId_idx")
+}
+
+model GenreSubSentiment {
+  id             Int          @id @default(autoincrement())
+  genreId        Int
+  subSentimentId Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  genre          Genre        @relation(fields: [genreId], references: [id])
+  subSentiment   SubSentiment @relation(fields: [subSentimentId], references: [id])
+
+  @@unique([genreId, subSentimentId])
+  @@index([genreId])
+  @@index([subSentimentId])
+}
+
+model JourneyOptionFlowSubSentiment {
+  id                  Int      @id @default(autoincrement())
+  journeyOptionFlowId Int
+  subSentimentId      Int
+  weight              Decimal  @default(1.0) @db.Decimal(3, 2)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime
+
+  @@unique([journeyOptionFlowId, subSentimentId], map: "JourneyOptionFlowSubSentiment_journeyOptionFlowId_subSentimentI")
+  @@index([journeyOptionFlowId])
+  @@index([subSentimentId])
 }

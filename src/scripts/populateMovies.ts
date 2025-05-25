@@ -12,7 +12,7 @@ const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_API_URL = process.env.TMDB_API_URL || 'https://api.themoviedb.org/3';
 
 interface TMDBMovie {
-  id: number;
+  id: string;
   title: string;
   original_title: string;
   release_date: string;
@@ -153,6 +153,31 @@ const platformMapping: { [key: string]: string } = {
   'Apple iTunes': 'Apple iTunes',
   'Vudu': 'Vudu',
   'Microsoft Store': 'Microsoft Store'
+};
+
+// Adicionar mais keywords ao mapeamento
+const commonKeywordsMapping: { [key: string]: string } = {
+  'aftercreditsstinger': 'cena pós-créditos',
+  'woman director': 'diretora',
+  'loving': 'amoroso',
+  'photographer': 'fotógrafo',
+  'commercial': 'comercial',
+  'karaoke': 'karaokê',
+  'hotel room': 'quarto de hotel',
+  'upper class': 'alta sociedade',
+  'pop star': 'estrela pop',
+  'homesickness': 'saudade de casa',
+  'adultery': 'adultério',
+  'unsociability': 'antissocial',
+  'older man younger woman relationship': 'relacionamento com diferença de idade',
+  'unlikely friendship': 'amizade improvável',
+  'culture clash': 'choque cultural',
+  'age difference': 'diferença de idade',
+  'midlife crisis': 'crise dos 40',
+  'jet lag': 'jet lag',
+  'loneliness': 'solidão',
+  'tokyo': 'tóquio',
+  'japan': 'japão'
 };
 
 async function getMovieStreamingInfo(movieId: number): Promise<string[]> {
@@ -317,6 +342,13 @@ async function getBrazilianCertification(movieId: number): Promise<string | null
 
 async function translateText(text: string): Promise<string> {
   try {
+    // Primeiro verificar se temos um mapeamento direto
+    const lowerText = text.toLowerCase();
+    if (commonKeywordsMapping[lowerText]) {
+      return commonKeywordsMapping[lowerText];
+    }
+
+    // Se não tiver mapeamento, tentar a API
     const response = await axios.post<GoogleTranslateResponse>(
       `https://translation.googleapis.com/language/translate/v2?key=${process.env.GOOGLE_TRANSLATE_API_KEY}`,
       {
@@ -330,7 +362,8 @@ async function translateText(text: string): Promise<string> {
     return response.data.data.translations[0].translatedText;
   } catch (error) {
     console.error(`Erro ao traduzir texto "${text}":`, error);
-    return text; // Retorna o texto original em caso de erro
+    // Em caso de erro, retornar o texto original
+    return text;
   }
 }
 
@@ -345,19 +378,43 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
     // Obter as palavras-chave em inglês
     const englishKeywords = response.data.keywords.map(keyword => keyword.name);
 
-    // Traduzir cada palavra-chave para português
-    const translatedKeywords = await Promise.all(
-      englishKeywords.map(async (keyword) => {
-        try {
-          const translated = await translateText(keyword);
-          // console.log(`Traduzindo: "${keyword}" -> "${translated}"`);
-          return translated;
-        } catch (error) {
-          console.error(`Erro ao traduzir palavra-chave "${keyword}":`, error);
-          return keyword;
-        }
-      })
+    // Primeiro tentar usar o mapeamento direto
+    const translatedKeywords = englishKeywords.map(keyword => {
+      const lowerKeyword = keyword.toLowerCase();
+      return commonKeywordsMapping[lowerKeyword] || keyword;
+    });
+
+    // Se houver keywords que não foram mapeadas, tentar traduzir via API
+    const unmappedKeywords = translatedKeywords.filter(keyword => 
+      !Object.values(commonKeywordsMapping).includes(keyword)
     );
+
+    if (unmappedKeywords.length > 0) {
+      try {
+        const translatedUnmapped = await Promise.all(
+          unmappedKeywords.map(async (keyword) => {
+            try {
+              const translated = await translateText(keyword);
+              console.log(`Traduzindo: "${keyword}" -> "${translated}"`);
+              return translated;
+            } catch (error) {
+              console.error(`Erro ao traduzir palavra-chave "${keyword}":`, error);
+              return keyword;
+            }
+          })
+        );
+
+        // Substituir as keywords não mapeadas pelas traduzidas
+        return translatedKeywords.map(keyword => 
+          unmappedKeywords.includes(keyword) 
+            ? translatedUnmapped[unmappedKeywords.indexOf(keyword)]
+            : keyword
+        );
+      } catch (error) {
+        console.error('Erro na tradução via API, usando mapeamento direto:', error);
+        return translatedKeywords;
+      }
+    }
 
     return translatedKeywords;
   } catch (error) {
@@ -366,7 +423,7 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
   }
 }
 
-async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBMovie; reflection: string; platforms: string[]; director: string | null; certification: string | null; keywords: string[] } | null> {
+export async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBMovie; reflection: string; platforms: string[]; director: string | null; certification: string | null; keywords: string[] } | null> {
   try {
     console.log(`Buscando filme no TMDB: ${title}${year ? ` (${year})` : ''}`);
     
@@ -488,26 +545,26 @@ async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBM
     }
 
     // Buscar os diretores
-    const directors = await getMovieDirectors(movie.id);
+    const directors = await getMovieDirectors(parseInt(movie.id));
     if (directors) {
       console.log(`Diretores encontrados: ${directors}`);
     }
 
     // Buscar palavras-chave
-    const keywords = await getMovieKeywords(movie.id);
+    const keywords = await getMovieKeywords(parseInt(movie.id));
     console.log(`Palavras-chave encontradas: ${keywords.join(', ')}`);
     
     // Buscar informações de streaming
-    const platforms = await getMovieStreamingInfo(movie.id);
+    const platforms = await getMovieStreamingInfo(parseInt(movie.id));
     
     // Buscar certificação brasileira
-    const certification = await getBrazilianCertification(movie.id);
+    const certification = await getBrazilianCertification(parseInt(movie.id));
     
     // Gerar reflexão
     const reflection = await generateReflectionWithOpenAI({ ...movie, genres: details.data.genres }, keywords);
 
     return {
-      movie: { ...movie, genres: details.data.genres },
+      movie: { ...movie, id: movie.id.toString(), genres: details.data.genres },
       reflection,
       platforms,
       director: directors || null,
@@ -552,13 +609,13 @@ async function processMoviesFromFile(filePath: string) {
       }
       
       // Pular cabeçalho se existir
-      if (lineNumber === 1 && line.toLowerCase().includes('movie title')) {
+      if (lineNumber === 1 && line.toLowerCase().includes('título')) {
         continue;
       }
 
-      const [title, journeyOptionFlowId, year] = line.split(',').map(item => item.trim());
+      const [title, movieSuggestionFlowId, year] = line.split(',').map(item => item.trim());
       
-      if (!title || !journeyOptionFlowId) {
+      if (!title || !movieSuggestionFlowId) {
         console.error(`❌ Linha ${lineNumber}: Formato inválido - ${line}`);
         errorCount++;
         continue;
@@ -575,14 +632,6 @@ async function processMoviesFromFile(filePath: string) {
         }
       }
 
-      // Validar o journeyOptionFlowId
-      const parsedJourneyOptionFlowId = parseInt(journeyOptionFlowId);
-      if (isNaN(parsedJourneyOptionFlowId) || parsedJourneyOptionFlowId <= 0) {
-        console.error(`❌ Linha ${lineNumber}: ID de JourneyOptionFlow inválido - ${journeyOptionFlowId}`);
-        errorCount++;
-        continue;
-      }
-
       // Verificar duplicata no arquivo
       if (processedTitles.has(title)) {
         console.log(`⚠️ Linha ${lineNumber}: Título duplicado no arquivo - ${title}`);
@@ -592,12 +641,13 @@ async function processMoviesFromFile(filePath: string) {
       processedTitles.add(title);
 
       console.log(`\n=== Processando filme ${lineNumber}: ${title}${parsedYear ? ` (${parsedYear})` : ''} ===`);
+      console.log(`ID do MovieSuggestionFlow: ${movieSuggestionFlowId}`);
       
       try {
-        const result = await searchMovie(title, parsedYear);
+        const movieResult = await searchMovie(title, parsedYear);
         
-        if (result) {
-          const { movie, reflection, platforms, director, certification, keywords } = result;
+        if (movieResult) {
+          const { movie, reflection, platforms, director, certification, keywords } = movieResult;
           console.log(`Filme encontrado no TMDB: ${movie.title} (${movie.release_date})`);
           console.log(`Título original: ${movie.original_title}`);
           console.log(`Diretores: ${director || 'Não encontrado'}`);
@@ -608,91 +658,93 @@ async function processMoviesFromFile(filePath: string) {
           console.log(`Média de votos: ${movie.vote_average}`);
           console.log(`Total de votos: ${movie.vote_count}`);
           console.log(`Adulto: ${movie.adult}`);
-          
-          // Verificar se o filme já existe no banco
+
+          // Verificar se o filme já existe
           const existingMovie = await prisma.movie.findFirst({
             where: {
-              OR: [
-                { 
-                  AND: [
-                    { title: movie.title },
-                    { original_title: movie.original_title }
-                  ]
-                },
-                { 
-                  AND: [
-                    { original_title: movie.original_title },
-                    { year: movie.release_date ? parseInt(movie.release_date.split('-')[0]) : null }
-                  ]
-                }
-              ]
+              title: movie.title,
+              year: new Date(movie.release_date).getFullYear()
             }
           });
 
+          let createdMovie;
           if (existingMovie) {
-            console.log(`⚠️ Filme já existe no banco: ${existingMovie.title} (ID: ${existingMovie.id})`);
-            duplicateCount++;
-            
-            // Verificar se já existe a sugestão para este JourneyOptionFlow
+            console.log(`⚠️ Filme já existe no banco: ${movie.title}`);
+            createdMovie = existingMovie;
+          } else {
+            // Buscar ou criar os gêneros
+            const genreIds: number[] = [];
+            for (const genre of movie.genres) {
+              const existingGenre = await prisma.genre.findFirst({
+                where: { name: genre.name }
+              });
+
+              if (existingGenre) {
+                genreIds.push(existingGenre.id);
+              } else {
+                const newGenre = await prisma.genre.create({
+                  data: { name: genre.name }
+                });
+                genreIds.push(newGenre.id);
+              }
+            }
+
+            // Criar o filme com os gêneros
+            createdMovie = await prisma.movie.create({
+              data: {
+                title: movie.title,
+                year: new Date(movie.release_date).getFullYear(),
+                director: director || undefined,
+                genres: movie.genres.map(g => g.name),
+                streamingPlatforms: platforms,
+                description: movie.overview,
+                thumbnail: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : undefined,
+                original_title: movie.original_title,
+                vote_average: movie.vote_average,
+                vote_count: movie.vote_count,
+                certification: certification || undefined,
+                adult: movie.adult,
+                keywords: keywords,
+                genreIds: genreIds
+              }
+            });
+            console.log(`✅ Filme criado: ${createdMovie.title}`);
+            console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
+            console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
+          }
+
+          // Verificar se o JourneyOptionFlow existe
+          const journeyOptionFlow = await prisma.journeyOptionFlow.findUnique({
+            where: { id: parseInt(movieSuggestionFlowId) }
+          });
+
+          if (journeyOptionFlow) {
+            // Verificar se já existe uma sugestão para este filme e JourneyOptionFlow
             const existingSuggestion = await prisma.movieSuggestionFlow.findFirst({
               where: {
-                AND: [
-                  { journeyOptionFlowId: parsedJourneyOptionFlowId },
-                  { movieId: existingMovie.id }
-                ]
+                journeyOptionFlowId: parseInt(movieSuggestionFlowId),
+                movieId: createdMovie.id
               }
             });
 
-            if (!existingSuggestion) {
-              // Criar a sugestão se não existir
+            if (existingSuggestion) {
+              console.log(`⚠️ Sugestão já existe para este filme e JourneyOptionFlow`);
+            } else {
+              // Criar o registro na tabela MovieSuggestionFlow usando a reflexão gerada
               await prisma.movieSuggestionFlow.create({
                 data: {
-                  journeyOptionFlowId: parsedJourneyOptionFlowId,
-                  movieId: existingMovie.id,
-                  reason: reflection,
+                  journeyOptionFlowId: parseInt(movieSuggestionFlowId),
+                  movieId: createdMovie.id,
+                  reason: reflection, // Usando a reflexão gerada pelo GPT
                   relevance: 1
                 }
               });
-              console.log(`✅ Sugestão criada para filme existente: ${existingMovie.title}`);
-              successCount++;
-            } else {
-              console.log(`ℹ️ Sugestão já existe para este filme e JourneyOptionFlow`);
+              console.log(`✅ MovieSuggestionFlow criado com sucesso para o filme: ${createdMovie.title}`);
+              console.log(`Reflexão: ${reflection}`);
             }
-            continue;
+          } else {
+            console.log(`⚠️ JourneyOptionFlow com ID ${movieSuggestionFlowId} não encontrado no banco de dados`);
           }
-
-          // Preparar dados para inserção
-          const movieData = {
-            title: movie.title,
-            original_title: movie.original_title,
-            year: movie.release_date ? parseInt(movie.release_date.split('-')[0]) : null,
-            description: movie.overview || null,
-            thumbnail: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
-            genres: movie.genres.map(genre => genre.name),
-            streamingPlatforms: platforms,
-            director: director || null,
-            vote_average: movie.vote_average,
-            vote_count: movie.vote_count,
-            adult: movie.adult,
-            certification: certification,
-            keywords: keywords
-          };
-
-          // Criar novo filme
-          const newMovie = await prisma.movie.create({
-            data: movieData
-          });
-          console.log(`✅ Filme criado: ${movie.title}`);
-
-          // Criar MovieSuggestionFlow
-          await prisma.movieSuggestionFlow.create({
-            data: {
-              journeyOptionFlowId: parsedJourneyOptionFlowId,
-              movieId: newMovie.id,
-              reason: reflection,
-              relevance: 1
-            }
-          });
 
           successCount++;
         } else {
@@ -721,14 +773,16 @@ async function processMoviesFromFile(filePath: string) {
 }
 
 // Processar argumentos da linha de comando
-const args = process.argv.slice(2);
-if (args.length === 0 || !args[0].startsWith('--file=')) {
-  console.log(`
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  if (args.length === 0 || !args[0].startsWith('--file=')) {
+    console.log(`
 Uso: 
   npx ts-node src/scripts/populateMovies.ts --file=caminho/para/arquivo.csv
-  `);
-  process.exit(1);
-}
+    `);
+    process.exit(1);
+  }
 
-const filePath = args[0].split('=')[1];
-processMoviesFromFile(filePath); 
+  const filePath = args[0].split('=')[1];
+  processMoviesFromFile(filePath);
+} 
