@@ -658,7 +658,7 @@ async function processMoviesFromFile(filePath: string) {
           console.log(`Média de votos: ${movie.vote_average}`);
           console.log(`Total de votos: ${movie.vote_count}`);
           console.log(`Adulto: ${movie.adult}`);
-
+          
           // Verificar se o filme já existe
           const existingMovie = await prisma.movie.findFirst({
             where: {
@@ -774,15 +774,15 @@ async function processMoviesFromFile(filePath: string) {
 
 // Processar argumentos da linha de comando
 if (require.main === module) {
-  const args = process.argv.slice(2);
-  if (args.length === 0 || !args[0].startsWith('--file=')) {
-    console.log(`
+const args = process.argv.slice(2);
+if (args.length === 0 || !args[0].startsWith('--file=')) {
+  console.log(`
 Uso: 
   npx ts-node src/scripts/populateMovies.ts --file=caminho/para/arquivo.csv
-    `);
-    process.exit(1);
-  }
+  `);
+  process.exit(1);
+}
 
-  const filePath = args[0].split('=')[1];
-  processMoviesFromFile(filePath);
+const filePath = args[0].split('=')[1];
+processMoviesFromFile(filePath); 
 } 

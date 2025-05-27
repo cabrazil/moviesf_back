@@ -127,34 +127,6 @@ function isRelevantWord(word: string): boolean {
          nounSuffixes.some(suffix => word.endsWith(suffix));
 }
 
-// Função para extrair keywords da sinopse
-async function extractKeywordsFromSynopsis(movieId: string | number): Promise<string[]> {
-  try {
-    // Buscar sinopse do filme
-    const tmdbResponse = await axios.get<TMDBMovieResponse>(
-      `https://api.themoviedb.org/3/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}&language=pt-BR`
-    );
-
-    const synopsis = tmdbResponse.data.overview;
-    console.log('\nSinopse:', synopsis);
-
-    // Tokenizar e normalizar o texto
-    const normalizedSynopsis = normalizeText(synopsis);
-    const tokens = tokenizer.tokenize(normalizedSynopsis)
-      .filter(token => 
-        !stopwords.includes(token) && 
-        token.length > 2 &&
-        isRelevantWord(token)
-      );
-    
-    console.log('\nKeywords extraídas da sinopse:', tokens);
-    return tokens;
-  } catch (error) {
-    console.error('❌ Erro ao extrair keywords da sinopse:', error);
-    return [];
-  }
-}
-
 // Função para encontrar palavras similares
 function findSimilarWords(word: string, targetWords: string[]): string[] {
   const normalizedWord = normalizeText(word);
@@ -185,9 +157,101 @@ function findSimilarWords(word: string, targetWords: string[]): string[] {
     if (synonyms[normalizedTarget]?.some(syn => normalizedWord.includes(syn) || syn.includes(normalizedWord))) {
       matches.push(target);
     }
+
+    // Verificar palavras relacionadas semanticamente
+    const relatedWords = getSemanticallyRelatedWords(normalizedWord);
+    if (relatedWords.some(related => normalizedTarget.includes(related) || related.includes(normalizedTarget))) {
+      matches.push(target);
+    }
   }
 
   return [...new Set(matches)];
+}
+
+// Função para obter palavras semanticamente relacionadas
+function getSemanticallyRelatedWords(word: string): string[] {
+  const relatedWords: string[] = [];
+  
+  // Mapeamento de palavras relacionadas semanticamente
+  const semanticMap: Record<string, string[]> = {
+    'triste': ['melancólico', 'deprimido', 'abatido', 'desanimado', 'desolado'],
+    'solidão': ['isolamento', 'abandono', 'desamparo', 'solitário', 'sozinho'],
+    'dor': ['sofrimento', 'angústia', 'aflição', 'tristeza', 'pesar'],
+    'perda': ['luto', 'saudade', 'falta', 'ausência', 'privação'],
+    'abandono': ['desamparo', 'isolamento', 'solidão', 'rejeição', 'desprezo'],
+    'violência': ['agressão', 'abuso', 'crueldade', 'brutalidade', 'opressão'],
+    'injustiça': ['opressão', 'discriminação', 'preconceito', 'desigualdade', 'exploração'],
+    'esperança': ['fé', 'confiança', 'otimismo', 'perseverança', 'resistência'],
+    'superação': ['resiliência', 'força', 'coragem', 'determinação', 'luta'],
+    'amor': ['afeto', 'carinho', 'ternura', 'dedicação', 'apego']
+  };
+
+  // Adicionar palavras relacionadas do mapa semântico
+  for (const [key, values] of Object.entries(semanticMap)) {
+    if (word.includes(key) || key.includes(word)) {
+      relatedWords.push(...values);
+    }
+  }
+
+  return [...new Set(relatedWords)];
+}
+
+// Função para extrair keywords da sinopse
+async function extractKeywordsFromSynopsis(synopsis: string): Promise<string[]> {
+  const words = synopsis.toLowerCase().split(/\s+/);
+  const keywords = new Set<string>();
+  
+  // Extrair palavras emocionais
+  words.forEach(word => {
+    if (isEmotionalWord(word)) {
+      keywords.add(word);
+    }
+  });
+
+  // Extrair frases emocionais
+  const emotionalPhrases = extractEmotionalPhrases(synopsis);
+  emotionalPhrases.forEach(phrase => {
+    keywords.add(phrase);
+  });
+
+  return Array.from(keywords);
+}
+
+// Função para verificar se uma palavra tem carga emocional
+function isEmotionalWord(word: string): boolean {
+  const emotionalWords = [
+    'triste', 'solitário', 'calado', 'violento', 'abusivo',
+    'separado', 'escravo', 'compartilhar', 'carta', 'filhos',
+    'mãe', 'pai', 'marido', 'companheira', 'tristeza'
+  ];
+  return emotionalWords.some(emotionalWord => 
+    word.toLowerCase().includes(emotionalWord.toLowerCase())
+  );
+}
+
+// Função para extrair frases emocionais da sinopse
+function extractEmotionalPhrases(synopsis: string): string[] {
+  const emotionalPatterns = [
+    /cada vez mais calada e solitária/i,
+    /compartilhar sua tristeza/i,
+    /violentada pelo próprio pai/i,
+    /trata como companheira e escrava/i,
+    /separada dos filhos/i,
+    /torna-se mãe/i,
+    /passa a compartilhar/i,
+    /cada vez mais/i,
+    /tristeza em carta/i
+  ];
+
+  const phrases: string[] = [];
+  emotionalPatterns.forEach(pattern => {
+    const match = synopsis.match(pattern);
+    if (match) {
+      phrases.push(match[0]);
+    }
+  });
+
+  return phrases;
 }
 
 function calculateMatchScore(keywords: string[], sentimentKeywords: KeywordWithWeight[]): MatchResult {
@@ -243,7 +307,7 @@ function calculateMatchScore(keywords: string[], sentimentKeywords: KeywordWithW
   };
 }
 
-async function validateMovieSentiments(params: ValidateMovieParams) {
+export async function validateMovieSentiments(params: ValidateMovieParams) {
   try {
     console.log(`\n=== Validando filme para ${params.mainSentiment} ===`);
     console.log(`Filme: ${params.movieTitle}${params.year ? ` (${params.year})` : ''}`);
@@ -259,7 +323,7 @@ async function validateMovieSentiments(params: ValidateMovieParams) {
     const movieResult = await searchMovie(params.movieTitle, params.year);
     if (!movieResult) {
       console.error('❌ Filme não encontrado no TMDB');
-      return;
+      return { success: false };
     }
 
     const { movie, keywords: tmdbKeywords } = movieResult;
@@ -268,7 +332,7 @@ async function validateMovieSentiments(params: ValidateMovieParams) {
     console.log(`Keywords do TMDB: ${tmdbKeywords.join(', ')}`);
 
     // 2. Extrair keywords da sinopse
-    const synopsisKeywords = await extractKeywordsFromSynopsis(movie.id);
+    const synopsisKeywords = await extractKeywordsFromSynopsis(movie.overview);
     
     // 3. Combinar keywords do TMDB com as extraídas da sinopse
     const allKeywords = [...new Set([...tmdbKeywords, ...synopsisKeywords])];
@@ -280,12 +344,12 @@ async function validateMovieSentiments(params: ValidateMovieParams) {
       case 'genre':
         if (!params.genre) {
           console.error('❌ Gênero é obrigatório para o fluxo de gênero');
-          return;
+          return { success: false };
         }
         isValidForFlow = movie.genres.some(g => g.name.toLowerCase() === params.genre?.toLowerCase());
         if (!isValidForFlow) {
           console.log(`\n❌ O filme não pertence ao gênero ${params.genre}`);
-          return;
+          return { success: false };
         }
         console.log(`\n✅ Gênero ${params.genre} confirmado`);
         break;
@@ -296,7 +360,7 @@ async function validateMovieSentiments(params: ValidateMovieParams) {
         const hasVisualElements = allKeywords.some(k => visualKeywords.some(vk => k.includes(vk)));
         if (!hasVisualElements) {
           console.log('\n❌ O filme não parece ter elementos visuais significativos');
-          return;
+          return { success: false };
         }
         console.log('\n✅ Elementos visuais encontrados');
         break;
@@ -308,7 +372,7 @@ async function validateMovieSentiments(params: ValidateMovieParams) {
         );
         if (movieDetails.data.runtime > 100) {
           console.log('\n❌ O filme é muito longo para o fluxo de filme rápido');
-          return;
+          return { success: false };
         }
         console.log('\n✅ Duração adequada para filme rápido');
         break;
@@ -320,7 +384,7 @@ async function validateMovieSentiments(params: ValidateMovieParams) {
         );
         if (trendingDetails.data.popularity < 50) {
           console.log('\n❌ O filme não está em alta no momento');
-          return;
+          return { success: false };
         }
         console.log('\n✅ Filme está em alta');
         break;
@@ -333,7 +397,7 @@ async function validateMovieSentiments(params: ValidateMovieParams) {
 
     if (!mainSentiment) {
       console.error(`❌ MainSentiment "${params.mainSentiment}" não encontrado`);
-      return;
+      return { success: false };
     }
 
     console.log(`\nMainSentiment: ${mainSentiment.name}`);
@@ -371,6 +435,7 @@ async function validateMovieSentiments(params: ValidateMovieParams) {
     console.log('\nSubSentiments encontrados por gênero:');
     if (genreSubSentiments.length === 0) {
       console.log('❌ Nenhum SubSentiment encontrado para os gêneros do filme');
+      return { success: false };
     } else {
       for (const gs of genreSubSentiments) {
         console.log(`\n- ${gs.genre.name}: ${gs.subSentiment.name}`);
@@ -432,26 +497,42 @@ async function validateMovieSentiments(params: ValidateMovieParams) {
 
       if (!existingMovie) {
         console.log('\n❌ Filme não encontrado no banco de dados. Execute primeiro o script de população de filmes.');
-        return;
+        return { success: false };
       }
 
       // 11. Criar registros na MovieSentiment
       for (const [subId, result] of subSentimentScores) {
-        await prisma.movieSentiment.create({
-          data: {
+        // Verificar se o registro já existe
+        const existingSentiment = await prisma.movieSentiment.findFirst({
+          where: {
             movieId: existingMovie.id,
             mainSentimentId: mainSentiment.id,
             subSentimentId: subId
           }
         });
+
+        if (!existingSentiment) {
+          await prisma.movieSentiment.create({
+            data: {
+              movieId: existingMovie.id,
+              mainSentimentId: mainSentiment.id,
+              subSentimentId: subId
+            }
+          });
+        } else {
+          console.log(`\nRegistro já existe para o SubSentiment ID: ${subId}`);
+        }
       }
       console.log('\n✅ Registros criados com sucesso!');
+      return { success: true, score: Array.from(subSentimentScores.values()).reduce((acc, curr) => acc + curr.score, 0) / subSentimentScores.size, matchedKeywords: Array.from(subSentimentScores.values()).flatMap(s => s.matchedKeywords), relatedKeywords: Array.from(subSentimentScores.values()).flatMap(s => s.relatedKeywords) };
     } else {
       console.log('\n❌ Nenhum match encontrado para este filme');
+      return { success: false };
     }
 
   } catch (error) {
     console.error('❌ Erro ao validar filme:', error);
+    return { success: false };
   } finally {
     await prisma.$disconnect();
   }

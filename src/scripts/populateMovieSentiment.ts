@@ -209,11 +209,11 @@ async function popularMovieSentiment(mainSentimentId?: number) {
             
             if (primeiroSubSentimento) {
               console.log(`Usando sub-sentimento padrão: ${primeiroSubSentimento.name}`);
-              dadosMovieSentiment.push({
-                movieId: filme.id,
-                mainSentimentId: sentimentoPrincipal.id,
+            dadosMovieSentiment.push({
+              movieId: filme.id,
+              mainSentimentId: sentimentoPrincipal.id,
                 subSentimentId: primeiroSubSentimento.id,
-              });
+            });
             } else {
               console.log(`AVISO: Não foi possível criar associação para ${filme.title} - nenhum sub-sentimento disponível`);
             }
