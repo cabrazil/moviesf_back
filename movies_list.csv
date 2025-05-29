@@ -11,134 +11,158 @@
 #Os Estagiários,20,2013
 #Um Senhor Estagiário,21,2015
 #The Hangover,20,2009
-##Luta Pela Fé: A História do Padre Stu,138,2022
-#O Selvagem da Motocicleta,138,1983
-#Purple Rain,138,1984
-#A Cor Púrpura,138,1985
-#A Conversação,138,1974
-#Amor à flor da pele,138,2000
-#O Vento nos Levará,138,1999
-#Rastros de Ódio,138,1956
-#Dogville,138,2003
-#Mal dos Trópicos,138,2004
-#2001: Uma Odisseia no Espaço,138,1968
-#Paixão à flor da pele,138,2004
-##Fora de Rumo,138,2005
-##O Homem nas Trevas,138,2016
-##Blade Runner: O Caçador de Andróides,138,1982
-##Os Imperdoáveis,138,1992
-##A Origem,138,2010
-#Jeanne Dielman,138,1975
-#Um Corpo que Cai,138,1958
-#Cidadão Kane,138,1941
-#Era Uma Vez em Tóquio,138,1953
-#Amor à Flor da Pele,138,2000
-##2001: Uma Odisseia no Espaço,138,1968
-#Bom Trabalho,138,1998
-##Cidade dos Sonhos,138,2001
-#Um Homem com uma Câmera,138,1929
-#Cantando na Chuva,138,1951
-#Sunrise: A Song of Two Humans,138,1927
-##O Poderoso Chefão,138,1972
-#A Regra do Jogo,138,1939
-#Cléo das 5 às 7,138,1962
-#Rastros de Ódio,138,1956
-#Tramas do Entardecer,138,1943
-#Close-up,138,1989
-#Quando Duas Mulheres Pecam,138,1966
-##Apocalypse Now,138,1979
-#Os Sete Samurais,138,1954
-#A Paixão de Joana d’Arc,138,1928
-#Playtime – Tempo de Diversão,138,1967
-#Faça a Coisa Certa,138,1989
-#A Grande Testemunha,138,1966
-#The Night of the Hunter,138,1955
-#Shoah,138,1985
-#As Pequenas Margaridas,138,1966
-#Taxi Driver – Motorista de Táxi,138,1976
-#Psicose,138,1960
-#O Atalante,138,1934
-#Pather Panchali,138,1955
-#Luzes da Cidade,138,1931
-#M O Vampiro de Dusseldorf,138,1931
-#Acossado,138,1960
-#Quanto Mais Quente Melhor,138,1959
-#Janela Indiscreta,138,1954
-#Ladrões de Bicicleta,138,1948
-#Rashomon,138,1950
-#Stalker,138,1979
-#O Matador de Ovelhas,138,1977
-#Intriga Internacional,138,1959
-#A Batalha de Argel,138,1966
-#Barry Lyndon,138,1975
-#Wanda,138,1970
-#A Palavra,138,1955
-#Os Incompreendidos,138,1959
-#O Piano,138,1922
-#Notícias de Casa,138,1976
-#O Medo Consome a Alma,138,1974
-#Se Meu Apartamento Falasse,138,1960
-#O Encouraçado Potemkin,138,1925
-#Sherlock Jr.,138,1924
-#O Desprezo,138,1963
-#Sem Sol,138,1982
-#Filhas do Pó,138,1991
-#A Doce Vida,138,1960
-#Moonlight: Sob a Luz do Luar,138,1960  
-#Casablanca,138,1942
-#Os Bons Companheiros,138,1990
-#O Terceiro Homem,138,1949
-#A Viagem da Hiena,138,1973
-#Os catadores e eu,138,2000
-#Metrópolis,138,1927
-#Andrei Rublev,138,1966
-#Os Sapatinhos Vermelhos,138,1948
-#La Jetée,138,1962
-#Meu Amigo Totoro,138,1988
-#Romance na Itália,138,1954
-#A Aventura,138,1960
-#Imitação da Vida,138,1959
-#Intendente Sansho,138,1954
-#A Viagem de Chihiro,138,2001
-#Um Dia Quente de Verão,138,1991
-#Satantango,138,1994
-#Céline e Julie Vão de Barco,138,1974
-#Tempos Modernos,138,1936
-#Crepúsculo dos Deuses,138,1950
-#Neste Mundo e no Outro,138,1946
-#Veludo Azul,138,1986
-#O Demônio das Onze Horas,138,1965
-#História(s do Cinema,138,1988
-#O Espírito da Colmeia,138,1973
-#O Iluminado,138,1980
-#Amores Expressos,138,1994
-#Desejos proibidos,138,1953
-#The Leopard,138,1962
-#Contos da Lua Vaga,138,1953
-#Parasita,138,2019
-#Yi Yi,138,1999
-#Um Condenado à Morte Escapou,138,1956
-#A General,138,1926
-#Era uma Vez no Oeste,138,1968
-##Corra!,138,2017
-#Garota Negra,138,1966
-##Encontros e Desencontros,138,2003
-##Manchester à Beira-Mar,138,2016
-##Ela,138,2013
-##História de um Casamento,138,2019
-##Cinema Paradiso,138,1988
-##À Espera de um Milagre,138,1999
-##Ponte para Terabítia,138,2007
-##O Curioso Caso de Benjamin Button,138,2008
-##Conta Comigo,138,1986
-##O Auto da Compadecida,138,2000
+##Luta Pela Fé: A História do Padre Stu,2022
+#O Selvagem da Motocicleta,1983
+#Purple Rain,1984
+#A Cor Púrpura,1985
+#A Conversação,1974
+#Amor à flor da pele,2000
+#O Vento nos Levará,1999
+#Rastros de Ódio,1956
+#Dogville,2003
+#Mal dos Trópicos,2004
+#2001: Uma Odisseia no Espaço,1968
+#Paixão à flor da pele,2004
+##Fora de Rumo,2005
+##O Homem nas Trevas,2016
+##Blade Runner: O Caçador de Andróides,1982
+##Os Imperdoáveis,1992
+##A Origem,2010
+#Jeanne Dielman,1975
+#Um Corpo que Cai,1958
+#Cidadão Kane,1941
+#Era Uma Vez em Tóquio,1953
+#Amor à Flor da Pele,2000
+##2001: Uma Odisseia no Espaço,1968
+#Bom Trabalho,1998
+##Cidade dos Sonhos,2001
+#Um Homem com uma Câmera,1929
+#Cantando na Chuva,1951
+#Sunrise: A Song of Two Humans,1927
+##O Poderoso Chefão,1972
+#A Regra do Jogo,1939
+#Cléo das 5 às 7,1962
+#Rastros de Ódio,1956
+#Tramas do Entardecer,1943
+#Close-up,1989
+#Quando Duas Mulheres Pecam,1966
+##Apocalypse Now,1979
+#Os Sete Samurais,1954
+#A Paixão de Joana d’Arc,1928
+#Playtime – Tempo de Diversão,1967
+#Faça a Coisa Certa,1989
+#A Grande Testemunha,1966
+#The Night of the Hunter,1955
+#Shoah,1985
+#As Pequenas Margaridas,1966
+#Taxi Driver – Motorista de Táxi,1976
+#Psicose,1960
+#O Atalante,1934
+#Pather Panchali,1955
+#Luzes da Cidade,1931
+#M O Vampiro de Dusseldorf,1931
+#Acossado,1960
+#Quanto Mais Quente Melhor,1959
+#Janela Indiscreta,1954
+#Ladrões de Bicicleta,1948
+#Rashomon,1950
+#Stalker,1979
+#O Matador de Ovelhas,1977
+#Intriga Internacional,1959
+#A Batalha de Argel,1966
+#Barry Lyndon,1975
+#Wanda,1970
+#A Palavra,1955
+#Os Incompreendidos,1959
+#O Piano,1922
+#Notícias de Casa,1976
+#O Medo Consome a Alma,1974
+#Se Meu Apartamento Falasse,1960
+#O Encouraçado Potemkin,1925
+#Sherlock Jr.,1924
+#O Desprezo,1963
+#Sem Sol,1982
+#Filhas do Pó,1991
+#A Doce Vida,1960
+#Moonlight: Sob a Luz do Luar,1960  
+#Casablanca,1942
+#Os Bons Companheiros,1990
+#O Terceiro Homem,1949
+#A Viagem da Hiena,1973
+#Os catadores e eu,2000
+#Metrópolis,1927
+#Andrei Rublev,1966
+#Os Sapatinhos Vermelhos,1948
+#La Jetée,1962
+#Meu Amigo Totoro,1988
+#Romance na Itália,1954
+#A Aventura,1960
+#Imitação da Vida,1959
+#Intendente Sansho,1954
+#A Viagem de Chihiro,2001
+#Um Dia Quente de Verão,1991
+#Satantango,1994
+#Céline e Julie Vão de Barco,1974
+#Tempos Modernos,1936
+#Crepúsculo dos Deuses,1950
+#Neste Mundo e no Outro,1946
+#Veludo Azul,1986
+#O Demônio das Onze Horas,1965
+#História(s do Cinema,1988
+#O Espírito da Colmeia,1973
+#O Iluminado,1980
+#Amores Expressos,1994
+#Desejos proibidos,1953
+#The Leopard,1962
+#Contos da Lua Vaga,1953
+#Parasita,2019
+#Yi Yi,1999
+#Um Condenado à Morte Escapou,1956
+#A General,1926
+#Era uma Vez no Oeste,1968
+##Corra!,2017
+#Garota Negra,1966
+##Encontros e Desencontros,2003
+##Manchester à Beira-Mar,2016
+##Ela,2013
+##História de um Casamento,2019
+##Cinema Paradiso,1988
+##À Espera de um Milagre,1999
+##Ponte para Terabítia,2007
+##O Curioso Caso de Benjamin Button,2008
+##Conta Comigo,1986
+##O Auto da Compadecida,2000
 ##Pequena Miss Sunshine,34,2006
 ##Um Sonho de Liberdade,34,1994
 ##Intocáveis,34,2011
-##Me Chame Pelo Seu Nome,138,2017
-##Moonlight: Sob a Luz do Luar,138,2016
-##Retrato de uma Jovem em Chamas,138,2019
-##Com Amor Simon,138,2018
-##Hoje Eu Quero Voltar Sozinho,138,2014
-##21 Gramas,138,2003
-Os Descendentes,138,2011
+##Me Chame Pelo Seu Nome,2017
+##Moonlight: Sob a Luz do Luar,2016
+##Retrato de uma Jovem em Chamas,2019
+##Com Amor Simon,2018
+##Hoje Eu Quero Voltar Sozinho,2014
+##21 Gramas,2003
+##Os Descendentes,2011
+##Beleza Oculta,2016
+##Minha Vida Sem Mim,2003
+##Up: Altas Aventuras,2009
+#Manchester à Beira-Mar,2016
+#Sempre ao Seu Lado,2010
+#A Culpa é das Estrelas,2010
+#P.S. Eu Te Amo,2014
+#Lado a Lado,2010
+##À Procura da Felicidade,2006
+#A Vida é Uma Festa,2006
+#Amour,2012
+#Reencontrando a Felicidade,2010
+#Uma Lição de Amor,2010
+#A Delicadeza do Amor,2010
+#O Quarto do Filho,2010
+#Ghost - Do Outro Lado da Vida,2001
+#No Coração do Mar,2003
+#Uma Viagem Extraordinária,2004
+#A Culpa é das Estrelas,2010
+#Doce Novembro,2009
+#Outono em Nova York,2005
+#A Vida é Uma Festa,2006
+##O Jogo da Imitação, 2014
+##A Teoria de Tudo,2014

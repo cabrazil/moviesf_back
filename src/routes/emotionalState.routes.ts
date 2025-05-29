@@ -1,23 +1,63 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import asyncHandler from 'express-async-handler';
+import prisma from '../prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
+
+// Listar todos os sentimentos principais
+router.get('/', asyncHandler(async (req, res) => {
+  console.log('Iniciando busca de sentimentos principais...');
+  try {
+    console.log('Tentando conectar ao banco de dados...');
+    const sentiments = await prisma.mainSentiment.findMany({
+      include: {
+        subSentiments: true,
+        journeyFlow: {
+          include: {
+            steps: {
+              include: {
+                options: true
+              }
+            }
+          }
+        }
+      }
+    });
+    console.log('Sentimentos principais encontrados:', sentiments);
+    res.json(sentiments);
+  } catch (error) {
+    console.error('Erro detalhado ao buscar sentimentos principais:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar sentimentos principais',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+}));
 
 // Listar todos os estados emocionais
 router.get('/', asyncHandler(async (req, res) => {
-  const states = await prisma.emotionalState.findMany({
-    include: {
-      mainSentiment: true,
-      journeySteps: {
-        include: {
-          options: true
+  console.log('Iniciando busca de estados emocionais...');
+  try {
+    console.log('Tentando conectar ao banco de dados...');
+    const states = await prisma.emotionalState.findMany({
+      include: {
+        mainSentiment: true,
+        journeySteps: {
+          include: {
+            options: true
+          }
         }
       }
-    }
-  });
-  res.json(states);
+    });
+    console.log('Estados emocionais encontrados:', states);
+    res.json(states);
+  } catch (error) {
+    console.error('Erro detalhado ao buscar estados emocionais:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar estados emocionais',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
 }));
 
 // Buscar um estado emocional específico

@@ -47,7 +47,6 @@ interface TMDBResponse {
 
 interface MovieInput {
   title: string;
-  journeyOptionFlowId: number;
   year?: number; // Ano opcional para ajudar na busca
 }
 
@@ -108,26 +107,7 @@ const titleMapping: { [key: string]: string } = {
 
 // Mapeamento de gêneros para reflexões
 const genreReflections: { [key: string]: string } = {
-  'Drama': 'Explora as complexidades da condição humana e as relações interpessoais.',
-  'Comédia': 'Mostra como o humor pode ser uma ferramenta poderosa para lidar com desafios.',
-  'Ação': 'Demonstra a importância da coragem e da determinação na superação de obstáculos.',
-  'Aventura': 'Inspira a busca por novos horizontes e a superação de limites.',
-  'Romance': 'Explora o poder transformador do amor e das conexões humanas.',
-  'Ficção Científica': 'Provoca reflexões sobre o futuro da humanidade e nossa relação com a tecnologia.',
-  'Fantasia': 'Mostra como a imaginação pode nos ajudar a lidar com questões complexas da vida.',
-  'Terror': 'Explora nossos medos mais profundos e como enfrentá-los.',
-  'Suspense': 'Demonstra como a incerteza pode nos levar a descobrir nossa verdadeira força.',
-  'Documentário': 'Oferece insights valiosos sobre a realidade e diferentes perspectivas de vida.',
-  'Animação': 'Usa a criatividade para transmitir mensagens profundas de forma acessível.',
-  'Crime': 'Explora as consequências de nossas escolhas e a busca por justiça.',
-  'Mistério': 'Mostra como a busca pela verdade pode transformar vidas.',
-  'Musical': 'Demonstra como a arte e a expressão podem curar e unir pessoas.',
-  'Família': 'Destaca a importância dos laços familiares e do apoio mútuo.',
-  'Guerra': 'Explora os impactos do conflito na humanidade e a busca pela paz.',
-  'História': 'Oferece lições valiosas do passado para entender o presente.',
-  'Esporte': 'Mostra como a disciplina e o trabalho em equipe levam ao sucesso.',
-  'Biografia': 'Inspira através das histórias reais de superação e conquista.',
-  'Western': 'Explora temas de justiça, honra e o conflito entre civilização e natureza.'
+  // ... remover todo o objeto ...
 };
 
 // Mapeamento de plataformas do TMDB para nosso padrão
@@ -211,72 +191,6 @@ async function getMovieStreamingInfo(movieId: number): Promise<string[]> {
   } catch (error) {
     console.error(`Erro ao buscar informações de streaming: ${error}`);
     return [];
-  }
-}
-
-// function generateReflection(movie: TMDBMovie, keywords: string[]): string {
-//   try {
-//     const genreReflectionsList = movie.genres
-//       .map(genre => genreReflections[genre.name])
-//       .filter(Boolean);
-
-//     const reflectionParts = [
-//       ...genreReflectionsList,
-//       ...keywords.map(keyword => `Explora temas relacionados a ${keyword.toLowerCase()}.`)
-//     ];
-
-//     // Limitar a reflexão às 3 primeiras linhas
-//     const limitedReflection = reflectionParts.slice(0, 3).join(' ');
-
-//     return limitedReflection || `Filme sugerido baseado em ${movie.title}`;
-//   } catch (error) {
-//     console.error(`Erro ao gerar reflexão para ${movie.title}:`, error);
-//     return `Filme sugerido baseado em ${movie.title}`;
-//   }
-// }
-
-async function generateReflectionWithOpenAI(movie: TMDBMovie, keywords: string[]): Promise<string> {
-  const prompt = `
-Sinopse: ${movie.overview}
-Gêneros: ${movie.genres.map(g => g.name).join(', ')}
-Palavras-chave: ${keywords.join(', ')}
-
-Com base nessas informações, escreva uma reflexão curta, inspiradora e única sobre o filme, conectando os temas principais e o impacto emocional da história. 
-A reflexão deve ter no máximo 30 palavras e terminar com um ponto final.
-Não repita o nome do filme.
-`;
-
-  try {
-    const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 80,
-        temperature: 0.7
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    // Log para depuração
-    // console.log('Resposta da OpenAI:', JSON.stringify(response.data, null, 2));
-
-    const data = response.data as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content;
-    if (content) {
-      return content.trim();
-    } else {
-      console.error('Formato inesperado da resposta da OpenAI:', response.data);
-      return `Filme sugerido baseado em ${movie.title}`;
-    }
-  } catch (error) {
-    console.error('Erro ao gerar reflexão com OpenAI:', error);
-    return `Filme sugerido baseado em ${movie.title}`;
   }
 }
 
@@ -423,7 +337,7 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
   }
 }
 
-export async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBMovie; reflection: string; platforms: string[]; director: string | null; certification: string | null; keywords: string[] } | null> {
+export async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBMovie; platforms: string[]; director: string | null; certification: string | null; keywords: string[] } | null> {
   try {
     console.log(`Buscando filme no TMDB: ${title}${year ? ` (${year})` : ''}`);
     
@@ -529,6 +443,12 @@ export async function searchMovie(title: string, year?: number): Promise<{ movie
       return null;
     }
 
+    // Verificar a média de votos
+    if (movie.vote_average < 6.0) {
+      console.log(`❌ Filme rejeitado: ${movie.title} - Média de votos muito baixa (${movie.vote_average})`);
+      return null;
+    }
+
     console.log(`Filme encontrado: ${movie.title} (ID: ${movie.id})`);
     
     // Buscar detalhes completos do filme
@@ -559,13 +479,9 @@ export async function searchMovie(title: string, year?: number): Promise<{ movie
     
     // Buscar certificação brasileira
     const certification = await getBrazilianCertification(parseInt(movie.id));
-    
-    // Gerar reflexão
-    const reflection = await generateReflectionWithOpenAI({ ...movie, genres: details.data.genres }, keywords);
 
     return {
       movie: { ...movie, id: movie.id.toString(), genres: details.data.genres },
-      reflection,
       platforms,
       director: directors || null,
       certification,
@@ -613,9 +529,9 @@ async function processMoviesFromFile(filePath: string) {
         continue;
       }
 
-      const [title, movieSuggestionFlowId, year] = line.split(',').map(item => item.trim());
+      const [title, year] = line.split(',').map(item => item.trim());
       
-      if (!title || !movieSuggestionFlowId) {
+      if (!title) {
         console.error(`❌ Linha ${lineNumber}: Formato inválido - ${line}`);
         errorCount++;
         continue;
@@ -641,17 +557,15 @@ async function processMoviesFromFile(filePath: string) {
       processedTitles.add(title);
 
       console.log(`\n=== Processando filme ${lineNumber}: ${title}${parsedYear ? ` (${parsedYear})` : ''} ===`);
-      console.log(`ID do MovieSuggestionFlow: ${movieSuggestionFlowId}`);
       
       try {
         const movieResult = await searchMovie(title, parsedYear);
         
         if (movieResult) {
-          const { movie, reflection, platforms, director, certification, keywords } = movieResult;
+          const { movie, platforms, director, certification, keywords } = movieResult;
           console.log(`Filme encontrado no TMDB: ${movie.title} (${movie.release_date})`);
           console.log(`Título original: ${movie.original_title}`);
           console.log(`Diretores: ${director || 'Não encontrado'}`);
-          console.log(`Reflexão gerada: ${reflection}`);
           console.log(`Plataformas encontradas: ${platforms.join(', ')}`);
           console.log(`Certificação: ${certification || 'Não disponível'}`);
           console.log(`Palavras-chave: ${keywords.join(', ')}`);
@@ -667,10 +581,8 @@ async function processMoviesFromFile(filePath: string) {
             }
           });
 
-          let createdMovie;
           if (existingMovie) {
             console.log(`⚠️ Filme já existe no banco: ${movie.title}`);
-            createdMovie = existingMovie;
           } else {
             // Buscar ou criar os gêneros
             const genreIds: number[] = [];
@@ -690,7 +602,7 @@ async function processMoviesFromFile(filePath: string) {
             }
 
             // Criar o filme com os gêneros
-            createdMovie = await prisma.movie.create({
+            const createdMovie = await prisma.movie.create({
               data: {
                 title: movie.title,
                 year: new Date(movie.release_date).getFullYear(),
@@ -711,39 +623,6 @@ async function processMoviesFromFile(filePath: string) {
             console.log(`✅ Filme criado: ${createdMovie.title}`);
             console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
             console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
-          }
-
-          // Verificar se o JourneyOptionFlow existe
-          const journeyOptionFlow = await prisma.journeyOptionFlow.findUnique({
-            where: { id: parseInt(movieSuggestionFlowId) }
-          });
-
-          if (journeyOptionFlow) {
-            // Verificar se já existe uma sugestão para este filme e JourneyOptionFlow
-            const existingSuggestion = await prisma.movieSuggestionFlow.findFirst({
-              where: {
-                journeyOptionFlowId: parseInt(movieSuggestionFlowId),
-                movieId: createdMovie.id
-              }
-            });
-
-            if (existingSuggestion) {
-              console.log(`⚠️ Sugestão já existe para este filme e JourneyOptionFlow`);
-            } else {
-              // Criar o registro na tabela MovieSuggestionFlow usando a reflexão gerada
-              await prisma.movieSuggestionFlow.create({
-                data: {
-                  journeyOptionFlowId: parseInt(movieSuggestionFlowId),
-                  movieId: createdMovie.id,
-                  reason: reflection, // Usando a reflexão gerada pelo GPT
-                  relevance: 1
-                }
-              });
-              console.log(`✅ MovieSuggestionFlow criado com sucesso para o filme: ${createdMovie.title}`);
-              console.log(`Reflexão: ${reflection}`);
-            }
-          } else {
-            console.log(`⚠️ JourneyOptionFlow com ID ${movieSuggestionFlowId} não encontrado no banco de dados`);
           }
 
           successCount++;
@@ -774,15 +653,15 @@ async function processMoviesFromFile(filePath: string) {
 
 // Processar argumentos da linha de comando
 if (require.main === module) {
-const args = process.argv.slice(2);
-if (args.length === 0 || !args[0].startsWith('--file=')) {
-  console.log(`
+  const args = process.argv.slice(2);
+  if (args.length === 0 || !args[0].startsWith('--file=')) {
+    console.log(`
 Uso: 
   npx ts-node src/scripts/populateMovies.ts --file=caminho/para/arquivo.csv
   `);
-  process.exit(1);
-}
+    process.exit(1);
+  }
 
-const filePath = args[0].split('=')[1];
-processMoviesFromFile(filePath); 
+  const filePath = args[0].split('=')[1];
+  processMoviesFromFile(filePath); 
 } 

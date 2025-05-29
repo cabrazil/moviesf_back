@@ -115,11 +115,13 @@ async function validateJourneyPath(
         return false;
       }
 
-      // Se for a última opção da jornada, não precisa validar SubSentiments
-      if (step === journeyPath.steps[journeyPath.steps.length - 1]) {
-        console.log(`\n✅ Opção final da jornada: ${option.text}`);
+      // Validar apenas a última opção da jornada
+      if (step !== journeyPath.steps[journeyPath.steps.length - 1]) {
+        console.log(`\n⏭️ Pulando validação da opção: ${option.text}`);
         continue;
       }
+
+      console.log(`\nValidando última opção da jornada: ${option.text}`);
 
       // 3.2 Buscar os SubSentiments associados à opção
       const optionSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
@@ -157,6 +159,8 @@ async function validateJourneyPath(
         console.log(`❌ Score insuficiente para a opção: ${option.text} (score: ${totalScore})`);
         return false;
       }
+
+      console.log(`✅ Última opção validada com sucesso: ${option.text}`);
     }
 
     // 4. Se passou por todas as validações, adicionar à MovieSuggestionFlow
@@ -232,17 +236,17 @@ async function main() {
     steps: [
       {
         stepId: 8,
-        optionId: 28 // "Uma sensação de solidão ou isolamento?"
+        optionId: 29 
       },
       {
         stepId: 9,
-        optionId: 32 
+        optionId: 33
       }
     ]
   };
 
   // Testar com um filme específico
-  const movieId = "6d9928af-5adb-4987-99b0-f685434dcbe8"; // "Os Descendentes
+  const movieId = "ea600bd9-f985-42e0-9a31-9341397c6511";
   await validateJourneyPath(movieId, journeyPath);
 }
 

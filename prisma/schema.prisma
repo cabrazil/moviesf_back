@@ -29,14 +29,13 @@ model Movie {
   genreIds             Int[]
   movieSentiments      MovieSentiment[]
   movieSuggestionFlows MovieSuggestionFlow[]
-  genreRelations       Genre[]               @relation("MovieGenres")
+
+  @@index([title])
 }
 
 model Genre {
-  id            Int                 @id @default(autoincrement())
-  name          String              @unique
-  subSentiments GenreSubSentiment[]
-  movies        Movie[]             @relation("MovieGenres")
+  id   Int    @id @default(autoincrement())
+  name String @unique
 }
 
 model MainSentiment {
@@ -52,17 +51,15 @@ model MainSentiment {
 }
 
 model SubSentiment {
-  id                 Int                 @id @default(autoincrement())
-  name               String              @unique @db.VarChar(255)
-  description        String?
-  keywords           String[]            @default([])
-  mainSentimentId    Int
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  movieSentiment     MovieSentiment[]
-  mainSentiment      MainSentiment       @relation(fields: [mainSentimentId], references: [id])
-  journeyOptionFlows JourneyOptionFlow[]
-  genres             GenreSubSentiment[]
+  id              Int              @id @default(autoincrement())
+  name            String           @unique @db.VarChar(255)
+  description     String?
+  keywords        String[]         @default([])
+  mainSentimentId Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  movieSentiment  MovieSentiment[]
+  mainSentiment   MainSentiment    @relation(fields: [mainSentimentId], references: [id])
 
   @@index([mainSentimentId])
 }
@@ -106,21 +103,18 @@ model JourneyStepFlow {
 }
 
 model JourneyOptionFlow {
-  id                       Int                   @id @default(autoincrement())
-  journeyStepFlowId        Int
-  optionId                 String                @db.VarChar(255)
-  text                     String
-  nextStepId               String?               @db.VarChar(255)
-  isEndState               Boolean               @default(false)
-  createdAt                DateTime              @default(now())
-  updatedAt                DateTime              @updatedAt
-  associatedSubSentimentId Int?
-  journeyStepFlow          JourneyStepFlow       @relation(fields: [journeyStepFlowId], references: [id])
-  movieSuggestions         MovieSuggestionFlow[]
-  associatedSubSentiment   SubSentiment?         @relation(fields: [associatedSubSentimentId], references: [id])
+  id                Int                   @id @default(autoincrement())
+  journeyStepFlowId Int
+  optionId          String                @db.VarChar(255)
+  text              String
+  nextStepId        String?               @db.VarChar(255)
+  isEndState        Boolean               @default(false)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  journeyStepFlow   JourneyStepFlow       @relation(fields: [journeyStepFlowId], references: [id])
+  movieSuggestions  MovieSuggestionFlow[]
 
   @@index([journeyStepFlowId])
-  @@index([associatedSubSentimentId])
 }
 
 model MovieSuggestionFlow {
@@ -134,22 +128,18 @@ model MovieSuggestionFlow {
   journeyOptionFlow   JourneyOptionFlow @relation(fields: [journeyOptionFlowId], references: [id])
   movie               Movie             @relation(fields: [movieId], references: [id])
 
-  @@index([journeyOptionFlowId], map: "movie_suggestion_flows_journeyOptionFlowId_idx")
-  @@index([movieId], map: "movie_suggestion_flows_movieId_idx")
+  @@index([journeyOptionFlowId])
+  @@index([movieId])
 }
 
 model GenreSubSentiment {
-  id             Int          @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   genreId        Int
   subSentimentId Int
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  genre          Genre        @relation(fields: [genreId], references: [id])
-  subSentiment   SubSentiment @relation(fields: [subSentimentId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([genreId, subSentimentId])
-  @@index([genreId])
-  @@index([subSentimentId])
 }
 
 model JourneyOptionFlowSubSentiment {
@@ -160,7 +150,7 @@ model JourneyOptionFlowSubSentiment {
   createdAt           DateTime @default(now())
   updatedAt           DateTime
 
-  @@unique([journeyOptionFlowId, subSentimentId], map: "JourneyOptionFlowSubSentiment_journeyOptionFlowId_subSentimentI")
+  @@unique([journeyOptionFlowId, subSentimentId])
   @@index([journeyOptionFlowId])
   @@index([subSentimentId])
 }

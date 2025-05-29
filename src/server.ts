@@ -2,27 +2,30 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import routes from './routes';
-import mainSentimentRoutes from './routes/mainSentiment.routes';
+import mainSentimentRoutes from './routes/main-sentiments.routes';
 import emotionalStateRoutes from './routes/emotionalState.routes';
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT) || 3000;
 
-// Configuração CORS mais específica
+// Configuração CORS mais permissiva para desenvolvimento
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Aceita ambas as origens
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type'],
+  origin: '*', // Permite todas as origens em desenvolvimento
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
+  credentials: true,
+  maxAge: 86400 // 24 horas
 }));
 
 app.use(express.json());
 
 // Routes
-app.use('/api', routes);
-app.use('/api/main-sentiments', mainSentimentRoutes);
-app.use('/api/emotions/states', emotionalStateRoutes);
+app.use('/', routes);
+app.use('/main-sentiments', mainSentimentRoutes);
+app.use('/emotions/states', emotionalStateRoutes);
 
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -35,8 +38,8 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 // Inicialização do servidor apenas se este arquivo for executado diretamente
 if (require.main === module) {
-  app.listen(port, () => {
-    console.log(`Servidor rodando em http://localhost:${port}`);
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Servidor rodando em http://0.0.0.0:${port}`);
   });
 }
 

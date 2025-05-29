@@ -16,7 +16,11 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "db:backup": "ts-node prisma/scripts/backup-database.ts",
-    "db:restore": "ts-node prisma/scripts/restore-database.ts"
+    "db:restore": "ts-node prisma/scripts/restore-database.ts",
+    "db:reset": "ts-node src/scripts/resetDatabase.ts",
+    "db:reset-data": "ts-node src/scripts/resetData.ts",
+    "db:reset-with-schema": "ts-node src/scripts/resetWithSchema.ts",
+    "db:backup-supabase": "ts-node src/scripts/backupSupabase.ts"
   },
   "keywords": [],
   "author": "",

@@ -1,0 +1,153 @@
+id,journeyStepFlowId,optionId,text,nextStepId,isEndState,createdAt,updatedAt
+1,1,1A,...igualmente energético e vibrante?,2A,false,2025-05-08 22:08:50.582,2025-05-08 22:07:53.222
+2,1,1B,...uma aventura emocionante que te prenda do início ao fim?,2B,false,2025-05-08 22:12:54.019,2025-05-08 22:12:13.338
+3,1,1C,...algo inspirador e motivacional?,2C,false,2025-05-08 22:15:11.038,2025-05-08 22:14:46.882,
+4,1,1D,..uma experiência divertida e contagiante para compartilhar essa animação?,2D,false,2025-05-08 22:16:07.595,2025-05-08 22:15:48.537
+5,3,2A1,...muita ação e ritmo acelerado?,,true,2025-05-08 22:28:31.455,2025-05-08 22:27:34.473
+6,4,2B1,...uma comédia romântica com um final doce e feliz?,,true,2025-05-02 22:50:59.442,2025-05-02 23:55:24.027
+7,4,2B2,...um filme sobre amizade e laços familiares com momentos emocionantes?,,true,2025-05-02 23:42:52.121,2025-05-02 23:41:17.879
+8,4,2B3,...uma história inspiradora sobre superação e gentileza?,,true,2025-05-02 23:43:47.282,2025-05-02 23:43:08.399
+9,4,2B4,...uma fantasia leve com personagens carismáticos e um toque mágico?,,true,2025-05-02 23:44:37.62,2025-05-02 23:44:08.254
+10,5,2C1,...uma aventura emocionante com muita ação?,,true,2025-05-02 23:58:47.652,2025-05-02 23:58:11.58
+11,5,2C2,...um filme de esportes com uma história de superação e vitória?,,true,2025-05-02 23:59:29.053,2025-05-02 23:58:59.923
+12,5,2C3,...uma comédia musical vibrante e contagiante?,,true,2025-05-03 00:00:02.673,2025-05-02 23:59:44.743
+13,5,2C4,...um filme de fantasia com um ritmo acelerado e mundos fantásticos?,,true,2025-05-03 00:00:31.544,2025-05-03 00:00:14.142
+14,6,2D1,"...uma certa época da sua vida (infância, adolescência)?",,true,2025-05-03 00:05:44.87,2025-05-03 00:04:56.314
+15,6,2D2,...filmes clássicos que marcaram uma geração?,3D,false,2025-05-03 00:06:23.288,2025-05-06 20:55:46.245
+16,6,2D3,...animações antigas que te trazem boas recordações?,,true,2025-05-03 00:06:58.533,2025-05-03 00:06:28.11
+17,6,2D4," ...filmes com temas ou trilhas sonoras que te remetem a momentos felizes?",,true,2025-05-03 00:07:26.238,2025-05-03 00:07:06.513
+20,7,2A1,"...escancarado e com situações inusitadas, beirando absurdos?",,true,2025-05-03 14:46:47.444,2025-05-12 21:33:39.708
+21,7,2A2,...inteligente e com diálogos afiados?,,true,2025-05-03 14:47:45.391,2025-05-03 14:47:23.74
+22,7,2A3,...satírico e que faz pensar enquanto diverte?,,true,2025-05-03 14:48:32.208,2025-05-03 14:48:10.226
+23,7,2A4,...comédia romântica leve e divertida?,,true,2025-05-03 14:49:19.639,2025-05-03 14:48:54.172
+24,2,1A,...que me faça rir fácil e um humor contagiante?,2A,false,2025-05-03 14:52:04.14,2025-05-08 20:24:03.826
+25,2,1B,...com um calor no coração e uma sensação adorável?,2B,false,2025-05-03 14:52:58.677,2025-05-03 14:52:09.936
+26,2,1C,...empolgado(a) e cheio(a) de energia?,2C,false,2025-05-03 14:53:46.39,2025-05-03 14:52:59.551
+27,2,1D," ...com aquela nostalgia gostosa de boas lembranças?",2D,false,2025-05-03 14:54:35.727,2025-05-03 14:53:48.803
+28,8,1A,Uma sensação de solidão ou isolamento?,2A,false,2025-05-05 01:15:16.353,2025-05-22 00:59:54.331
+29,8,1B,Uma saudade de algo ou alguém do passado?,2B,false,2025-05-05 01:18:35.874,2025-05-22 01:00:59.389
+30,8,1C,Um sentimento de desilusão ou frustração?,2C,false,2025-05-05 01:19:59.978,2025-05-22 01:03:05.273
+31,8,1D,Uma sensação de vazio ou apatia?,2D,false,2025-05-05 01:21:09.373,2025-05-22 01:04:00.904
+32,9,2A1,A complexidade das relações humanas e o isolamento?,,true,2025-05-06 00:03:18.794,2025-05-22 01:24:07.626
+33,9,2A2,Uma jornada de superação pessoal em meio à adversidade?,,true,2025-05-06 00:11:37.344,2025-05-22 01:24:07.626
+34,9,2A3,Histórias de conexão e pertencimento para aquecer o coração?,,true,2025-05-06 00:13:37.151,2025-05-22 01:24:07.626
+39,11,2C1," ...um filme familiar que você já conhece e gosta muito?",2C,true,2025-05-06 00:21:21.513,2025-05-06 00:20:52.733
+40,11,2C2," ...uma fantasia com um mundo acolhedor e personagens reconfortantes?",2C,true,2025-05-06 00:22:12.545,2025-05-06 00:21:43.464
+41,11,2C3," ...uma ficção científica com um final otimista e um senso de ordem?",2C,true,2025-05-06 00:22:54.698,2025-05-06 00:22:33.472
+42,11,2C4," ...um filme sobre a natureza ou viagens com paisagens relaxantes?",2C,true,2025-05-06 00:23:50.04,2025-05-06 00:23:25.236
+43,12,2D1,...um drama mais contemplativo e com foco nos personagens?,2D,true,2025-05-06 00:25:18.487,2025-05-06 00:24:54.605
+44,12,2D2,...um filme com questões filosóficas ou existenciais?,2D,true,2025-05-06 00:26:07.689,2025-05-06 00:25:45.948
+45,12,2D3,...um documentário inspirador sobre a condição humana?,2D,true,2025-05-06 00:26:49.253,2025-05-06 00:26:29.365
+46,12,2D4,...um filme estrangeiro com uma perspectiva cultural diferente?,2D,true,2025-05-06 00:29:12.114,2025-05-06 00:28:46.029
+47,13,3D1,Na faixa dos 13-19 anos,,true,2025-05-06 20:13:33.559,2025-05-06 20:12:34.768
+48,13,3D2,Na faixa dos 20-30 anos,,true,2025-05-06 20:15:15.711,2025-05-06 20:13:54.259
+49,13,3D3,Na faixa dos 40-50 anos,,true,2025-05-06 20:58:04.688,2025-05-06 20:57:18.236
+50,13,3D4,Na faixa dos 60-70 anos,,true,2025-05-06 21:05:27.401,2025-05-06 21:04:58.891
+51,13,3D5,Acima de 70 anos,,true,2025-05-06 21:06:05.675,2025-05-06 21:05:36.364
+52,9,2A4,"Um drama pessoal, uma história de perda, ou algo que explore a fragilidade da condição humana?",,true,2025-05-09 22:23:03.262,2025-05-09 22:23:03.262
+54,3,2A2,...uma trilha sonora empolgante e marcante?,,true,2025-05-09 22:38:15.339,2025-05-09 22:37:34.855
+55,3,2A3,...cores vivas e uma estética dinâmica?,,true,2025-05-12 11:53:48.681,2025-05-12 11:52:50.4
+56,3,2A,...um musical com números de dança e canto energéticos?,2A3,true,2025-05-12 11:54:47.5,2025-05-12 11:58:31.237
+57,14,2B1,...uma jornada épica com desafios e descobertas?,,true,2025-05-12 11:59:14.542,2025-05-12 11:58:34.946
+58,14,2B,...um thriller de ação com reviravoltas e perigo constante?,2B2,true,2025-05-12 12:01:58.56,2025-05-12 12:03:48.561
+59,14,2B3,...uma fantasia com mundos mágicos e missões emocionantes?,,true,2025-05-12 12:04:43.166,2025-05-12 12:03:58.46
+60,14,2B4,...uma ficção científica com exploração e encontros inesperados?,,true,2025-05-12 12:06:17.053,2025-05-12 12:05:43.104
+61,17,2C1,...superação de desafios pessoais?,,true,2025-05-12 12:08:56.081,2025-05-12 12:08:27.412
+62,17,2C2,...a realização de grandes sonhos e objetivos?,,true,2025-05-12 12:09:38.553,2025-05-12 12:09:15.584
+63,17,2C3,...figuras históricas inspiradoras?,,true,2025-05-12 12:10:30.611,2025-05-12 12:10:02.832
+64,17,2C4,..o poder da colaboração e do trabalho em equipe?,,true,2025-05-12 12:11:24.055,2025-05-12 12:10:37.057
+65,19,2D1,...uma comédia leve e divertida para rir junto?,,true,2025-05-12 12:12:21.193,2025-05-12 12:11:53.468
+66,19,2D2,...uma animação para toda a família com mensagens positivas?,,true,2025-05-12 12:15:45.401,2025-05-12 12:13:50.2
+67,19,2D3,...um filme de aventura emocionante que todos possam curtir?,,true,2025-05-12 12:16:52.522,2025-05-12 12:16:30.459
+68,19,2D4,...um musical alegre para cantar e dançar (mesmo que na sala de casa)?,,true,2025-05-12 12:17:42.704,2025-05-12 12:17:12.09
+69,20,1A,...igualmente sereno e contemplativo?,2A,false,2025-05-12 12:23:22.608,2025-05-12 12:22:49.722
+70,20,1B,...uma distração leve e agradável sem grandes emoções?,2B,false,2025-05-12 12:24:27.297,2025-05-12 12:24:02.058
+72,20,1C,...algo familiar e reconfortante que você já conhece e gosta?,2C,false,2025-05-12 12:43:09.511,2025-05-12 12:43:09.511
+73,20,1D,...uma oportunidade de imersão visual em belas paisagens ou mundos?,2D,false,2025-05-12 12:45:18.687,2025-05-12 12:45:18.687
+74,21,2A1,...com um ritmo lento e focado nos personagens?,,true,2025-05-12 12:52:45.158,2025-05-12 12:57:39.955
+75,21,2A2,..com belas imagens da natureza ou viagens?,,true,2025-05-12 12:56:45.835,2025-05-12 12:56:45.835
+76,21,2A3,...com uma trilha sonora relaxante e minimalista?,,true,2025-05-12 12:58:40.127,2025-05-12 12:58:40.127
+77,21,2A4,...que explore temas filosóficos ou existenciais de forma calma?,,true,2025-05-12 12:59:15.679,2025-05-12 12:59:15.679
+78,22,2B1,..uma comédia com humor suave e sem grandes reviravoltas?,,true,2025-05-12 13:02:09.979,2025-05-12 13:02:09.979
+79,22,2B2,...uma animação fofa e divertida para todas as idades?,,true,2025-05-12 13:02:44.4,2025-05-12 13:02:44.4
+80,22,2B3,...um romance leve com um final previsível e feliz?,,true,2025-05-12 13:03:22.515,2025-05-12 13:03:22.515
+81,22,2B4,...um filme de aventura com um tom mais descontraído?,,true,2025-05-12 13:03:59.12,2025-05-12 13:03:59.12
+82,23,2C1,...um filme clássico que te traz boas lembranças?,,true,2025-05-12 13:09:26.934,2025-05-12 13:09:26.934
+83,23,2C2,...um filme de um diretor ou ator favorito?,,true,2025-05-12 13:10:02.862,2025-05-12 13:10:02.862
+84,23,2C3,...um filme de um gênero específico que sempre te acalma?,,true,2025-05-12 13:12:29.922,2025-05-12 13:12:29.922
+85,23,2C4,...uma continuação de uma história que você ama?,,true,2025-05-12 13:13:08.831,2025-05-12 13:13:08.831
+86,24,2D1,...documentários sobre a natureza com imagens espetaculares?,,true,2025-05-12 13:28:18.324,2025-05-12 13:28:18.324
+87,24,2D2,...filmes de fantasia ou ficção científica com cenários visualmente deslumbrantes?,,true,2025-05-12 13:29:21.783,2025-05-12 13:29:21.783
+88,24,2D3,..filmes de viagem que te transportem para outros lugares?,,true,2025-05-12 13:30:23.066,2025-05-12 13:30:23.066
+89,24,2D4,...filmes com uma fotografia cinematográfica particularmente impressionante?,,true,2025-05-12 13:31:05.407,2025-05-12 13:31:05.407
+90,26,1A,...algo leve e divertido para desligar a mente?,2A,false,2025-05-12 21:19:40.785,2025-05-12 22:43:38.494
+91,26,1B,...algo inspirador ou motivacional para te dar um novo gás?,2B,false,2025-05-12 21:21:19.698,2025-05-12 22:44:12.807
+92,26,1C,...algo confortante e familiar que não exija muito esforço para acompanhar?,2C,false,2025-05-12 21:22:12.333,2025-05-12 22:44:12.807
+93,26,1D,...algo que te permita escapar completamente da realidade?,2D,false,2025-05-12 21:23:06.918,2025-05-12 22:44:12.807
+98,27,2A1,...uma comédia com situações absurdas para rir sem pensar muito?,,true,2025-05-12 22:48:19.89,2025-05-12 22:48:19.89
+99,27,2A2,...uma animação divertida e colorida com humor simples?,,true,2025-05-12 22:49:24.883,2025-05-12 22:49:24.883
+100,27,2A3,...uma comédia romântica com um final previsível e agradável?,,true,2025-05-12 22:50:17.093,2025-05-12 22:50:17.093
+101,27,2A4,...um filme de aventura com um tom mais descontraído e sem grandes dramas?,,true,2025-05-12 22:51:05.342,2025-05-12 22:51:05.342
+102,28,2B1,...a superação de grandes desafios por pessoas comuns?,,true,2025-05-12 23:53:06.494,2025-05-12 23:53:06.494
+103,28,2B2,...a realização de sonhos ambiciosos apesar dos obstáculos?,,true,2025-05-12 23:54:25.714,2025-05-12 23:54:25.714
+104,28,2B3,...o poder da perseverança e da resiliência?,,true,2025-05-12 23:55:20.933,2025-05-12 23:55:20.933
+105,28,2B4,..uma jornada de autodescoberta e crescimento pessoal?,,true,2025-05-12 23:56:01.899,2025-05-12 23:56:01.899
+106,29,2C1,...um filme que você já viu várias vezes e sabe que gosta?,,true,2025-05-12 23:57:17.931,2025-05-12 23:57:17.931
+107,29,2C2,...um filme de um gênero específico que sempre te acalma e diverte?,,true,2025-05-12 23:58:02.004,2025-05-12 23:58:02.004
+108,29,2C3,...um filme com personagens cativantes com quem você se identifica?,,true,2025-05-12 23:58:47.53,2025-05-12 23:58:47.53
+109,29,2C4,..algo com uma narrativa simples e um final feliz garantido?,,true,2025-05-12 23:59:31.205,2025-05-12 23:59:31.205
+110,30,2D1,...um universo de fantasia com magia e seres incríveis?,,true,2025-05-13 00:00:47.624,2025-05-13 00:00:47.624
+111,30,2D2,...um futuro distante com tecnologia avançada e exploração espacial?,,true,2025-05-13 00:01:32.77,2025-05-13 00:01:32.77
+112,30,2D3,...uma realidade alternativa com regras diferentes?,,true,2025-05-13 00:02:22.146,2025-05-13 00:02:22.146
+113,30,2D4,...um mundo de animação visualmente deslumbrante?,,true,2025-05-13 00:03:07.662,2025-05-13 00:03:07.662
+114,31,1A,...te ajude a distrair a mente e relaxar?,2A,false,2025-05-13 01:11:07.187,2025-05-13 01:10:28.818
+115,31,1B,"...te prenda na história, afastando os pensamentos da ansiedade?",2B,false,2025-05-13 01:12:36.014,2025-05-13 01:11:50.222
+116,31,1C,...explore temas de tensão e suspense de uma forma que você consegue lidar?,2C,false,2025-05-13 01:13:26.355,2025-05-13 01:12:56.233
+117,31,1D,...te ofereça um senso de controle e alívio ao final?,2D,false,2025-05-13 01:14:12.247,2025-05-13 01:13:45.256
+118,32,2A1,"...leve e divertido, como uma comédia?",,true,2025-05-13 01:20:09.431,2025-05-13 01:19:25.644
+119,32,2A2,"...visualmente calmante, como um filme com belas paisagens ou animações suaves?",2A,true,2025-05-13 01:21:21.691,2025-05-13 01:20:35.838
+120,32,2A3,"...familiar e reconfortante, como um filme que você já conhece e gosta?",,true,2025-05-13 01:22:50.767,2025-05-13 01:21:49.291
+121,33,2B1,...um suspense intrigante que te faça focar na resolução do mistério?,,true,2025-05-13 01:29:17.978,2025-05-13 01:28:40.43
+122,33,2B2,...uma aventura emocionante com ação constante?,,true,2025-05-13 01:30:04.96,2025-05-13 01:29:38.635
+123,33,2B3,...uma ficção científica com um mundo fascinante para explorar?,,true,2025-05-13 01:31:13.074,2025-05-13 01:30:33.21
+124,34,2C1,"...psicológico, com foco na mente dos personagens?",,true,2025-05-13 01:32:16.199,2025-05-13 01:31:38.9
+125,34,2C2,...com uma tensão crescente e reviravoltas inesperadas?,,true,2025-05-13 01:33:14.356,2025-05-13 01:32:47.868
+126,34,2C3,...com elementos de mistério que te façam tentar decifrar a história?,,true,2025-05-13 01:34:09.812,2025-05-13 01:33:42.628
+127,35,2D1,...personagens superando grandes desafios?,,true,2025-05-13 01:35:03.417,2025-05-13 01:34:36.897
+128,35,2D2,...uma história com um final justo e satisfatório?,,true,2025-05-13 01:35:57.99,2025-05-13 01:35:33.325
+129,35,2D3,...uma narrativa onde a ordem é restaurada após o caos?,,true,2025-05-13 01:36:42.896,2025-05-13 01:36:22.304
+130,36,1A,...algo que esteja em alta ou sendo muito comentado?,2A,false,2025-05-13 01:40:54.793,2025-05-13 01:40:31.148
+131,36,1B,...algum gênero específico que você geralmente gosta ou tem curiosidade em explorar?,2B,false,2025-05-13 01:42:05.894,2025-05-13 01:40:57.163
+132,36,1C,...algo visualmente interessante ou com uma direção renomada?,2C,false,2025-05-13 01:43:03.345,2025-05-13 01:42:40.343
+133,36,1D,...algo curto e direto que não exija muito investimento de tempo ou emoção?,2D,false,2025-05-13 01:43:51.302,2025-05-13 01:43:22.929
+134,37,2A1,...um lançamento recente que está gerando burburinho?,,true,2025-05-13 01:49:30.155,2025-05-13 01:49:04.954
+135,37,2A2,...um clássico aclamado que muitas pessoas recomendam?,,true,2025-05-13 01:50:20.937,2025-05-13 01:49:53.306
+136,37,2A3,...um filme premiado que recebeu reconhecimento da crítica?,,true,2025-05-13 01:51:08.335,2025-05-13 01:50:40.353
+137,37,2A4,...algo que esteja popular nas plataformas de streaming no momento?,,true,2025-05-13 01:51:53.504,2025-05-13 01:51:28.849
+138,38,2B1,Ação,,true,2025-05-13 01:52:59.329,2025-05-19 18:18:59.18
+139,39,2C1,...filmes com efeitos visuais impressionantes?,,true,2025-05-13 01:54:46.243,2025-05-13 01:53:20.604
+140,39,2C2,...filmes com uma fotografia cinematográfica marcante?,,true,2025-05-13 01:55:37.609,2025-05-13 01:55:12.013
+141,39,2C3,...filmes dirigidos por algum diretor que você admira?,,true,2025-05-13 01:56:18.792,2025-05-13 01:55:57.608
+142,39,2C4,...filmes conhecidos por sua estética única?,,true,2025-05-13 01:57:02.213,2025-05-13 01:56:39.476
+143,40,2D1,"...um filme com duração mais curta (até 90 minutos, por exemplo)?",,true,2025-05-13 01:58:01.367,2025-05-13 01:57:38.24
+144,40,2D2,...uma comédia leve e episódica?,,true,2025-05-13 01:58:55.232,2025-05-13 01:58:25.339,
+145,40,2D3,...um documentário conciso sobre um tema interessante?,,true,2025-05-13 01:59:38.831,2025-05-13 01:59:13.903
+146,40,2D4,...um filme de animação com uma história simples?,,true,2025-05-13 02:00:17.356,2025-05-13 01:59:59.087
+147,38,2B2,Comédia,,true,2025-05-19 18:20:38.845,2025-05-19 18:19:52.655
+148,38,2B3,Drama,,true,2025-05-19 18:22:12.819,2025-05-19 18:21:32.543
+149,38,2B4,Ficção Científica,,true,2025-05-19 18:22:56.145,2025-05-19 18:22:19.438
+150,38,2B5,Terror,,true,2025-05-19 18:24:30.827,2025-05-19 18:23:59.732
+151,38,2B6,Romance,,true,2025-05-19 18:25:11.152,2025-05-19 18:24:36.542
+152,38,2B7,Suspense,,true,2025-05-19 18:26:31.856,2025-05-19 18:27:59.668
+153,38,2B8,Faroeste,,true,2025-05-19 18:38:02.448,2025-05-19 18:37:33.498
+154,38,2B9,Guerra,,true,2025-05-19 19:04:12.962,2025-05-19 19:03:39.292
+155,38,2B10,Crime,,true,2025-05-19 19:33:55.3,2025-05-19 19:33:22.386
+156,8,1E,Uma necessidade de expressar ou liberar emoções?,2E,false,2025-05-22 01:05:31.084,2025-05-22 01:04:30.074
+157,8,1F,"Na verdade, quero um filme que me ajude a esquecer e me sentir mais leve/melhor.",2F,false,2025-05-23 23:32:47.528,2025-05-23 20:32:18
+158,10,2B1,Explore as lembranças agridoces e a beleza do tempo que passou?,,true,2025-05-23 23:57:43.038,2025-05-23 20:57:38
+159,10,2B2,Mergulhe na dor da perda e na ausência de algo ou alguém muito querido?,,true,2025-05-24 00:04:32.728,2025-05-23 21:04:24
+160,10,2B3,Resgate a inocência da infância ou a pureza de um tempo que não existe mais?,,true,2025-05-24 00:06:10.952,2025-05-23 21:06:08
+161,42,2F1,"Algo divertido e cheio de risadas?"" (Comédia)",NULL,true,2025-05-24 00:20:47.128,2025-05-23 21:20:38
+162,42,2F2,"Inspirador e com uma mensagem positiva?"" (Drama inspirador/Comédia Dramática)",,false,2025-05-24 00:25:37.339,2025-05-23 21:25:35
+163,42,2F3,"Leve e emocionante, mas sem grandes dramas?"" (Filme feel-good/Romance leve)",,false,2025-05-24 00:27:10.475,2025-05-23 21:27:10
+164,42,2F4,"Pura aventura ou ação para me distrair completamente?"" (Ação/Aventura com foco na distração)",,false,2025-05-24 00:31:07.14,2025-05-23 21:31:07

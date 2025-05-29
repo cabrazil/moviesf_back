@@ -5,16 +5,26 @@ import asyncHandler from 'express-async-handler';
 const prisma = new PrismaClient();
 
 // @desc    Buscar estados emocionais disponíveis
-// @route   GET /api/emotions/states
+// @route   GET /emotions/states
 // @access  Public
 export const getEmotionalStates = asyncHandler(async (req: Request, res: Response) => {
-  const states = await prisma.emotionalState.findMany({
-    where: {
-      isActive: true
-    }
-  });
+  try {
+    const states = await prisma.emotionalState.findMany({
+      include: {
+        mainSentiment: true,
+        journeySteps: {
+          include: {
+            options: true
+          }
+        }
+      }
+    });
 
-  res.json(states);
+    res.json(states);
+  } catch (error) {
+    console.error('Erro ao buscar estados emocionais:', error);
+    res.status(500).json({ error: 'Erro ao buscar estados emocionais' });
+  }
 });
 
 // @desc    Buscar sugestões de filmes baseadas no caminho emocional
