@@ -27,6 +27,7 @@ model Movie {
   adult                Boolean?              @default(false)
   keywords             String[]
   genreIds             Int[]
+  runtime              Int?
   movieSentiments      MovieSentiment[]
   movieSuggestionFlows MovieSuggestionFlow[]
 

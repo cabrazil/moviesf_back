@@ -4,6 +4,24 @@ import { MainSentiment } from '@prisma/client';
 
 const router = Router();
 
+// ROTA DE SUMMARY PRIMEIRO!
+router.get('/summary', async (req, res) => {
+  try {
+    const sentiments = await prisma.mainSentiment.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+    res.json(sentiments);
+  } catch (error) {
+    console.error('Erro ao buscar sentimentos principais:', error);
+    res.status(500).json({ error: 'Erro ao buscar sentimentos principais' });
+  }
+});
+
 // Listar todos os sentimentos principais
 router.get('/', async (req, res) => {
   try {
@@ -108,6 +126,58 @@ router.get('/:id/journey-flow', async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar fluxo da jornada:', error);
     res.status(500).json({ error: 'Erro ao buscar fluxo da jornada' });
+  }
+});
+
+// Buscar sentimento principal por ID, incluindo o fluxo da jornada
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Recebido id:', id);
+    const mainSentiment = await prisma.mainSentiment.findUnique({
+      where: { id: Number(id) },
+      include: {
+        journeyFlow: {
+          include: {
+            steps: {
+              include: {
+                options: {
+                  include: {
+                    movieSuggestions: {
+                      include: {
+                        movie: {
+                          select: {
+                            id: true,
+                            title: true,
+                            thumbnail: true,
+                            year: true,
+                            director: true,
+                            vote_average: true,
+                            certification: true,
+                            genres: true,
+                            runtime: true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              orderBy: { order: 'asc' }
+            }
+          }
+        }
+      }
+    });
+
+    if (!mainSentiment) {
+      return res.status(404).json({ error: 'Sentimento principal não encontrado' });
+    }
+
+    res.json(mainSentiment);
+  } catch (error) {
+    console.error('Erro ao buscar sentimento principal:', error);
+    res.status(500).json({ error: 'Erro ao buscar sentimento principal' });
   }
 });
 

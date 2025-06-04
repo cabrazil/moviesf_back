@@ -2,8 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import routes from './routes';
-import mainSentimentRoutes from './routes/main-sentiments.routes';
+import mainSentimentsRoutes from './routes/main-sentiments.routes';
 import emotionalStateRoutes from './routes/emotionalState.routes';
+import moviesRoutes from './routes/movies.routes';
 
 dotenv.config();
 
@@ -22,10 +23,17 @@ app.use(cors({
 
 app.use(express.json());
 
+// Log de todas as requisições
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} from ${req.ip}`);
+  next();
+});
+
 // Routes
 app.use('/', routes);
-app.use('/main-sentiments', mainSentimentRoutes);
-app.use('/emotions/states', emotionalStateRoutes);
+app.use('/main-sentiments', mainSentimentsRoutes);
+app.use('/emotional-state', emotionalStateRoutes);
+app.use('/movies', moviesRoutes);
 
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

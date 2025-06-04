@@ -30,21 +30,26 @@ const keepWords = [
 
 // Dicionário de sinônimos e variações
 const synonyms: Record<string, string[]> = {
-  'divertido': ['diversão', 'humor', 'alegria', 'descontração', 'leveza'],
-  'pobre': ['desigualdade', 'injustiça', 'miséria', 'fome', 'necessidade'],
-  'mentiroso': ['engano', 'trapaça', 'crítica', 'hipocrisia', 'falsidade'],
-  'covarde': ['medo', 'fraqueza', 'crítica', 'preconceito'],
-  'nordestino': ['sertão', 'nordeste', 'regional', 'tradição', 'cultura'],
-  'sertanejo': ['nordeste', 'sertão', 'regional', 'tradição'],
-  'vilarejo': ['cidade pequena', 'interior', 'comunidade', 'sociedade'],
-  'salvação': ['religião', 'fé', 'espiritual', 'milagre', 'divino'],
-  'engano': ['mentira', 'trapaça', 'crítica', 'sátira'],
-  'luta': ['superação', 'desafio', 'conquista', 'vitória'],
-  'pão': ['fome', 'necessidade', 'sobrevivência', 'pobreza'],
-  'sertão': ['nordeste', 'regional', 'tradição', 'cultura'],
-  'pequeno': ['humilde', 'simples', 'pobre'],
-  'aparição': ['religião', 'fé', 'espiritual', 'divino'],
-  'adaptação': ['arte', 'cultura', 'literatura', 'teatro']
+  'divórcio': ['separação', 'rompimento', 'dissolução', 'fim do casamento', 'término'],
+  'família': ['parentesco', 'relacionamento familiar', 'laços familiares', 'parentes'],
+  'abandono': ['desamparo', 'isolamento', 'solidão', 'rejeição', 'desprezo'],
+  'custódia': ['guarda', 'responsabilidade', 'cuidado', 'proteção', 'tutela'],
+  'filhos': ['crianças', 'prole', 'descendentes', 'menores'],
+  'casamento': ['união', 'relacionamento', 'vida a dois', 'matrimônio'],
+  'relacionamento': ['vínculo', 'conexão', 'laço', 'união'],
+  'drama': ['dramático', 'emocional', 'intenso', 'profundo'],
+  'superação': ['resiliência', 'força', 'coragem', 'determinação'],
+  'crescimento': ['desenvolvimento', 'evolução', 'mudança', 'transformação'],
+  'reflexão': ['contemplação', 'introspecção', 'análise', 'pensamento'],
+  'emoção': ['sentimento', 'afeto', 'paixão', 'sensibilidade'],
+  'humanidade': ['natureza humana', 'condição humana', 'essência', 'existência'],
+  'experiência': ['vivência', 'aprendizado', 'conhecimento', 'sabedoria'],
+  'desafio': ['obstáculo', 'dificuldade', 'provação', 'teste'],
+  'conquista': ['vitória', 'realização', 'sucesso', 'alcançar'],
+  'transformação': ['mudança', 'evolução', 'metamorfose', 'transição'],
+  'desenvolvimento': ['crescimento', 'progresso', 'avanço', 'evolução'],
+  'aprendizado': ['conhecimento', 'sabedoria', 'experiência', 'ensino'],
+  'vitória': ['sucesso', 'conquista', 'triunfo', 'realização']
 };
 
 interface ValidateMovieParams {
@@ -82,6 +87,24 @@ interface TMDBMovieResponse {
   runtime: number;
   popularity: number;
   [key: string]: any;
+}
+
+// Adicionar interfaces para as relações
+interface GenreSubSentimentWithRelations {
+  id: number;
+  createdAt: Date;
+  updatedAt: Date;
+  subSentimentId: number;
+  genreId: number;
+  subSentiment: {
+    id: number;
+    name: string;
+    keywords: string[];
+  };
+  genre: {
+    id: number;
+    name: string;
+  };
 }
 
 // Função para normalizar texto
@@ -154,8 +177,11 @@ function findSimilarWords(word: string, targetWords: string[]): string[] {
     }
 
     // Verificar sinônimos das palavras alvo
-    if (synonyms[normalizedTarget]?.some(syn => normalizedWord.includes(syn) || syn.includes(normalizedWord))) {
-      matches.push(target);
+    if (synonyms[normalizedTarget]) {
+      const targetSynonyms = synonyms[normalizedTarget];
+      if (targetSynonyms.some(syn => normalizedWord.includes(syn) || syn.includes(normalizedWord))) {
+        matches.push(target);
+      }
     }
 
     // Verificar palavras relacionadas semanticamente
@@ -174,16 +200,26 @@ function getSemanticallyRelatedWords(word: string): string[] {
   
   // Mapeamento de palavras relacionadas semanticamente
   const semanticMap: Record<string, string[]> = {
-    'triste': ['melancólico', 'deprimido', 'abatido', 'desanimado', 'desolado'],
-    'solidão': ['isolamento', 'abandono', 'desamparo', 'solitário', 'sozinho'],
-    'dor': ['sofrimento', 'angústia', 'aflição', 'tristeza', 'pesar'],
-    'perda': ['luto', 'saudade', 'falta', 'ausência', 'privação'],
-    'abandono': ['desamparo', 'isolamento', 'solidão', 'rejeição', 'desprezo'],
-    'violência': ['agressão', 'abuso', 'crueldade', 'brutalidade', 'opressão'],
-    'injustiça': ['opressão', 'discriminação', 'preconceito', 'desigualdade', 'exploração'],
-    'esperança': ['fé', 'confiança', 'otimismo', 'perseverança', 'resistência'],
-    'superação': ['resiliência', 'força', 'coragem', 'determinação', 'luta'],
-    'amor': ['afeto', 'carinho', 'ternura', 'dedicação', 'apego']
+    'divórcio': ['separação', 'rompimento', 'dissolução', 'fim do casamento', 'término', 'desunião'],
+    'família': ['parentesco', 'relacionamento familiar', 'laços familiares', 'parentes', 'casa', 'lar'],
+    'abandono': ['desamparo', 'isolamento', 'solidão', 'rejeição', 'desprezo', 'desamparo'],
+    'custódia': ['guarda', 'responsabilidade', 'cuidado', 'proteção', 'tutela', 'zelo'],
+    'filhos': ['crianças', 'prole', 'descendentes', 'menores', 'herdeiros'],
+    'casamento': ['união', 'relacionamento', 'vida a dois', 'matrimônio', 'aliança'],
+    'relacionamento': ['vínculo', 'conexão', 'laço', 'união', 'afeto'],
+    'drama': ['dramático', 'emocional', 'intenso', 'profundo', 'sentimental'],
+    'superação': ['resiliência', 'força', 'coragem', 'determinação', 'persistência'],
+    'crescimento': ['desenvolvimento', 'evolução', 'mudança', 'transformação', 'progresso'],
+    'reflexão': ['contemplação', 'introspecção', 'análise', 'pensamento', 'meditação'],
+    'emoção': ['sentimento', 'afeto', 'paixão', 'sensibilidade', 'sentimental'],
+    'humanidade': ['natureza humana', 'condição humana', 'essência', 'existência', 'alma'],
+    'experiência': ['vivência', 'aprendizado', 'conhecimento', 'sabedoria', 'vivencia'],
+    'desafio': ['obstáculo', 'dificuldade', 'provação', 'teste', 'prova'],
+    'conquista': ['vitória', 'realização', 'sucesso', 'alcançar', 'triunfo'],
+    'transformação': ['mudança', 'evolução', 'metamorfose', 'transição', 'mutação'],
+    'desenvolvimento': ['crescimento', 'progresso', 'avanço', 'evolução', 'melhoria'],
+    'aprendizado': ['conhecimento', 'sabedoria', 'experiência', 'ensino', 'educação'],
+    'vitória': ['sucesso', 'conquista', 'triunfo', 'realização', 'alcançar']
   };
 
   // Adicionar palavras relacionadas do mapa semântico
@@ -417,20 +453,29 @@ export async function validateMovieSentiments(params: ValidateMovieParams) {
     console.log('\nGêneros encontrados no banco:', movieGenres.map(g => g.name));
 
     // 7. Buscar SubSentiments relacionados aos gêneros do filme
-    const genreSubSentiments = await prisma.genreSubSentiment.findMany({
-      where: {
-        genreId: {
-          in: movieGenres.map(g => g.id)
-        },
-        subSentiment: {
-          mainSentimentId: mainSentiment.id
-        }
-      },
-      include: {
-        subSentiment: true,
-        genre: true
-      }
-    });
+    const genreSubSentiments = await prisma.$queryRaw<GenreSubSentimentWithRelations[]>`
+      SELECT 
+        gs.id,
+        gs."createdAt",
+        gs."updatedAt",
+        gs."subSentimentId",
+        gs."genreId",
+        json_build_object(
+          'id', ss.id,
+          'name', ss.name,
+          'keywords', ss.keywords
+        ) as "subSentiment",
+        json_build_object(
+          'id', g.id,
+          'name', g.name
+        ) as "genre"
+      FROM "GenreSubSentiment" gs
+      JOIN "SubSentiment" ss ON ss.id = gs."subSentimentId"
+      JOIN "Genre" g ON g.id = gs."genreId"
+      WHERE ss."mainSentimentId" = ${mainSentiment.id}
+    `;
+
+    console.log('\nDebug - Resultado da consulta:', JSON.stringify(genreSubSentiments, null, 2));
 
     console.log('\nSubSentiments encontrados por gênero:');
     if (genreSubSentiments.length === 0) {

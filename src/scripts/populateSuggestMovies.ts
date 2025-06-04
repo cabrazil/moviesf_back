@@ -130,6 +130,20 @@ async function validateJourneyPath(
         }
       });
 
+      // Buscar detalhes dos SubSentiments
+      const subSentimentDetails = await prisma.subSentiment.findMany({
+        where: {
+          id: {
+            in: optionSubSentiments.map(jofss => jofss.subSentimentId)
+          }
+        }
+      });
+
+      console.log('\nDebug - SubSentiments da opção:', JSON.stringify({
+        optionSubSentiments,
+        subSentimentDetails
+      }, null, 2));
+
       // 3.3 Validar se o filme tem os SubSentiments da opção
       const movieSubSentiments = await prisma.movieSentiment.findMany({
         where: {
@@ -139,6 +153,20 @@ async function validateJourneyPath(
           }
         }
       });
+
+      // Buscar detalhes dos SubSentiments do filme
+      const movieSubSentimentDetails = await prisma.subSentiment.findMany({
+        where: {
+          id: {
+            in: movieSubSentiments.map(mss => mss.subSentimentId)
+          }
+        }
+      });
+
+      console.log('\nDebug - SubSentiments do filme:', JSON.stringify({
+        movieSubSentiments,
+        movieSubSentimentDetails
+      }, null, 2));
 
       if (movieSubSentiments.length === 0) {
         console.log(`❌ Filme não tem SubSentiments compatíveis com a opção: ${option.text}`);
@@ -230,23 +258,23 @@ async function validateJourneyPath(
 // Exemplo de uso
 async function main() {
   const journeyPath: JourneyPath = {
-    mainSentimentId: 14, // Triste/Melancólico(a)
-    mainSentimentName: "Triste / Melancólico(a)",
-    journeyFlowId: 3,
+    mainSentimentId: 19, // Triste/Melancólico(a)
+    mainSentimentName: "Neutro / Indiferente",
+    journeyFlowId: 7,
     steps: [
       {
-        stepId: 8,
-        optionId: 29 
+        stepId: 36,
+        optionId: 130
       },
       {
-        stepId: 9,
-        optionId: 33
+        stepId: 37,
+        optionId: 136
       }
     ]
   };
 
   // Testar com um filme específico
-  const movieId = "ea600bd9-f985-42e0-9a31-9341397c6511";
+  const movieId = "920d9ef7-130a-4286-9835-e13e48fe41cb";
   await validateJourneyPath(movieId, journeyPath);
 }
 

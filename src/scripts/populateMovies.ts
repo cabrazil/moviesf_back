@@ -24,6 +24,7 @@ interface TMDBMovie {
   genres: { id: number; name: string }[];
   genre_ids?: number[];
   director?: string | null;
+  runtime?: number;
 }
 
 interface TMDBMovieDetails {
@@ -36,9 +37,11 @@ interface TMDBMovieDetails {
       release_dates: Array<{
         certification: string;
         type: number;
+        release_date: string;
       }>;
     }>;
   };
+  runtime: number;
 }
 
 interface TMDBResponse {
@@ -235,21 +238,41 @@ async function getBrazilianCertification(movieId: number): Promise<string | null
       release => release.iso_3166_1 === 'BR'
     );
 
-    if (!brazilRelease || !brazilRelease.release_dates.length) {
+    if (!brazilRelease) {
+      return null;
+    }
+
+    if (!brazilRelease.release_dates.length) {
+      return null;
+    }
+
+    // Ordenar por data de lançamento (mais recente primeiro) e filtrar certificações vazias
+    const validReleases = brazilRelease.release_dates
+      .filter(release => release.certification && release.certification.trim() !== '')
+      .sort((a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime());
+
+    if (validReleases.length === 0) {
       return null;
     }
 
     // Priorizar certificação do cinema (type: 3)
-    const cinemaRelease = brazilRelease.release_dates.find(
-      release => release.type === 3
-    );
+    const cinemaRelease = validReleases.find(release => release.type === 3);
+    if (cinemaRelease) {
+      return cinemaRelease.certification;
+    }
 
-    // Se não encontrar certificação do cinema, usar a primeira disponível
-    const certification = cinemaRelease?.certification || brazilRelease.release_dates[0].certification;
+    // Se não encontrar certificação do cinema, usar a mais recente
+    return validReleases[0].certification;
 
-    return certification || null;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Erro ao buscar certificação para o filme ID ${movieId}:`, error);
+    if (error.response) {
+      console.error('Detalhes do erro:', {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers
+      });
+    }
     return null;
   }
 }
@@ -262,21 +285,48 @@ async function translateText(text: string): Promise<string> {
       return commonKeywordsMapping[lowerText];
     }
 
-    // Se não tiver mapeamento, tentar a API
-    const response = await axios.post<GoogleTranslateResponse>(
-      `https://translation.googleapis.com/language/translate/v2?key=${process.env.GOOGLE_TRANSLATE_API_KEY}`,
-      {
-        q: text,
-        source: 'en',
-        target: 'pt',
-        format: 'text'
-      }
-    );
+    // Se não tiver mapeamento, tentar a API com retry
+    const maxRetries = 3;
+    let lastError = null;
 
-    return response.data.data.translations[0].translatedText;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await axios.post<GoogleTranslateResponse>(
+          `https://translation.googleapis.com/language/translate/v2?key=${process.env.GOOGLE_TRANSLATE_API_KEY}`,
+          {
+            q: text,
+            source: 'en',
+            target: 'pt',
+            format: 'text'
+          },
+          {
+            timeout: 5000, // 5 segundos de timeout
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        return response.data.data.translations[0].translatedText;
+      } catch (error: any) {
+        lastError = error;
+        console.error(`Tentativa ${i + 1} falhou:`, error.message);
+        
+        // Se não for o último retry, espera um pouco antes de tentar novamente
+        if (i < maxRetries - 1) {
+          const delay = Math.pow(2, i) * 1000; // Exponential backoff
+          console.log(`Aguardando ${delay}ms antes da próxima tentativa...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // Se todas as tentativas falharem, retorna o texto original
+    console.error(`Todas as tentativas de tradução falharam para "${text}":`, lastError);
+    return text;
   } catch (error) {
     console.error(`Erro ao traduzir texto "${text}":`, error);
-    // Em caso de erro, retornar o texto original
     return text;
   }
 }
@@ -480,8 +530,11 @@ export async function searchMovie(title: string, year?: number): Promise<{ movie
     // Buscar certificação brasileira
     const certification = await getBrazilianCertification(parseInt(movie.id));
 
+    // Log da duração do filme
+    console.log(`Duração: ${details.data.runtime} minutos`);
+
     return {
-      movie: { ...movie, id: movie.id.toString(), genres: details.data.genres },
+      movie: { ...movie, id: movie.id.toString(), genres: details.data.genres, runtime: details.data.runtime },
       platforms,
       director: directors || null,
       certification,
@@ -617,7 +670,8 @@ async function processMoviesFromFile(filePath: string) {
                 certification: certification || undefined,
                 adult: movie.adult,
                 keywords: keywords,
-                genreIds: genreIds
+                genreIds: genreIds,
+                runtime: movie.runtime || undefined
               }
             });
             console.log(`✅ Filme criado: ${createdMovie.title}`);
