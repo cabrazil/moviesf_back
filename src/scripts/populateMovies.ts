@@ -25,6 +25,7 @@ interface TMDBMovie {
   genre_ids?: number[];
   director?: string | null;
   runtime?: number;
+  popularity?: number;
 }
 
 interface TMDBMovieDetails {
@@ -226,6 +227,8 @@ async function getMovieDirectors(movieId: number): Promise<string | null> {
 
 async function getBrazilianCertification(movieId: number): Promise<string | null> {
   try {
+    console.log(`Buscando certificação para o filme ID ${movieId}...`);
+    
     const response = await axios.get<TMDBMovieDetails>(`${TMDB_API_URL}/movie/${movieId}`, {
       params: {
         api_key: TMDB_API_KEY,
@@ -234,17 +237,23 @@ async function getBrazilianCertification(movieId: number): Promise<string | null
       }
     });
 
+    console.log('Resposta do TMDB:', JSON.stringify(response.data.release_dates, null, 2));
+
     const brazilRelease = response.data.release_dates.results.find(
       release => release.iso_3166_1 === 'BR'
     );
 
     if (!brazilRelease) {
+      console.log('Nenhuma certificação brasileira encontrada');
       return null;
     }
 
     if (!brazilRelease.release_dates.length) {
+      console.log('Lista de datas de lançamento vazia para o Brasil');
       return null;
     }
+
+    console.log('Datas de lançamento encontradas:', JSON.stringify(brazilRelease.release_dates, null, 2));
 
     // Ordenar por data de lançamento (mais recente primeiro) e filtrar certificações vazias
     const validReleases = brazilRelease.release_dates
@@ -252,17 +261,21 @@ async function getBrazilianCertification(movieId: number): Promise<string | null
       .sort((a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime());
 
     if (validReleases.length === 0) {
+      console.log('Nenhuma certificação válida encontrada');
       return null;
     }
 
     // Priorizar certificação do cinema (type: 3)
     const cinemaRelease = validReleases.find(release => release.type === 3);
     if (cinemaRelease) {
+      console.log(`Certificação do cinema encontrada: ${cinemaRelease.certification}`);
       return cinemaRelease.certification;
     }
 
     // Se não encontrar certificação do cinema, usar a mais recente
-    return validReleases[0].certification;
+    const mostRecentRelease = validReleases[0];
+    console.log(`Usando certificação mais recente: ${mostRecentRelease.certification}`);
+    return mostRecentRelease.certification;
 
   } catch (error: any) {
     console.error(`Erro ao buscar certificação para o filme ID ${movieId}:`, error);

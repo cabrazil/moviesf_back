@@ -7,9 +7,9 @@ async function updateNeutralSentiment() {
   try {
     console.log('Iniciando atualização do sentimento Neutro / Indiferente...');
 
-    // 1. Atualizar o MainSentiment
+    // 1. Atualizar o MainSentiment usando o ID
     const updatedMainSentiment = await prisma.mainSentiment.update({
-      where: { name: 'Neutro / Indiferente' },
+      where: { id: 19 }, // Usando o ID ao invés do nome
       data: {
         description: 'Estado de equilíbrio emocional, contemplação e análise objetiva',
         keywords: [
@@ -44,15 +44,45 @@ async function updateNeutralSentiment() {
           'hesitação',
           'desapego',
           'desprendimento',
-          'descompromisso'
+          'descompromisso',
+          // Novas keywords para filmes clássicos e cult
+          'clássico',
+          'cult',
+          'cultuado',
+          'reconhecido',
+          'premiado',
+          'histórico',
+          'importante',
+          'relevante',
+          'significativo',
+          'marcante',
+          'influente',
+          'referência',
+          'fundamental',
+          'essencial',
+          'crucial',
+          'determinante',
+          'decisivo',
+          'fundamental',
+          'básico',
+          'elementar'
         ]
       }
     });
 
     console.log('MainSentiment atualizado com sucesso!');
 
-    // 2. Criar novos SubSentiments
-    const newSubSentiments = [
+    // 2. Buscar SubSentiments existentes
+    const existingSubSentiments = await prisma.subSentiment.findMany({
+      where: {
+        mainSentimentId: 19
+      }
+    });
+
+    console.log(`\nSubSentiments existentes encontrados: ${existingSubSentiments.length}`);
+
+    // 3. Atualizar ou criar SubSentiments
+    const subSentimentsToUpdate = [
       {
         name: 'Observação e Análise',
         description: 'Estado de observação atenta e análise objetiva',
@@ -100,30 +130,84 @@ async function updateNeutralSentiment() {
           'racionalidade',
           'análise'
         ]
+      },
+      {
+        name: 'Drama Familiar Neutro',
+        description: 'Filmes que exploram relações familiares de forma objetiva e analítica',
+        keywords: [
+          'família',
+          'relacionamento',
+          'parentesco',
+          'laços',
+          'conexão',
+          'vínculo',
+          'união',
+          'separação',
+          'conflito',
+          'tensão',
+          'distância',
+          'aproximação',
+          'afastamento',
+          'reconciliação',
+          'ruptura',
+          'reconstrução',
+          'transformação',
+          'evolução',
+          'mudança',
+          'adaptação',
+          'aceitação',
+          'compreensão',
+          'entendimento',
+          'diálogo',
+          'comunicação',
+          'silêncio',
+          'ausência',
+          'presença',
+          'memória',
+          'lembrança',
+          'passado',
+          'presente',
+          'futuro',
+          'herança',
+          'tradição',
+          'costume',
+          'cultura',
+          'identidade',
+          'pertencimento'
+        ]
       }
     ];
 
-    // 3. Remover SubSentiments existentes
-    await prisma.subSentiment.deleteMany({
-      where: {
-        mainSentimentId: updatedMainSentiment.id
-      }
-    });
+    for (const subSentiment of subSentimentsToUpdate) {
+      const existingSubSentiment = existingSubSentiments.find(
+        es => es.name === subSentiment.name
+      );
 
-    // 4. Criar novos SubSentiments
-    for (const subSentiment of newSubSentiments) {
-      await prisma.subSentiment.create({
-        data: {
-          ...subSentiment,
-          mainSentimentId: updatedMainSentiment.id
-        }
-      });
+      if (existingSubSentiment) {
+        // Atualizar SubSentiment existente
+        await prisma.subSentiment.update({
+          where: { id: existingSubSentiment.id },
+          data: {
+            description: subSentiment.description,
+            keywords: subSentiment.keywords
+          }
+        });
+        console.log(`✅ Atualizado SubSentiment: ${subSentiment.name}`);
+      } else {
+        // Criar novo SubSentiment
+        await prisma.subSentiment.create({
+          data: {
+            ...subSentiment,
+            mainSentimentId: 19
+          }
+        });
+        console.log(`✅ Criado novo SubSentiment: ${subSentiment.name}`);
+      }
     }
 
-    console.log('SubSentiments atualizados com sucesso!');
     console.log('\nResumo das alterações:');
-    console.log(`- MainSentiment "${updatedMainSentiment.name}" atualizado com ${updatedMainSentiment.keywords.length} keywords`);
-    console.log(`- ${newSubSentiments.length} novos SubSentiments criados`);
+    console.log(`- MainSentiment ID 19 atualizado com ${updatedMainSentiment.keywords.length} keywords`);
+    console.log(`- SubSentiments atualizados/criados com sucesso`);
 
   } catch (error) {
     console.error('Erro ao atualizar sentimentos:', error);

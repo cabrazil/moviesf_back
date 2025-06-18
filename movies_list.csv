@@ -3,7 +3,7 @@
 #Uma Ideia de Você,23,2024
 #Assassino por Acaso,23,2024
 #The Matrix,5,1999
-#Sete Vidas,54,2008
+##*Sete Vidas,54,2008
 #Guardiões da Galáxia - Vol. 2,54,2017
 #A Árvore da Vida,54,2011
 #O Som do Coração,61,2007
@@ -12,16 +12,15 @@
 #Um Senhor Estagiário,21,2015
 #The Hangover,20,2009
 ##Luta Pela Fé: A História do Padre Stu,2022
-#O Selvagem da Motocicleta,1983
+##*O Selvagem da Motocicleta,1983
 #Purple Rain,1984
 #A Cor Púrpura,1985
-#A Conversação,1974
+##*A Conversação,1974
 #Amor à flor da pele,2000
 #O Vento nos Levará,1999
 #Rastros de Ódio,1956
 #Dogville,2003
 #Mal dos Trópicos,2004
-#2001: Uma Odisseia no Espaço,1968
 #Paixão à flor da pele,2004
 ##Fora de Rumo,2005
 ##O Homem nas Trevas,2016
@@ -33,7 +32,7 @@
 #Cidadão Kane,1941
 #Era Uma Vez em Tóquio,1953
 #Amor à Flor da Pele,2000
-##2001: Uma Odisseia no Espaço,1968
+##*2001: Uma Odisseia no Espaço,1968
 #Bom Trabalho,1998
 ##Cidade dos Sonhos,2001
 #Um Homem com uma Câmera,1929
@@ -134,7 +133,7 @@
 ##O Auto da Compadecida,2000
 ##Pequena Miss Sunshine,34,2006
 ##Um Sonho de Liberdade,34,1994
-##Intocáveis,34,2011
+##*Intocáveis,2011
 ##Me Chame Pelo Seu Nome,2017
 ##Moonlight: Sob a Luz do Luar,2016
 ##Retrato de uma Jovem em Chamas,2019
@@ -164,8 +163,10 @@
 #Doce Novembro,2009
 #Outono em Nova York,2005
 #A Vida é Uma Festa,2006
-##O Jogo da Imitação, 2014
+##*O Jogo da Imitação,2014
 ##A Teoria de Tudo,2014
 ##Kramer vs. Kramer,1979
 ##Deus da Carnificina,2011
 ##Thelma & Louise,1991
+##*Paris Texas,1984
+Loucamente Apaixonados, 2011

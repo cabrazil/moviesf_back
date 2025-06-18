@@ -95,7 +95,7 @@ async function validateJourneyPath(
       movieTitle: movie.title,
       year: movie.year || undefined,
       flow: 'genre',
-      genre: movie.genres[0] || ''
+      genre: movie.genres.join(', ')
     });
 
     if (!movieSentiments.success) {
@@ -123,6 +123,54 @@ async function validateJourneyPath(
 
       console.log(`\nValidando última opção da jornada: ${option.text}`);
 
+      // 3.2.1 Validação específica para obras aclamadas pela crítica (optionId 135)
+      if (step.optionId === 135) {
+        console.log('\n🔍 Validando se o filme é uma obra aclamada pela crítica...');
+        
+        // Buscar dados do filme no TMDB para verificar avaliações
+        const tmdbMovie = await searchMovie(movie.title, movie.year || undefined);
+        if (!tmdbMovie) {
+          console.log('❌ Filme não encontrado no TMDB para validação de crítica');
+          return false;
+        }
+
+        // Verificar se o filme tem uma boa avaliação (acima de 7.0 no TMDB)
+        const tmdbRating = tmdbMovie.movie.vote_average || 0;
+        const tmdbVoteCount = tmdbMovie.movie.vote_count || 0;
+        const popularity = tmdbMovie.movie.popularity || 0;
+        
+        console.log(`📊 Avaliação TMDB: ${tmdbRating}/10 (${tmdbVoteCount} votos)`);
+        console.log(`📈 Popularidade: ${popularity}`);
+        
+        // Critérios para obra aclamada pela crítica:
+        // 1. Avaliação acima de 7.0 no TMDB E pelo menos 1000 votos
+        // 2. OU avaliação acima de 7.5 no TMDB (mesmo com menos votos)
+        // 3. OU alta popularidade (> 50) com boa avaliação (> 6.5)
+        // 4. OU ser um filme clássico/antigo com boa reputação
+        
+        const isHighRated = tmdbRating >= 7.0 && tmdbVoteCount >= 1000;
+        const isVeryHighRated = tmdbRating >= 7.5;
+        const isPopularAndWellRated = popularity > 50 && tmdbRating >= 6.5;
+        const isClassic = movie.year && movie.year < 1990 && tmdbRating >= 7.0;
+        
+        const isCriticallyAcclaimed = isHighRated || isVeryHighRated || isPopularAndWellRated || isClassic;
+        
+        if (!isCriticallyAcclaimed) {
+          console.log(`❌ Filme não atende aos critérios de obra aclamada pela crítica`);
+          console.log(`   - Avaliação alta + votos: ${isHighRated ? '✅' : '❌'} (${tmdbRating}/10, ${tmdbVoteCount} votos)`);
+          console.log(`   - Avaliação muito alta: ${isVeryHighRated ? '✅' : '❌'} (${tmdbRating}/10)`);
+          console.log(`   - Popular e bem avaliado: ${isPopularAndWellRated ? '✅' : '❌'} (popularidade: ${popularity}, avaliação: ${tmdbRating})`);
+          console.log(`   - Clássico: ${isClassic ? '✅' : '❌'} (ano: ${movie.year}, avaliação: ${tmdbRating})`);
+          return false;
+        }
+        
+        console.log(`✅ Filme validado como obra aclamada pela crítica!`);
+        if (isHighRated) console.log(`   - Motivo: Alta avaliação (${tmdbRating}/10) com muitos votos (${tmdbVoteCount})`);
+        if (isVeryHighRated) console.log(`   - Motivo: Avaliação excepcional (${tmdbRating}/10)`);
+        if (isPopularAndWellRated) console.log(`   - Motivo: Alta popularidade (${popularity}) com boa avaliação (${tmdbRating}/10)`);
+        if (isClassic) console.log(`   - Motivo: Filme clássico (${movie.year}) com boa reputação (${tmdbRating}/10)`);
+      }
+
       // 3.2 Buscar os SubSentiments associados à opção
       const optionSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
         where: {
@@ -139,10 +187,10 @@ async function validateJourneyPath(
         }
       });
 
-      console.log('\nDebug - SubSentiments da opção:', JSON.stringify({
-        optionSubSentiments,
-        subSentimentDetails
-      }, null, 2));
+      // console.log('\nDebug - SubSentiments da opção:', JSON.stringify({
+      //   optionSubSentiments,
+      //   subSentimentDetails
+      // }, null, 2));
 
       // 3.3 Validar se o filme tem os SubSentiments da opção
       const movieSubSentiments = await prisma.movieSentiment.findMany({
@@ -163,10 +211,10 @@ async function validateJourneyPath(
         }
       });
 
-      console.log('\nDebug - SubSentiments do filme:', JSON.stringify({
-        movieSubSentiments,
-        movieSubSentimentDetails
-      }, null, 2));
+      // console.log('\nDebug - SubSentiments do filme:', JSON.stringify({
+      //   movieSubSentiments,
+      //   movieSubSentimentDetails
+      // }, null, 2));  
 
       if (movieSubSentiments.length === 0) {
         console.log(`❌ Filme não tem SubSentiments compatíveis com a opção: ${option.text}`);
@@ -233,7 +281,7 @@ async function validateJourneyPath(
       "doação", "entrega"
     ];
 
-    console.log(`\nDebug - Keywords do filme: ${JSON.stringify(movieKeywords, null, 2)}`);
+    // console.log(`\nDebug - Keywords do filme: ${JSON.stringify(movieKeywords, null, 2)}`);
 
     const reason = await generateReflectionWithOpenAI(tmdbMovie.movie, movieKeywords);
 
@@ -258,23 +306,23 @@ async function validateJourneyPath(
 // Exemplo de uso
 async function main() {
   const journeyPath: JourneyPath = {
-    mainSentimentId: 19, // Triste/Melancólico(a)
-    mainSentimentName: "Neutro / Indiferente",
-    journeyFlowId: 7,
+    mainSentimentId: 15, // Calmo(a)
+    mainSentimentName: "Calmo(a)",
+    journeyFlowId: 4,
     steps: [
       {
-        stepId: 36,
-        optionId: 130
+        stepId: 20, // primeiro passo da jornada Calmo(a)
+        optionId: 70 // opção "distração leve e agradável"
       },
       {
-        stepId: 37,
-        optionId: 136
+        stepId: 22, // segundo passo após a opção escolhida
+        optionId: 78 // opção "comédia com humor suave"
       }
     ]
   };
 
-  // Testar com um filme específico
-  const movieId = "920d9ef7-130a-4286-9835-e13e48fe41cb";
+  // Testar com o filme "Like Crazy"
+  const movieId = "65f8d0b1-2e01-41e4-98e8-bacbed083601";
   await validateJourneyPath(movieId, journeyPath);
 }
 

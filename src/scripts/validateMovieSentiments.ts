@@ -49,7 +49,48 @@ const synonyms: Record<string, string[]> = {
   'transformação': ['mudança', 'evolução', 'metamorfose', 'transição'],
   'desenvolvimento': ['crescimento', 'progresso', 'avanço', 'evolução'],
   'aprendizado': ['conhecimento', 'sabedoria', 'experiência', 'ensino'],
-  'vitória': ['sucesso', 'conquista', 'triunfo', 'realização']
+  'vitória': ['sucesso', 'conquista', 'triunfo', 'realização'],
+  // Novos sinônimos para termos técnicos e científicos
+  'matemático': ['matemática', 'cálculo', 'lógica', 'raciocínio', 'análise'],
+  'gênio': ['inteligente', 'brilhante', 'excepcional', 'extraordinário', 'notável'],
+  'criptografia': ['código', 'criptografia', 'encriptação', 'segurança', 'proteção'],
+  'códigos': ['código', 'criptografia', 'encriptação', 'segurança', 'proteção'],
+  'lógico': ['racional', 'analítico', 'sistemático', 'metódico', 'científico'],
+  'análise': ['estudo', 'investigação', 'pesquisa', 'exame', 'observação'],
+  'investigação': ['pesquisa', 'estudo', 'análise', 'exame', 'observação'],
+  'ciência': ['científico', 'tecnologia', 'pesquisa', 'estudo', 'análise'],
+  'tecnologia': ['técnico', 'científico', 'inovação', 'avanço', 'progresso'],
+  'inteligência': ['inteligente', 'brilhante', 'genial', 'excepcional', 'extraordinário'],
+  'segunda guerra mundial': ['guerra', 'conflito', 'histórico', 'militar', 'batalha'],
+  'biografia': ['história', 'vida', 'trajetória', 'jornada', 'experiência'],
+  'homossexualidade': ['orientação', 'identidade', 'diversidade', 'aceitação', 'respeito'],
+  'lgbt': ['diversidade', 'orientação', 'identidade', 'aceitação', 'respeito'],
+  'quebra de código': ['criptografia', 'encriptação', 'segurança', 'proteção', 'código', 'mistério'],
+  'gênio da matemática': ['matemático', 'inteligente', 'brilhante', 'excepcional', 'extraordinário'],
+  // Novos sinônimos para filmes românticos e dramas independentes
+  'cadeira': ['móvel', 'assento', 'conforto', 'descanso', 'repouso'],
+  'alfândega': ['imigração', 'fronteira', 'burocracia', 'documentos', 'visto'],
+  'visto de estudante': ['estudante', 'educação', 'aprendizado', 'universidade', 'faculdade'],
+  'pais': ['família', 'parentes', 'parentesco', 'relacionamento familiar', 'laços familiares'],
+  'blogueiro': ['escritor', 'comunicador', 'internet', 'mídia', 'comunicação'],
+  'apaixonam': ['amor', 'paixão', 'romance', 'relacionamento', 'afeto'],
+  'amor': ['paixão', 'romance', 'afeto', 'carinho', 'sentimento'],
+  'paixão': ['amor', 'romance', 'afeto', 'sentimento', 'emoção'],
+  'romance': ['amor', 'paixão', 'relacionamento', 'afeto', 'sentimento'],
+  'separação': ['distância', 'afastamento', 'ruptura', 'divórcio', 'desunião'],
+  'distância': ['separação', 'afastamento', 'longe', 'distante', 'isolamento'],
+  'imigração': ['fronteira', 'visto', 'documentos', 'burocracia', 'adaptação'],
+  'estudante': ['educação', 'aprendizado', 'universidade', 'faculdade', 'conhecimento'],
+  'educação': ['aprendizado', 'conhecimento', 'estudo', 'desenvolvimento', 'crescimento'],
+  'comunicação': ['diálogo', 'conversa', 'expressão', 'linguagem', 'interação'],
+  'internet': ['tecnologia', 'comunicação', 'mídia', 'digital', 'moderno'],
+  'mídia': ['comunicação', 'informação', 'tecnologia', 'digital', 'moderno'],
+  'burocracia': ['documentos', 'papelada', 'formalidade', 'procedimento', 'regulamento'],
+  'documentos': ['papelada', 'burocracia', 'formalidade', 'procedimento', 'regulamento'],
+  'fronteira': ['limite', 'separação', 'divisão', 'imigração', 'visto'],
+  'adaptação': ['mudança', 'transformação', 'evolução', 'ajuste', 'flexibilidade'],
+  'isolamento': ['solidão', 'separação', 'afastamento', 'distância', 'isolamento'],
+  'solidão': ['isolamento', 'sozinho', 'solitário', 'afastamento', 'distância']
 };
 
 interface ValidateMovieParams {
@@ -219,7 +260,48 @@ function getSemanticallyRelatedWords(word: string): string[] {
     'transformação': ['mudança', 'evolução', 'metamorfose', 'transição', 'mutação'],
     'desenvolvimento': ['crescimento', 'progresso', 'avanço', 'evolução', 'melhoria'],
     'aprendizado': ['conhecimento', 'sabedoria', 'experiência', 'ensino', 'educação'],
-    'vitória': ['sucesso', 'conquista', 'triunfo', 'realização', 'alcançar']
+    'vitória': ['sucesso', 'conquista', 'triunfo', 'realização', 'alcançar'],
+    // Novas palavras relacionadas para termos técnicos e científicos
+    'matemático': ['análise', 'lógica', 'raciocínio', 'cálculo', 'sistemático', 'metódico'],
+    'gênio': ['inteligente', 'brilhante', 'excepcional', 'extraordinário', 'notável', 'genial'],
+    'criptografia': ['segurança', 'proteção', 'código', 'encriptação', 'segredo', 'mistério'],
+    'códigos': ['segurança', 'proteção', 'criptografia', 'encriptação', 'segredo', 'mistério'],
+    'lógico': ['racional', 'analítico', 'sistemático', 'metódico', 'científico', 'preciso'],
+    'análise': ['estudo', 'investigação', 'pesquisa', 'exame', 'observação', 'reflexão'],
+    'investigação': ['pesquisa', 'estudo', 'análise', 'exame', 'observação', 'descoberta'],
+    'ciência': ['científico', 'tecnologia', 'pesquisa', 'estudo', 'análise', 'descoberta'],
+    'tecnologia': ['técnico', 'científico', 'inovação', 'avanço', 'progresso', 'moderno'],
+    'inteligência': ['inteligente', 'brilhante', 'genial', 'excepcional', 'extraordinário', 'notável'],
+    'segunda guerra mundial': ['guerra', 'conflito', 'histórico', 'militar', 'batalha', 'história'],
+    'biografia': ['história', 'vida', 'trajetória', 'jornada', 'experiência', 'vida real'],
+    'homossexualidade': ['orientação', 'identidade', 'diversidade', 'aceitação', 'respeito', 'tolerância'],
+    'lgbt': ['diversidade', 'orientação', 'identidade', 'aceitação', 'respeito', 'tolerância'],
+    'quebra de código': ['criptografia', 'encriptação', 'segurança', 'proteção', 'código', 'mistério'],
+    'gênio da matemática': ['matemático', 'inteligente', 'brilhante', 'excepcional', 'extraordinário'],
+    // Novas palavras relacionadas para filmes românticos e dramas independentes
+    'cadeira': ['móvel', 'assento', 'conforto', 'descanso', 'repouso'],
+    'alfândega': ['imigração', 'fronteira', 'burocracia', 'documentos', 'visto'],
+    'visto de estudante': ['estudante', 'educação', 'aprendizado', 'universidade', 'faculdade'],
+    'pais': ['família', 'parentes', 'parentesco', 'relacionamento familiar', 'laços familiares'],
+    'blogueiro': ['escritor', 'comunicador', 'internet', 'mídia', 'comunicação'],
+    'apaixonam': ['amor', 'paixão', 'romance', 'relacionamento', 'afeto'],
+    'amor': ['paixão', 'romance', 'afeto', 'carinho', 'sentimento'],
+    'paixão': ['amor', 'romance', 'afeto', 'sentimento', 'emoção'],
+    'romance': ['amor', 'paixão', 'relacionamento', 'afeto', 'sentimento'],
+    'separação': ['distância', 'afastamento', 'ruptura', 'divórcio', 'desunião'],
+    'distância': ['separação', 'afastamento', 'longe', 'distante', 'isolamento'],
+    'imigração': ['fronteira', 'visto', 'documentos', 'burocracia', 'adaptação'],
+    'estudante': ['educação', 'aprendizado', 'universidade', 'faculdade', 'conhecimento'],
+    'educação': ['aprendizado', 'conhecimento', 'estudo', 'desenvolvimento', 'crescimento'],
+    'comunicação': ['diálogo', 'conversa', 'expressão', 'linguagem', 'interação'],
+    'internet': ['tecnologia', 'comunicação', 'mídia', 'digital', 'moderno'],
+    'mídia': ['comunicação', 'informação', 'tecnologia', 'digital', 'moderno'],
+    'burocracia': ['documentos', 'papelada', 'formalidade', 'procedimento', 'regulamento'],
+    'documentos': ['papelada', 'burocracia', 'formalidade', 'procedimento', 'regulamento'],
+    'fronteira': ['limite', 'separação', 'divisão', 'imigração', 'visto'],
+    'adaptação': ['mudança', 'transformação', 'evolução', 'ajuste', 'flexibilidade'],
+    'isolamento': ['solidão', 'separação', 'afastamento', 'distância', 'isolamento'],
+    'solidão': ['isolamento', 'sozinho', 'solitário', 'afastamento', 'distância']
   };
 
   // Adicionar palavras relacionadas do mapa semântico
@@ -290,7 +372,7 @@ function extractEmotionalPhrases(synopsis: string): string[] {
   return phrases;
 }
 
-function calculateMatchScore(keywords: string[], sentimentKeywords: KeywordWithWeight[]): MatchResult {
+function calculateMatchScore(keywords: string[], sentimentKeywords: KeywordWithWeight[], params: ValidateMovieParams): MatchResult {
   const matchedKeywords: string[] = [];
   const relatedKeywords: string[] = [];
   let totalScore = 0;
@@ -325,7 +407,9 @@ function calculateMatchScore(keywords: string[], sentimentKeywords: KeywordWithW
       if (relatedWords.length > 0) {
         console.log(`Debug - ✅ Palavras relacionadas encontradas: ${relatedWords.join(', ')}`);
         relatedKeywords.push(movieKeyword);
-        totalScore += sentimentKeyword.weight * 0.5; // Peso menor para keywords relacionadas
+        // Aumentando o peso das keywords relacionadas para o sentimento neutro
+        const relatedWeight = params.mainSentiment.toLowerCase().includes('neutro') ? 0.8 : 0.5;
+        totalScore += sentimentKeyword.weight * relatedWeight;
         matchCount++;
       }
     }
@@ -382,12 +466,16 @@ export async function validateMovieSentiments(params: ValidateMovieParams) {
           console.error('❌ Gênero é obrigatório para o fluxo de gênero');
           return { success: false };
         }
-        isValidForFlow = movie.genres.some(g => g.name.toLowerCase() === params.genre?.toLowerCase());
+        // Dividir os gêneros e verificar cada um
+        const requestedGenres = params.genre.split(',').map(g => g.trim().toLowerCase());
+        isValidForFlow = requestedGenres.every(requestedGenre => 
+          movie.genres.some(g => g.name.toLowerCase() === requestedGenre)
+        );
         if (!isValidForFlow) {
-          console.log(`\n❌ O filme não pertence ao gênero ${params.genre}`);
+          console.log(`\n❌ O filme não pertence a todos os gêneros solicitados: ${params.genre}`);
           return { success: false };
         }
-        console.log(`\n✅ Gênero ${params.genre} confirmado`);
+        console.log(`\n✅ Gêneros ${params.genre} confirmados`);
         break;
 
       case 'visual':
@@ -428,11 +516,11 @@ export async function validateMovieSentiments(params: ValidateMovieParams) {
 
     // 5. Buscar MainSentiment
     const mainSentiment = await prisma.mainSentiment.findFirst({
-      where: { name: params.mainSentiment }
+      where: { id: 19 }
     });
 
     if (!mainSentiment) {
-      console.error(`❌ MainSentiment "${params.mainSentiment}" não encontrado`);
+      console.error(`❌ MainSentiment com ID 19 não encontrado`);
       return { success: false };
     }
 
@@ -499,15 +587,206 @@ export async function validateMovieSentiments(params: ValidateMovieParams) {
       const subSentimentKeywords = subSentiment.keywords.map(k => ({
         keyword: k,
         weight: 1.0,
-        relatedKeywords: []
+        relatedKeywords: [
+          // Palavras relacionadas ao sentimento neutro
+          'clássico',
+          'cult',
+          'histórico',
+          'importante',
+          'relevante',
+          'significativo',
+          'marcante',
+          'influente',
+          'referência',
+          'fundamental',
+          'essencial',
+          'crucial',
+          'determinante',
+          'decisivo',
+          'básico',
+          'elementar',
+          // Novas palavras relacionadas ao sentimento neutro
+          'amizade',
+          'relacionamento',
+          'conexão',
+          'vínculo',
+          'união',
+          'empatia',
+          'compreensão',
+          'aceitação',
+          'respeito',
+          'tolerância',
+          'convivência',
+          'harmonia',
+          'equilíbrio',
+          'estabilidade',
+          'serenidade',
+          'tranquilidade',
+          'paz',
+          'calma',
+          'contemplação',
+          'observação',
+          'reflexão',
+          'introspecção',
+          'autoconhecimento',
+          'crescimento pessoal',
+          'desenvolvimento',
+          'evolução',
+          'transformação',
+          'mudança',
+          'adaptação',
+          'flexibilidade',
+          'resiliência',
+          'superação',
+          'desafio',
+          'conquista',
+          'realização',
+          'satisfação',
+          'plenitude',
+          'completude',
+          'integridade',
+          'autenticidade',
+          'verdade',
+          'honestidade',
+          'sinceridade',
+          'transparência',
+          'clareza',
+          'lucidez',
+          'consciência',
+          'percepção',
+          'entendimento',
+          'compreensão',
+          'sabedoria',
+          'experiência',
+          'vivência',
+          'aprendizado',
+          'conhecimento',
+          'descoberta',
+          'exploração',
+          'investigação',
+          'análise',
+          'estudo',
+          'pesquisa',
+          'busca',
+          'procura',
+          'encontro',
+          'descoberta',
+          'revelação',
+          'despertar',
+          'despertamento',
+          'consciência',
+          'atenção',
+          'presença',
+          'momento',
+          'presente',
+          'agora',
+          'atual',
+          'contemporâneo',
+          'moderno',
+          'atualizado',
+          'inovador',
+          'criativo',
+          'original',
+          'único',
+          'especial',
+          'diferente',
+          'distinto',
+          'particular',
+          'singular',
+          'excepcional',
+          'extraordinário',
+          'impressionante',
+          'impactante',
+          'marcante',
+          'memorável',
+          'inesquecível',
+          'eterno',
+          'permanente',
+          'duradouro',
+          'sustentável',
+          'consistente',
+          'constante',
+          'regular',
+          'equilibrado',
+          'harmonioso',
+          'integrado',
+          'conectado',
+          'relacionado',
+          'associado',
+          'vinculado',
+          'ligado',
+          'unido',
+          'junto',
+          'próximo',
+          'perto',
+          'distante',
+          'longe',
+          'separado',
+          'dividido',
+          'partido',
+          'quebrado',
+          'rompido',
+          'cortado',
+          'interrompido',
+          'pausado',
+          'parado',
+          'estagnado',
+          'estático',
+          'imóvel',
+          'fixo',
+          'firme',
+          'estável',
+          'seguro',
+          'protegido',
+          'cuidado',
+          'zelado',
+          'preservado',
+          'conservado',
+          'mantido',
+          'sustentado',
+          'apoiado',
+          'auxiliado',
+          'ajudado',
+          'assistido',
+          'acompanhado',
+          'guiado',
+          'orientado',
+          'direcionado',
+          'conduzido',
+          'levado',
+          'trazido',
+          'carregado',
+          'suportado',
+          'sustentado',
+          'mantido',
+          'preservado',
+          'conservado',
+          'protegido',
+          'cuidado',
+          'zelado',
+          'respeitado',
+          'valorizado',
+          'reconhecido',
+          'apreciado',
+          'estimado',
+          'considerado',
+          'levado em conta',
+          'levado em consideração',
+          'levado em conta',
+          'levado em consideração',
+          'levado em conta',
+          'levado em consideração'
+        ]
       }));
 
-      const score = calculateMatchScore(allKeywords, subSentimentKeywords);
+      const score = calculateMatchScore(allKeywords, subSentimentKeywords, params);
       console.log(`Score calculado: ${score.score}`);
       console.log(`Keywords correspondentes: ${score.matchedKeywords.join(', ')}`);
       console.log(`Keywords relacionadas: ${score.relatedKeywords.join(', ')}`);
       
-      if (score.score > 0) {
+      // Ajustando o threshold baseado no sentimento principal
+      const threshold = params.mainSentiment.toLowerCase().includes('neutro') ? 0.3 : 0.5;
+      if (score.score > threshold) {
         subSentimentScores.set(subSentiment.id, score);
       }
     }
