@@ -53,7 +53,7 @@ model MainSentiment {
 
 model SubSentiment {
   id              Int              @id @default(autoincrement())
-  name            String           @unique @db.VarChar(255)
+  name            String           @db.VarChar(255)
   description     String?
   keywords        String[]         @default([])
   mainSentimentId Int

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
+import { searchMovie } from './populateMovies';
 
 const prisma = new PrismaClient();
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -224,88 +225,129 @@ async function getBrazilianCertification(movieId: number): Promise<string | null
   }
 }
 
-async function updateMovieMetadata() {
+async function updateMovieMetadata(movieId: string) {
   try {
-    console.log('Iniciando atualização dos metadados dos filmes...');
+    console.log(`\n=== Atualizando metadados do filme ${movieId} ===`);
+    
+    // Buscar o filme no banco
+    const movie = await prisma.movie.findUnique({
+      where: { id: movieId }
+    });
 
-    // Primeiro, vamos contar o total de filmes na tabela
-    const totalMovies = await prisma.movie.count();
-    console.log(`Total de filmes na tabela: ${totalMovies}`);
-
-    // Buscar todos os filmes
-    const movies = await prisma.movie.findMany();
-
-    console.log(`Encontrados ${movies.length} filmes para processar`);
-
-    let successCount = 0;
-    let errorCount = 0;
-    let notFoundCount = 0;
-
-    for (const movie of movies) {
-      try {
-        console.log(`\n=== Processando filme ${successCount + errorCount + notFoundCount + 1}/${movies.length} ===`);
-        console.log(`Título: ${movie.title}`);
-        console.log(`Título original: ${movie.original_title}`);
-        console.log(`Ano: ${movie.year}`);
-        console.log(`Diretor: ${movie.director}`);
-
-        // Buscar filme no TMDB
-        const tmdbMovie = await findMovieInTMDB(
-          movie.original_title || movie.title,
-          movie.year,
-          movie.director
-        );
-
-        if (!tmdbMovie) {
-          console.log(`❌ Filme não encontrado no TMDB: ${movie.title}`);
-          notFoundCount++;
-          continue;
-        }
-
-        // Buscar certificação brasileira
-        const certification = await getBrazilianCertification(tmdbMovie.id);
-
-        // Buscar palavras-chave
-        const keywords = await getMovieKeywords(tmdbMovie.id);
-
-        // Atualizar o filme no banco de dados
-        await prisma.movie.update({
-          where: { id: movie.id },
-          data: {
-            vote_average: tmdbMovie.vote_average,
-            vote_count: tmdbMovie.vote_count,
-            adult: tmdbMovie.adult,
-            certification: certification,
-            keywords: keywords
-          }
-        });
-
-        console.log(`✅ Filme atualizado: ${movie.title}`);
-        console.log(`   - Média de votos: ${tmdbMovie.vote_average}`);
-        console.log(`   - Total de votos: ${tmdbMovie.vote_count}`);
-        console.log(`   - Adulto: ${tmdbMovie.adult}`);
-        console.log(`   - Certificação: ${certification || 'Não disponível'}`);
-        console.log(`   - Palavras-chave: ${keywords.join(', ') || 'Nenhuma'}`);
-
-        successCount++;
-      } catch (error) {
-        console.error(`❌ Erro ao atualizar filme ${movie.title}:`, error);
-        errorCount++;
-      }
+    if (!movie) {
+      console.log(`❌ Filme não encontrado: ${movieId}`);
+      return;
     }
 
-    console.log('\n=== Resumo da Atualização ===');
-    console.log(`Total de filmes processados: ${movies.length}`);
-    console.log(`Sucessos: ${successCount}`);
-    console.log(`Erros: ${errorCount}`);
-    console.log(`Não encontrados: ${notFoundCount}`);
+    console.log(`📽️ Filme encontrado: ${movie.title} (${movie.year})`);
+    console.log(`📊 Estado atual:`);
+    console.log(`   - Director: ${movie.director || '❌ Faltando'}`);
+    console.log(`   - Description: ${movie.description ? '✅ Preenchido' : '❌ Faltando'}`);
+    console.log(`   - Thumbnail: ${movie.thumbnail ? '✅ Preenchido' : '❌ Faltando'}`);
+    console.log(`   - Original Title: ${movie.original_title || '❌ Faltando'}`);
+    console.log(`   - Certification: ${movie.certification || '❌ Faltando'}`);
+    console.log(`   - Keywords: ${movie.keywords.length > 0 ? `✅ ${movie.keywords.length} keywords` : '❌ Faltando'}`);
+    console.log(`   - Streaming Platforms: ${movie.streamingPlatforms.length > 0 ? `✅ ${movie.streamingPlatforms.length} plataformas` : '❌ Faltando'}`);
+    console.log(`   - Genre IDs: ${movie.genreIds ? '✅ Preenchido' : '❌ Faltando'}`);
+
+    // Buscar informações completas no TMDB
+    console.log(`\n🔍 Buscando informações no TMDB...`);
+    const tmdbData = await searchMovie(movie.title, movie.year || undefined);
+
+    if (!tmdbData) {
+      console.log(`❌ Filme não encontrado no TMDB: ${movie.title}`);
+      return;
+    }
+
+    console.log(`✅ Dados do TMDB obtidos com sucesso!`);
+
+    // Preparar dados para atualização
+    const updateData: any = {};
+
+    // Atualizar diretor se estiver faltando
+    if (!movie.director && tmdbData.director) {
+      updateData.director = tmdbData.director;
+      console.log(`📝 Diretor: ${tmdbData.director}`);
+    }
+
+    // Atualizar descrição se estiver faltando
+    if (!movie.description && tmdbData.movie.overview) {
+      updateData.description = tmdbData.movie.overview;
+      console.log(`📝 Descrição: ${tmdbData.movie.overview.substring(0, 100)}...`);
+    }
+
+    // Atualizar thumbnail se estiver faltando
+    if (!movie.thumbnail && tmdbData.movie.poster_path) {
+      updateData.thumbnail = `https://image.tmdb.org/t/p/w500${tmdbData.movie.poster_path}`;
+      console.log(`📝 Thumbnail: ${updateData.thumbnail}`);
+    }
+
+    // Atualizar título original se estiver faltando
+    if (!movie.original_title && tmdbData.movie.original_title) {
+      updateData.original_title = tmdbData.movie.original_title;
+      console.log(`📝 Título Original: ${tmdbData.movie.original_title}`);
+    }
+
+    // Atualizar certificação se estiver faltando
+    if (!movie.certification && tmdbData.certification) {
+      updateData.certification = tmdbData.certification;
+      console.log(`📝 Certificação: ${tmdbData.certification}`);
+    }
+
+    // Atualizar keywords se estiverem faltando
+    if (movie.keywords.length === 0 && tmdbData.keywords.length > 0) {
+      updateData.keywords = tmdbData.keywords;
+      console.log(`📝 Keywords: ${tmdbData.keywords.join(', ')}`);
+    }
+
+    // Atualizar plataformas de streaming se estiverem faltando
+    if (movie.streamingPlatforms.length === 0 && tmdbData.platforms.length > 0) {
+      updateData.streamingPlatforms = tmdbData.platforms;
+      console.log(`📝 Plataformas: ${tmdbData.platforms.join(', ')}`);
+    }
+
+    // Atualizar genre IDs se estiverem faltando
+    if (!movie.genreIds && tmdbData.movie.genres.length > 0) {
+      updateData.genreIds = tmdbData.movie.genres.map(g => g.id);
+      console.log(`📝 Genre IDs: ${updateData.genreIds.join(', ')}`);
+    }
+
+    // Verificar se há dados para atualizar
+    if (Object.keys(updateData).length === 0) {
+      console.log(`✅ Filme já está com todas as informações preenchidas!`);
+      return;
+    }
+
+    // Atualizar o filme no banco
+    console.log(`\n💾 Atualizando filme no banco de dados...`);
+    const updatedMovie = await prisma.movie.update({
+      where: { id: movieId },
+      data: updateData
+    });
+
+    console.log(`✅ Filme atualizado com sucesso!`);
+    console.log(`\n📊 Estado final:`);
+    console.log(`   - Director: ${updatedMovie.director || '❌ Faltando'}`);
+    console.log(`   - Description: ${updatedMovie.description ? '✅ Preenchido' : '❌ Faltando'}`);
+    console.log(`   - Thumbnail: ${updatedMovie.thumbnail ? '✅ Preenchido' : '❌ Faltando'}`);
+    console.log(`   - Original Title: ${updatedMovie.original_title || '❌ Faltando'}`);
+    console.log(`   - Certification: ${updatedMovie.certification || '❌ Faltando'}`);
+    console.log(`   - Keywords: ${updatedMovie.keywords.length > 0 ? `✅ ${updatedMovie.keywords.length} keywords` : '❌ Faltando'}`);
+    console.log(`   - Streaming Platforms: ${updatedMovie.streamingPlatforms.length > 0 ? `✅ ${updatedMovie.streamingPlatforms.length} plataformas` : '❌ Faltando'}`);
+    console.log(`   - Genre IDs: ${updatedMovie.genreIds ? '✅ Preenchido' : '❌ Faltando'}`);
 
   } catch (error) {
-    console.error('Erro durante a atualização:', error);
-  } finally {
-    await prisma.$disconnect();
+    console.error('Erro ao atualizar metadados do filme:', error);
   }
 }
 
-// Executar o script
-updateMovieMetadata();
+async function main() {
+  // ID do filme Imperdoável
+  const movieId = "231f993f-9fd4-4255-9d04-540b9a666145";
+  
+  await updateMovieMetadata(movieId);
+}
+
+main()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

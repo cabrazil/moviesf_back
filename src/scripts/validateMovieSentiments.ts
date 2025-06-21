@@ -378,50 +378,48 @@ function calculateMatchScore(keywords: string[], sentimentKeywords: KeywordWithW
   let totalScore = 0;
   let matchCount = 0;
 
-  console.log('\nDebug - Keywords do filme:', keywords);
-  console.log('Debug - Keywords dos SubSentiments:', sentimentKeywords.map(k => k.keyword));
+  // console.log('\nDebug - Keywords do filme:', keywords);
+  // console.log('Debug - Keywords dos SubSentiments:', sentimentKeywords.map(k => k.keyword));
 
   for (const movieKeyword of keywords) {
     const normalizedMovieKeyword = movieKeyword.toLowerCase().trim();
-    console.log(`\nDebug - Comparando keyword do filme: "${normalizedMovieKeyword}"`);
     
-    // Encontrar palavras similares para a keyword do filme
-    const similarWords = findSimilarWords(normalizedMovieKeyword, sentimentKeywords.map(k => k.keyword));
-    
+    // console.log(`\nDebug - Comparando keyword do filme: "${normalizedMovieKeyword}"`);
+
+    // Verificar palavras similares
+    const similarWords = sentimentKeywords.filter(k => 
+      k.keyword.toLowerCase().trim() === normalizedMovieKeyword
+    ).map(k => k.keyword);
+
     if (similarWords.length > 0) {
-      console.log(`Debug - ✅ Palavras similares encontradas: ${similarWords.join(', ')}`);
-      
-      for (const similarWord of similarWords) {
-        const sentimentKeyword = sentimentKeywords.find(k => k.keyword === similarWord);
-        if (sentimentKeyword) {
-          matchedKeywords.push(movieKeyword);
-          totalScore += sentimentKeyword.weight;
-          matchCount++;
-        }
-      }
+      // console.log(`Debug - ✅ Palavras similares encontradas: ${similarWords.join(', ')}`);
+      matchedKeywords.push(...similarWords);
+      totalScore += 1.0;
     }
-    
-    // Verificar matches relacionados
-    for (const sentimentKeyword of sentimentKeywords) {
-      const relatedWords = findSimilarWords(normalizedMovieKeyword, sentimentKeyword.relatedKeywords);
-      if (relatedWords.length > 0) {
-        console.log(`Debug - ✅ Palavras relacionadas encontradas: ${relatedWords.join(', ')}`);
-        relatedKeywords.push(movieKeyword);
-        // Aumentando o peso das keywords relacionadas para o sentimento neutro
-        const relatedWeight = params.mainSentiment.toLowerCase().includes('neutro') ? 0.8 : 0.5;
-        totalScore += sentimentKeyword.weight * relatedWeight;
-        matchCount++;
-      }
+
+    // Verificar palavras relacionadas
+    const relatedWords = sentimentKeywords.filter(k => {
+      const normalizedKeyword = k.keyword.toLowerCase().trim();
+      return normalizedKeyword.includes(normalizedMovieKeyword) || 
+             normalizedMovieKeyword.includes(normalizedKeyword) ||
+             normalizedKeyword.split(' ').some(word => 
+               normalizedMovieKeyword.includes(word) || word.includes(normalizedMovieKeyword)
+             );
+    }).map(k => k.keyword);
+
+    if (relatedWords.length > 0) {
+      // console.log(`Debug - ✅ Palavras relacionadas encontradas: ${relatedWords.join(', ')}`);
+      relatedKeywords.push(...relatedWords);
+      totalScore += 0.5;
     }
   }
 
-  const finalScore = matchCount > 0 ? totalScore / matchCount : 0;
-  console.log(`\nDebug - Score final: ${finalScore}`);
-  console.log('Debug - Keywords correspondentes:', matchedKeywords);
-  console.log('Debug - Keywords relacionadas:', relatedKeywords);
+  // console.log(`\nDebug - Score final: ${totalScore}`);
+  // console.log('Debug - Keywords correspondentes:', matchedKeywords);
+  // console.log('Debug - Keywords relacionadas:', relatedKeywords);
   
   return {
-    score: finalScore,
+    score: totalScore,
     matchedKeywords: [...new Set(matchedKeywords)],
     relatedKeywords: [...new Set(relatedKeywords)]
   };
@@ -516,11 +514,11 @@ export async function validateMovieSentiments(params: ValidateMovieParams) {
 
     // 5. Buscar MainSentiment
     const mainSentiment = await prisma.mainSentiment.findFirst({
-      where: { id: 19 }
+      where: { name: params.mainSentiment }
     });
 
     if (!mainSentiment) {
-      console.error(`❌ MainSentiment com ID 19 não encontrado`);
+      console.error(`❌ MainSentiment "${params.mainSentiment}" não encontrado`);
       return { success: false };
     }
 
@@ -563,7 +561,7 @@ export async function validateMovieSentiments(params: ValidateMovieParams) {
       WHERE ss."mainSentimentId" = ${mainSentiment.id}
     `;
 
-    console.log('\nDebug - Resultado da consulta:', JSON.stringify(genreSubSentiments, null, 2));
+    // console.log('\nDebug - Resultado da consulta:', JSON.stringify(genreSubSentiments, null, 2));
 
     console.log('\nSubSentiments encontrados por gênero:');
     if (genreSubSentiments.length === 0) {

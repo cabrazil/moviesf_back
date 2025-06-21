@@ -311,18 +311,18 @@ async function main() {
     journeyFlowId: 4,
     steps: [
       {
-        stepId: 20, // primeiro passo da jornada Calmo(a)
-        optionId: 70 // opção "distração leve e agradável"
+        stepId: 8, // primeiro passo da jornada Calmo(a)
+        optionId: 28 // opção "distração leve e agradável"
       },
       {
-        stepId: 22, // segundo passo após a opção escolhida
-        optionId: 78 // opção "comédia com humor suave"
+        stepId: 9, // segundo passo após a opção escolhida
+        optionId: 52 // opção "comédia com humor suave"
       }
     ]
   };
 
   // Testar com o filme "Like Crazy"
-  const movieId = "65f8d0b1-2e01-41e4-98e8-bacbed083601";
+  const movieId = "53ae96fc-e65b-439f-91c5-426899bcaee3";
   await validateJourneyPath(movieId, journeyPath);
 }
 
