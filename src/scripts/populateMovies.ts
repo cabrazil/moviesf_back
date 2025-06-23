@@ -237,8 +237,6 @@ async function getBrazilianCertification(movieId: number): Promise<string | null
       }
     });
 
-    console.log('Resposta do TMDB:', JSON.stringify(response.data.release_dates, null, 2));
-
     const brazilRelease = response.data.release_dates.results.find(
       release => release.iso_3166_1 === 'BR'
     );
@@ -252,8 +250,6 @@ async function getBrazilianCertification(movieId: number): Promise<string | null
       console.log('Lista de datas de lançamento vazia para o Brasil');
       return null;
     }
-
-    console.log('Datas de lançamento encontradas:', JSON.stringify(brazilRelease.release_dates, null, 2));
 
     // Ordenar por data de lançamento (mais recente primeiro) e filtrar certificações vazias
     const validReleases = brazilRelease.release_dates

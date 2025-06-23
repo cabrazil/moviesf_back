@@ -306,23 +306,23 @@ async function validateJourneyPath(
 // Exemplo de uso
 async function main() {
   const journeyPath: JourneyPath = {
-    mainSentimentId: 15, // Calmo(a)
-    mainSentimentName: "Calmo(a)",
-    journeyFlowId: 4,
+    mainSentimentId: 14, // Calmo(a)
+    mainSentimentName: "Triste",
+    journeyFlowId: 3,
     steps: [
       {
-        stepId: 8, // primeiro passo da jornada Calmo(a)
-        optionId: 28 // opção "distração leve e agradável"
+        stepId: 1, // primeiro passo da jornada Calmo(a)
+        optionId: 30 // opção "distração leve e agradável"
       },
       {
-        stepId: 9, // segundo passo após a opção escolhida
-        optionId: 52 // opção "comédia com humor suave"
+        stepId: 10, // segundo passo após a opção escolhida
+        optionId: 159 // opção "comédia com humor suave"
       }
     ]
   };
 
   // Testar com o filme "Like Crazy"
-  const movieId = "53ae96fc-e65b-439f-91c5-426899bcaee3";
+  const movieId = "9978dd1d-b482-495e-aaec-9e954a2c9eff";
   await validateJourneyPath(movieId, journeyPath);
 }
 

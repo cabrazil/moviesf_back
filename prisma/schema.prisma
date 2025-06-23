@@ -40,15 +40,16 @@ model Genre {
 }
 
 model MainSentiment {
-  id             Int              @id @default(autoincrement())
-  name           String           @unique @db.VarChar(255)
-  description    String?
-  keywords       String[]         @default([])
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  journeyFlow    JourneyFlow?
-  movieSentiment MovieSentiment[]
-  subSentiments  SubSentiment[]
+  id                  Int                   @id @default(autoincrement())
+  name                String                @unique @db.VarChar(255)
+  description         String?
+  keywords            String[]              @default([])
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  journeyFlow         JourneyFlow?
+  movieSentiment      MovieSentiment[]
+  subSentiments       SubSentiment[]
+  emotionalIntentions EmotionalIntention[]
 }
 
 model SubSentiment {
@@ -90,15 +91,16 @@ model JourneyFlow {
 }
 
 model JourneyStepFlow {
-  id            Int                 @id @default(autoincrement())
-  journeyFlowId Int
-  stepId        String              @db.VarChar(255)
-  order         Int
-  question      String
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  options       JourneyOptionFlow[]
-  journeyFlow   JourneyFlow         @relation(fields: [journeyFlowId], references: [id])
+  id                           Int                            @id @default(autoincrement())
+  journeyFlowId                Int
+  stepId                       String                         @db.VarChar(255)
+  order                        Int
+  question                     String
+  createdAt                    DateTime                       @default(now())
+  updatedAt                    DateTime                       @updatedAt
+  options                      JourneyOptionFlow[]
+  journeyFlow                  JourneyFlow                    @relation(fields: [journeyFlowId], references: [id])
+  emotionalIntentionJourneySteps EmotionalIntentionJourneyStep[]
 
   @@index([journeyFlowId])
 }
@@ -154,4 +156,50 @@ model JourneyOptionFlowSubSentiment {
   @@unique([journeyOptionFlowId, subSentimentId])
   @@index([journeyOptionFlowId])
   @@index([subSentimentId])
+}
+
+// ===== NOVOS MODELOS PARA INTENÇÃO EMOCIONAL =====
+
+enum IntentionType {
+  PROCESS
+  TRANSFORM
+  MAINTAIN
+  EXPLORE
+}
+
+model EmotionalIntention {
+  id                               Int                              @id @default(autoincrement())
+  mainSentimentId                  Int
+  intentionType                    IntentionType
+  description                      String                           @db.Text
+  preferredGenres                  String[]                         @default([])
+  avoidGenres                      String[]                         @default([])
+  emotionalTone                    String                           @default("similar")
+  subSentimentWeights              Json
+  createdAt                        DateTime                         @default(now())
+  updatedAt                        DateTime                         @updatedAt
+  mainSentiment                    MainSentiment                    @relation(fields: [mainSentimentId], references: [id])
+  emotionalIntentionJourneySteps   EmotionalIntentionJourneyStep[]
+
+  @@unique([mainSentimentId, intentionType])
+  @@index([mainSentimentId])
+  @@index([intentionType])
+}
+
+// ===== NOVA TABELA DE ASSOCIAÇÃO SIMPLES =====
+
+model EmotionalIntentionJourneyStep {
+  id                   Int                 @id @default(autoincrement())
+  emotionalIntentionId Int
+  journeyStepFlowId    Int
+  priority             Int                 @default(1)
+  isRequired           Boolean             @default(false)
+  customQuestion       String?             @db.Text
+  contextualHint       String?             @db.Text
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  emotionalIntention   EmotionalIntention  @relation(fields: [emotionalIntentionId], references: [id])
+  journeyStepFlow      JourneyStepFlow     @relation(fields: [journeyStepFlowId], references: [id])
+
+  @@unique([emotionalIntentionId, journeyStepFlowId])
 }

@@ -34,6 +34,304 @@ interface SentimentAnalysisResult {
   message?: string;
 }
 
+// ===== MAPEAMENTO TEMÁTICO INTEGRADO =====
+interface ThemeConfig {
+  required: Array<{
+    name: string;
+    minWeight: number;
+  }>;
+  common: string[];
+}
+
+interface ThemeDictionary {
+  [key: string]: ThemeConfig;
+}
+
+// Dicionário de SubSentiments por gênero/tema (integrado do analyzeMovieSentiments.ts)
+const SUB_SENTIMENTS_BY_THEME: ThemeDictionary = {
+  drama: {
+    required: [
+      { name: "Emotivo(a) (Triste)", minWeight: 0.7 },
+      { name: "Drama Familiar", minWeight: 0.6 }
+    ],
+    common: ["Superação e Crescimento", "Reflexão Filosófica"]
+  },
+  superacao: {
+    required: [
+      { name: "Superação e Crescimento", minWeight: 0.8 },
+      { name: "Inspiração / Motivação para Agir", minWeight: 0.7 }
+    ],
+    common: ["Emotivo(a) (Triste)", "Drama Familiar"]
+  },
+  luto: {
+    required: [
+      { name: "Emotivo(a) (Triste)", minWeight: 0.8 },
+      { name: "Vazio(a)", minWeight: 0.7 }
+    ],
+    common: ["Superação e Crescimento", "Reflexão Filosófica"]
+  },
+  familia: {
+    required: [
+      { name: "Drama Familiar", minWeight: 0.8 },
+      { name: "Conforto / Aconchego Emocional", minWeight: 0.6 }
+    ],
+    common: ["Emotivo(a) (Triste)", "Superação e Crescimento"]
+  },
+  historico: {
+    required: [
+      { name: "Reflexão Filosófica", minWeight: 0.8 },
+      { name: "Consequências e Justiça", minWeight: 0.7 }
+    ],
+    common: ["Emotivo(a) (Triste)", "Drama Familiar", "Superação e Crescimento"]
+  },
+  comedia: {
+    required: [
+      { name: "Humor / Comédia", minWeight: 0.6 },
+      { name: "Conforto / Aconchego Emocional", minWeight: 0.6 }
+    ],
+    common: ["Inspiração / Motivação para Agir", "Drama Familiar"]
+  },
+  acao: {
+    required: [
+      { name: "Empolgado(a) / Energético(a)", minWeight: 0.7 },
+      { name: "Ação / Aventura", minWeight: 0.6 }
+    ],
+    common: ["Superação e Crescimento", "Inspiração / Motivação para Agir"]
+  },
+  romance: {
+    required: [
+      { name: "Romântico(a)", minWeight: 0.7 },
+      { name: "Emotivo(a) (Feliz)", minWeight: 0.6 }
+    ],
+    common: ["Drama Familiar", "Conforto / Aconchego Emocional"]
+  },
+  thriller: {
+    required: [
+      { name: "Tenso(a) / Ansioso(a)", minWeight: 0.7 },
+      { name: "Suspense / Mistério", minWeight: 0.6 }
+    ],
+    common: ["Reflexão Filosófica", "Consequências e Justiça"]
+  },
+  animacao: {
+    required: [
+      { name: "Conforto / Aconchego Emocional", minWeight: 0.6 },
+      { name: "Drama Familiar", minWeight: 0.6 }
+    ],
+    common: ["Superação e Crescimento", "Inspiração / Motivação para Agir"]
+  }
+};
+
+// Função para identificar temas do filme
+function identifyThemes(movie: any, keywords: string[]): string[] {
+  const themes: string[] = [];
+  const synopsis = movie.overview.toLowerCase();
+  const genres = movie.genres.map((g: any) => g.name.toLowerCase());
+  const keywordsLower = keywords.map(k => k.toLowerCase());
+
+  console.log(`\n🔍 Analisando temas:`);
+  console.log(`Sinopse: ${synopsis.substring(0, 100)}...`);
+  console.log(`Gêneros: ${genres.join(', ')}`);
+  console.log(`Keywords: ${keywordsLower.slice(0, 10).join(', ')}...`);
+
+  // Identificar temas baseado em palavras-chave e gêneros
+  if (synopsis.includes('superação') || synopsis.includes('superar') || 
+      synopsis.includes('crescimento') || synopsis.includes('desenvolvimento') ||
+      synopsis.includes('evolução') || synopsis.includes('transformação') ||
+      keywordsLower.includes('superação') || keywordsLower.includes('inspiração') ||
+      keywordsLower.includes('crescimento') || keywordsLower.includes('desenvolvimento')) {
+    themes.push('superacao');
+    console.log(`✅ Tema identificado: superacao`);
+  }
+
+  if (synopsis.includes('família') || synopsis.includes('pai') || synopsis.includes('mãe') || 
+      synopsis.includes('filho') || synopsis.includes('filha') ||
+      synopsis.includes('amizade') || synopsis.includes('amigo') ||
+      synopsis.includes('relacionamento') || synopsis.includes('vínculo') ||
+      keywordsLower.includes('família') || keywordsLower.includes('pai solteiro') ||
+      keywordsLower.includes('amizade') || keywordsLower.includes('amigo')) {
+    themes.push('familia');
+    console.log(`✅ Tema identificado: familia`);
+  }
+
+  if (synopsis.includes('morte') || synopsis.includes('perda') || synopsis.includes('luto') ||
+      keywordsLower.includes('morte') || keywordsLower.includes('luto')) {
+    themes.push('luto');
+    console.log(`✅ Tema identificado: luto`);
+  }
+
+  if (genres.includes('drama')) {
+    themes.push('drama');
+    console.log(`✅ Tema identificado: drama (gênero)`);
+  }
+
+  if (genres.includes('comédia') || genres.includes('comedia')) {
+    themes.push('comedia');
+    console.log(`✅ Tema identificado: comedia (gênero)`);
+  }
+
+  if (genres.includes('ação') || genres.includes('acao') || genres.includes('aventura')) {
+    themes.push('acao');
+    console.log(`✅ Tema identificado: acao (gênero)`);
+  }
+
+  if (genres.includes('romance')) {
+    themes.push('romance');
+    console.log(`✅ Tema identificado: romance (gênero)`);
+  }
+
+  if (genres.includes('thriller') || genres.includes('suspense')) {
+    themes.push('thriller');
+    console.log(`✅ Tema identificado: thriller (gênero)`);
+  }
+
+  if (genres.includes('animação') || genres.includes('animacao')) {
+    themes.push('animacao');
+    console.log(`✅ Tema identificado: animacao (gênero)`);
+  }
+
+  // Identificar tema histórico
+  if (synopsis.includes('guerra') || synopsis.includes('histórico') || 
+      keywordsLower.includes('guerra') || keywordsLower.includes('histórico') ||
+      keywordsLower.includes('segunda guerra mundial') || keywordsLower.includes('nazista')) {
+    themes.push('historico');
+    console.log(`✅ Tema identificado: historico`);
+  }
+
+  // Detecção adicional baseada em keywords específicas
+  if (keywordsLower.includes('brinquedo') || keywordsLower.includes('toy') ||
+      keywordsLower.includes('boneco') || keywordsLower.includes('jogo')) {
+    if (!themes.includes('familia')) {
+      themes.push('familia');
+      console.log(`✅ Tema identificado: familia (via keywords de brinquedos)`);
+    }
+  }
+
+  if (keywordsLower.includes('amizade') || keywordsLower.includes('amigo') ||
+      keywordsLower.includes('companheirismo') || keywordsLower.includes('lealdade')) {
+    if (!themes.includes('familia')) {
+      themes.push('familia');
+      console.log(`✅ Tema identificado: familia (via keywords de amizade)`);
+    }
+  }
+
+  if (keywordsLower.includes('aventura') || keywordsLower.includes('descoberta') ||
+      keywordsLower.includes('exploração') || keywordsLower.includes('jornada')) {
+    if (!themes.includes('superacao')) {
+      themes.push('superacao');
+      console.log(`✅ Tema identificado: superacao (via keywords de aventura)`);
+    }
+  }
+
+  const uniqueThemes = [...new Set(themes)]; // Remove duplicatas
+  console.log(`\n🎯 Temas finais identificados: ${uniqueThemes.join(', ')}`);
+  
+  return uniqueThemes;
+}
+
+// Função para análise contextual com OpenAI
+async function analyzeMovieWithOpenAI(movie: any, keywords: string[], availableSubSentiments: string[]): Promise<{
+  suggestedSubSentiments: Array<{
+    name: string;
+    relevance: number;
+    explanation: string;
+  }>;
+}> {
+  // Identificar temas do filme
+  const themes = identifyThemes(movie, keywords);
+  const requiredSubSentiments = themes.flatMap(theme => 
+    SUB_SENTIMENTS_BY_THEME[theme]?.required || []
+  );
+  const commonSubSentiments = themes.flatMap(theme => 
+    SUB_SENTIMENTS_BY_THEME[theme]?.common || []
+  );
+
+  const prompt = `
+Sinopse: ${movie.overview}
+Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
+Palavras-chave: ${keywords.join(', ')}
+
+Temas identificados: ${themes.join(', ')}
+
+SubSentiments disponíveis:
+${availableSubSentiments.join('\n')}
+
+SubSentiments obrigatórios para os temas identificados:
+${requiredSubSentiments.map(ss => `- ${ss.name} (peso mínimo: ${ss.minWeight})`).join('\n')}
+
+SubSentiments comuns para os temas:
+${commonSubSentiments.join('\n')}
+
+Analise o filme e sugira os 3 SubSentiments mais relevantes da lista acima, considerando:
+1. Temas emocionais principais
+2. Arcos de personagens
+3. Mensagens centrais
+4. Tom e atmosfera
+
+IMPORTANTE: 
+- Escolha apenas SubSentiments da lista fornecida e use exatamente o mesmo nome
+- Considere os SubSentiments obrigatórios para os temas identificados
+- Respeite os pesos mínimos indicados para cada SubSentiment obrigatório
+- Considere também os SubSentiments comuns para os temas
+
+Para cada SubSentiment sugerido, forneça:
+1. Nome exato do SubSentiment (deve ser um dos listados acima)
+2. Relevância (0.1 a 1.0, respeitando os pesos mínimos)
+3. Explicação breve da conexão
+
+Formato esperado (JSON válido):
+{
+  "suggestedSubSentiments": [
+    {
+      "name": "Nome do SubSentiment (exatamente como listado)",
+      "relevance": 0.8,
+      "explanation": "Explicação da conexão"
+    }
+  ]
+}
+`;
+
+  try {
+    const response = await axios.post<OpenAIResponse>(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'Você é um especialista em análise de filmes, focado em aspectos emocionais e sentimentais. Você DEVE escolher apenas SubSentiments da lista fornecida e retornar um JSON válido.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const content = response.data.choices[0].message.content;
+    console.log('\nResposta do OpenAI:');
+    console.log(content);
+
+    try {
+      return JSON.parse(content);
+    } catch (parseError) {
+      console.error('Erro ao fazer parse da resposta:', parseError);
+      return { suggestedSubSentiments: [] };
+    }
+  } catch (error) {
+    console.error('Erro ao analisar filme:', error);
+    return { suggestedSubSentiments: [] };
+  }
+}
+
 // Interface para leitura de input
 const rl = readline.createInterface({
   input: process.stdin,
@@ -100,14 +398,14 @@ async function discoverMovie(movieTitle: string, movieYear: number) {
 
     console.log(`✅ Filme adicionado: "${newMovie.title}" (ID: ${newMovie.id})`);
     console.log(`📊 Dados salvos:`);
-    console.log(`   - Director: ${newMovie.director || 'Não informado'}`);
-    console.log(`   - Description: ${newMovie.description ? 'Sim' : 'Não'}`);
-    console.log(`   - Thumbnail: ${newMovie.thumbnail ? 'Sim' : 'Não'}`);
-    console.log(`   - Original Title: ${newMovie.original_title || 'Não informado'}`);
-    console.log(`   - Certification: ${newMovie.certification || 'Não informado'}`);
-    console.log(`   - Keywords: ${newMovie.keywords.length} keywords`);
-    console.log(`   - Streaming Platforms: ${newMovie.streamingPlatforms.length} plataformas`);
-    console.log(`   - Genre IDs: ${newMovie.genreIds ? newMovie.genreIds.length : 0} IDs`);
+    // console.log(`   - Director: ${newMovie.director || 'Não informado'}`);
+    // console.log(`   - Description: ${newMovie.description ? 'Sim' : 'Não'}`);
+    // console.log(`   - Thumbnail: ${newMovie.thumbnail ? 'Sim' : 'Não'}`);
+    // console.log(`   - Original Title: ${newMovie.original_title || 'Não informado'}`);
+    // console.log(`   - Certification: ${newMovie.certification || 'Não informado'}`);
+    // console.log(`   - Keywords: ${newMovie.keywords.length} keywords`);
+    // console.log(`   - Streaming Platforms: ${newMovie.streamingPlatforms.length} plataformas`);
+    // console.log(`   - Genre IDs: ${newMovie.genreIds ? newMovie.genreIds.length : 0} IDs`);
     
     return newMovie;
   }
@@ -137,138 +435,280 @@ async function searchMovieSilent(movieTitle: string, movieYear?: number) {
 // ===== FASE 2: ANÁLISE DE SENTIMENTOS =====
 async function analyzeMovieSentiments(movieId: string, targetSentimentId?: number): Promise<SentimentAnalysisResult> {
   console.log(`\n🧠 === FASE 2: ANÁLISE DE SENTIMENTOS ===`);
+  console.log(`📊 Analisando sentimentos para: "${movieId}"`);
   
   try {
-    // Buscar filme com detalhes
+    // 1. Buscar filme no banco
     const movie = await prisma.movie.findUnique({
-      where: { id: movieId },
-      include: {
-        movieSentiments: {
-          include: {
-            subSentiment: {
-              include: {
-                mainSentiment: true
-              }
-            }
-          }
-        }
-      }
+      where: { id: movieId }
     });
 
     if (!movie) {
-      return { success: false, message: "Filme não encontrado" };
+      throw new Error(`Filme não encontrado: ${movieId}`);
     }
 
-    console.log(`📊 Analisando sentimentos para: "${movie.title}"`);
     console.log(`🎭 Gêneros: ${movie.genres.join(', ')}`);
 
-    // Se já tem sentimentos, mostrar
-    if (movie.movieSentiments.length > 0) {
+    // 2. Verificar se já tem análise de sentimentos
+    const existingSentiments = await prisma.movieSentiment.findMany({
+      where: { movieId: movieId },
+      include: {
+        subSentiment: true,
+        mainSentiment: true
+      }
+    });
+
+    if (existingSentiments.length > 0) {
       console.log(`✅ Filme já possui análise de sentimentos:`);
-      
-      const mainSentiments = new Map<string, Array<{ name: string; score: number }>>();
-      
-      movie.movieSentiments.forEach(ms => {
-        const mainSentimentName = ms.subSentiment.mainSentiment.name;
-        if (!mainSentiments.has(mainSentimentName)) {
-          mainSentiments.set(mainSentimentName, []);
+      const mainSentimentGroups = existingSentiments.reduce((acc, ms) => {
+        if (!acc[ms.mainSentiment.name]) {
+          acc[ms.mainSentiment.name] = [];
         }
-        mainSentiments.get(mainSentimentName)!.push({
-          name: ms.subSentiment.name,
-          score: 1.0 // Valor padrão já que o score não está disponível no include
+        acc[ms.mainSentiment.name].push(ms);
+        return acc;
+      }, {} as Record<string, typeof existingSentiments>);
+
+      Object.entries(mainSentimentGroups).forEach(([mainName, sentiments]) => {
+        console.log(`   📍 ${mainName}:`);
+        sentiments.forEach(ms => {
+          console.log(`      - ${ms.subSentiment.name}: N/A`);
         });
       });
 
-      mainSentiments.forEach((subSentiments, mainSentiment) => {
-        console.log(`   📍 ${mainSentiment}:`);
-        subSentiments.forEach(ss => {
-          console.log(`      - ${ss.name}: ${ss.score.toFixed(2)}`);
+      // Se há um sentimento alvo específico, verificar se já está presente
+      if (targetSentimentId) {
+        const targetMainSentiment = await prisma.mainSentiment.findUnique({
+          where: { id: targetSentimentId }
         });
-      });
+        
+        if (targetMainSentiment && mainSentimentGroups[targetMainSentiment.name]) {
+          console.log(`\n🎯 Sentimento alvo "${targetMainSentiment.name}" já está presente.`);
+          return {
+            success: true,
+            mainSentiment: targetMainSentiment.name,
+            subSentiments: mainSentimentGroups[targetMainSentiment.name].map(ms => ({
+              name: ms.subSentiment.name,
+              score: 1.0
+            }))
+          };
+        }
+      }
 
+      // Se não há sentimento alvo ou não está presente, retornar o primeiro
+      const firstMainSentiment = existingSentiments[0].mainSentiment;
       return {
         success: true,
-        mainSentiment: Array.from(mainSentiments.keys())[0],
-        subSentiments: Array.from(mainSentiments.values()).flat()
+        mainSentiment: firstMainSentiment.name,
+        subSentiments: mainSentimentGroups[firstMainSentiment.name].map(ms => ({
+          name: ms.subSentiment.name,
+          score: 1.0
+        }))
       };
     }
 
-    // Se não tem sentimentos, executar análise
     console.log(`🔄 Executando análise de sentimentos...`);
     
-    // Se um sentimento específico foi passado, analisar apenas ele
-    if (targetSentimentId) {
-      const targetSentiment = await prisma.mainSentiment.findUnique({
-        where: { id: targetSentimentId }
-      });
-      
-      if (!targetSentiment) {
-        return { success: false, message: `Sentimento ID ${targetSentimentId} não encontrado` };
+    // 3. Buscar no TMDB
+    const tmdbMovie = await searchMovie(movie.title, movie.year || undefined);
+    if (!tmdbMovie) {
+      throw new Error("Filme não encontrado no TMDB");
+    }
+
+    // 4. Preparar keywords
+    const keywords = [
+      ...(tmdbMovie.movie as any).keywords?.map((k: any) => k.name) || [],
+      ...(tmdbMovie.movie as any).genres?.map((g: any) => g.name) || [],
+      ...movie.keywords || []
+    ];
+
+    // 5. Identificar temas
+    const themes = identifyThemes(tmdbMovie.movie, keywords);
+    
+    // 6. Buscar SubSentiments disponíveis (todos, não apenas do sentimento alvo)
+    const availableSubSentiments = await prisma.subSentiment.findMany();
+    const subSentimentNames = availableSubSentiments.map(ss => ss.name);
+
+    // 7. Filtrar SubSentiments temáticos apenas para os disponíveis
+    const requiredSubSentiments = themes.flatMap(theme => 
+      SUB_SENTIMENTS_BY_THEME[theme]?.required || []
+    ).filter(required => 
+      availableSubSentiments.some(ss => ss.name === required.name)
+    );
+
+    const commonSubSentiments = themes.flatMap(theme => 
+      SUB_SENTIMENTS_BY_THEME[theme]?.common || []
+    ).filter(common => 
+      availableSubSentiments.some(ss => ss.name === common)
+    );
+
+    console.log(`\n📊 SubSentiments temáticos filtrados:`);
+    console.log(`Obrigatórios (disponíveis): ${requiredSubSentiments.length}`);
+    console.log(`Comuns (disponíveis): ${commonSubSentiments.length}`);
+
+    // 8. Executar análise contextual com OpenAI (focada nos temas identificados)
+    console.log('\n🤖 Analisando filme com OpenAI (análise temática)...');
+    const contextualAnalysis = await analyzeMovieWithOpenAI(tmdbMovie.movie, keywords, subSentimentNames);
+
+    console.log(`\n📊 Resultado da análise OpenAI:`);
+    console.log(`SubSentiments sugeridos: ${contextualAnalysis.suggestedSubSentiments.length}`);
+    contextualAnalysis.suggestedSubSentiments.forEach(ss => {
+      console.log(`- ${ss.name} (relevância: ${ss.relevance})`);
+    });
+
+    // 9. Combinar análise contextual com mapeamento temático
+    const finalSubSentiments: Array<{ name: string; score: number; source: string }> = [];
+
+    // Adicionar SubSentiments obrigatórios dos temas (PRIORIDADE MÁXIMA)
+    for (const required of requiredSubSentiments) {
+      const subSentiment = availableSubSentiments.find(ss => ss.name === required.name);
+      if (subSentiment) {
+        finalSubSentiments.push({
+          name: required.name,
+          score: required.minWeight,
+          source: 'tema_obrigatorio'
+        });
+        console.log(`✅ Adicionado obrigatório: ${required.name} (score: ${required.minWeight})`);
+      } else {
+        console.log(`⚠️ SubSentiment obrigatório não encontrado no banco: ${required.name}`);
       }
-      
-      console.log(`🎯 Analisando apenas sentimento: ${targetSentiment.name} (ID: ${targetSentimentId})`);
-      
-      const result = await validateMovieSentiments({
-        mainSentiment: targetSentiment.name,
-        movieTitle: movie.title,
-        year: movie.year || undefined,
-        flow: 'genre',
-        genre: movie.genres.join(', ')
+    }
+
+    // Adicionar SubSentiments sugeridos pela IA (se não estiverem já incluídos)
+    for (const suggestion of contextualAnalysis.suggestedSubSentiments) {
+      const alreadyIncluded = finalSubSentiments.some(ss => ss.name === suggestion.name);
+      if (!alreadyIncluded) {
+        finalSubSentiments.push({
+          name: suggestion.name,
+          score: suggestion.relevance,
+          source: 'ia_contextual'
+        });
+        console.log(`✅ Adicionado da IA: ${suggestion.name} (score: ${suggestion.relevance})`);
+      } else {
+        console.log(`ℹ️ Já incluído: ${suggestion.name}`);
+      }
+    }
+
+    // Adicionar SubSentiments comuns dos temas (se não estiverem já incluídos e se a IA sugeriu)
+    for (const common of commonSubSentiments) {
+      const alreadyIncluded = finalSubSentiments.some(ss => ss.name === common);
+      const suggestedByAI = contextualAnalysis.suggestedSubSentiments.some(ss => ss.name === common);
+      if (!alreadyIncluded && suggestedByAI) {
+        finalSubSentiments.push({
+          name: common,
+          score: 0.6, // Score padrão para SubSentiments comuns
+          source: 'tema_comum'
+        });
+        console.log(`✅ Adicionado comum: ${common} (score: 0.6)`);
+      }
+    }
+
+    console.log(`\n📊 Total de SubSentiments finais: ${finalSubSentiments.length}`);
+    if (finalSubSentiments.length > 0) {
+      console.log('\n✅ Análise temática concluída:');
+      finalSubSentiments.forEach(suggestion => {
+        console.log(`\n- ${suggestion.name} (Score: ${suggestion.score}, Fonte: ${suggestion.source})`);
       });
 
-      if (result.success) {
-        console.log(`✅ Correspondência encontrada: ${targetSentiment.name}`);
+      // 10. Criar registros na MovieSentiment
+      const createdSubSentiments: Array<{ name: string; score: number }> = [];
+      const mainSentimentIds = new Set<number>();
+      
+      for (const suggestion of finalSubSentiments) {
+        const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
+        if (subSentiment) {
+          mainSentimentIds.add(subSentiment.mainSentimentId);
+
+          // Verificar se o registro já existe
+          const existingSentiment = await prisma.movieSentiment.findFirst({
+            where: {
+              movieId: movieId,
+              mainSentimentId: subSentiment.mainSentimentId,
+              subSentimentId: subSentiment.id
+            }
+          });
+
+          if (!existingSentiment) {
+            await prisma.movieSentiment.create({
+              data: {
+                movieId: movieId,
+                mainSentimentId: subSentiment.mainSentimentId,
+                subSentimentId: subSentiment.id
+              }
+            });
+            console.log(`✅ Criado: ${suggestion.name}`);
+          } else {
+            console.log(`ℹ️ Já existe: ${suggestion.name}`);
+          }
+
+          createdSubSentiments.push({
+            name: suggestion.name,
+            score: suggestion.score
+          });
+        }
+      }
+
+      // 11. Determinar o MainSentiment principal
+      const mainSentimentId = Array.from(mainSentimentIds)[0];
+      const mainSentiment = await prisma.mainSentiment.findUnique({
+        where: { id: mainSentimentId }
+      });
+
+      if (mainSentiment) {
+        console.log(`\n🎯 MainSentiment determinado: ${mainSentiment.name} (ID: ${mainSentiment.id})`);
         return {
           success: true,
-          mainSentiment: targetSentiment.name,
-          subSentiments: []
-        };
-      } else {
-        console.log(`❌ Nenhuma correspondência encontrada para ${targetSentiment.name}`);
-        return { success: false, message: `Nenhuma correspondência encontrada para ${targetSentiment.name}` };
-      }
-    }
-    
-    // Se não foi passado sentimento específico, analisar todos (comportamento original)
-    console.log(`🔄 Analisando todos os sentimentos...`);
-    const mainSentiments = await prisma.mainSentiment.findMany();
-    let bestMatch: SentimentAnalysisResult = { success: false, message: "Nenhuma correspondência encontrada" };
-
-    for (const mainSentiment of mainSentiments) {
-      const result = await validateMovieSentiments({
-        mainSentiment: mainSentiment.name,
-        movieTitle: movie.title,
-        year: movie.year || undefined,
-        flow: 'genre',
-        genre: movie.genres.join(', ')
-      });
-
-      if (result.success) {
-        console.log(`✅ Correspondência encontrada: ${mainSentiment.name}`);
-        bestMatch = {
-          success: true,
           mainSentiment: mainSentiment.name,
-          subSentiments: [] // A função validateMovieSentiments não retorna subSentiments
+          subSentiments: createdSubSentiments
         };
-        break;
       }
     }
 
-    if (bestMatch.success) {
-      console.log(`🎯 Melhor correspondência: ${bestMatch.mainSentiment}`);
-      bestMatch.subSentiments?.forEach(ss => {
-        console.log(`   - ${ss.name}: ${ss.score.toFixed(2)}`);
-      });
-    } else {
-      console.log(`❌ Nenhuma correspondência de sentimentos encontrada`);
-    }
-
-    return bestMatch;
+    // Fallback para análise tradicional se a análise temática falhar
+    console.log('\n⚠️ Análise temática não retornou resultados, usando análise tradicional...');
+    return await performTraditionalAnalysis(movie);
 
   } catch (error) {
     console.error('Erro na análise de sentimentos:', error);
     return { success: false, message: `Erro: ${error}` };
   }
+}
+
+// Função de fallback para análise tradicional
+async function performTraditionalAnalysis(movie: any): Promise<SentimentAnalysisResult> {
+  console.log(`🔄 Executando análise tradicional...`);
+  const mainSentiments = await prisma.mainSentiment.findMany();
+  let bestMatch: SentimentAnalysisResult = { success: false, message: "Nenhuma correspondência encontrada" };
+
+  for (const mainSentiment of mainSentiments) {
+    const result = await validateMovieSentiments({
+      mainSentiment: mainSentiment.name,
+      movieTitle: movie.title,
+      year: movie.year || undefined,
+      flow: 'genre',
+      genre: movie.genres.join(', ')
+    });
+
+    if (result.success) {
+      console.log(`✅ Correspondência encontrada: ${mainSentiment.name}`);
+      bestMatch = {
+        success: true,
+        mainSentiment: mainSentiment.name,
+        subSentiments: [] // A função validateMovieSentiments não retorna subSentiments
+      };
+      break;
+    }
+  }
+
+  if (bestMatch.success) {
+    console.log(`🎯 Melhor correspondência: ${bestMatch.mainSentiment}`);
+    bestMatch.subSentiments?.forEach(ss => {
+      console.log(`   - ${ss.name}: ${ss.score.toFixed(2)}`);
+    });
+  } else {
+    console.log(`❌ Nenhuma correspondência de sentimentos encontrada`);
+  }
+
+  return bestMatch;
 }
 
 // ===== FASE 3: CURADORIA E VALIDAÇÃO DA JORNADA =====
@@ -323,6 +763,27 @@ async function curateAndValidateJourney(movieId: string, sentimentAnalysis: Sent
     }
 
     console.log(`\n🔍 Validando última opção: "${option.text}"`);
+
+    // 3.1. VALIDAÇÃO CONTEXTUAL (NOVA)
+    const movieDetails = await prisma.movie.findUnique({
+      where: { id: movieId }
+    });
+
+    if (movieDetails) {
+      const contextualValidation = await validateContextualCompatibility(
+        movieDetails, 
+        lastStep.optionId, 
+        option.text
+      );
+
+      if (!contextualValidation.compatible) {
+        console.log(`❌ Validação contextual falhou: ${contextualValidation.reason}`);
+        return { 
+          success: false, 
+          message: `Incompatibilidade contextual: ${contextualValidation.reason}` 
+        };
+      }
+    }
 
     // 4. Buscar SubSentiments da opção
     const optionSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
@@ -638,6 +1099,83 @@ Não repita o nome do filme.
     console.error('Erro ao gerar reflexão:', error);
     return 'Filme que explora temas profundos e emocionais.';
   }
+}
+
+// Função para validar compatibilidade contextual entre filme e opção
+async function validateContextualCompatibility(
+  movie: any, 
+  optionId: number, 
+  optionText: string
+): Promise<{ compatible: boolean; reason?: string }> {
+  
+  // Buscar detalhes da opção
+  const option = await prisma.journeyOptionFlow.findUnique({
+    where: { id: optionId }
+  });
+
+  if (!option) {
+    return { compatible: false, reason: "Opção não encontrada" };
+  }
+
+  const movieGenres = movie.genres.map((g: any) => g.name.toLowerCase());
+  const movieKeywords = movie.keywords?.map((k: string) => k.toLowerCase()) || [];
+  const optionTextLower = optionText.toLowerCase();
+
+  console.log(`\n🔍 Validando compatibilidade contextual:`);
+  console.log(`Filme: ${movie.title} (${movie.year})`);
+  console.log(`Gêneros: ${movieGenres.join(', ')}`);
+  console.log(`Opção: ${optionText}`);
+  console.log(`Keywords do filme: ${movieKeywords.slice(0, 10).join(', ')}...`);
+
+  // Regras de incompatibilidade
+  const incompatibilityRules = [
+    {
+      optionKeywords: ['animação', 'animacao', 'divertida', 'colorida', 'leve', 'bobinha', 'comédia', 'comedia'],
+      incompatibleGenres: ['drama', 'guerra', 'thriller', 'terror', 'crime', 'biografia'],
+      incompatibleKeywords: ['holocausto', 'nazista', 'guerra', 'morte', 'tragédia', 'tragedia', 'violência', 'violencia', 'perseguição', 'perseguicao'],
+      reason: "Filme sério/dramático não compatível com opção de entretenimento leve"
+    },
+    {
+      optionKeywords: ['ação', 'acao', 'aventura', 'empolgante', 'energético', 'energetico'],
+      incompatibleGenres: ['romance', 'comédia', 'comedia', 'drama'],
+      incompatibleKeywords: ['romântico', 'romantico', 'amor', 'casamento', 'família', 'familia'],
+      reason: "Filme romântico/familiar não compatível com opção de ação/aventura"
+    },
+    {
+      optionKeywords: ['reflexão', 'reflexao', 'filosófica', 'filosofica', 'profunda', 'contemplação', 'contemplacao'],
+      incompatibleGenres: ['comédia', 'comedia', 'ação', 'acao', 'aventura'],
+      incompatibleKeywords: ['divertido', 'engraçado', 'engracado', 'ação', 'acao', 'aventura'],
+      reason: "Filme de entretenimento não compatível com opção de reflexão profunda"
+    }
+  ];
+
+  // Verificar regras de incompatibilidade
+  for (const rule of incompatibilityRules) {
+    const hasIncompatibleOption = rule.optionKeywords.some(keyword => 
+      optionTextLower.includes(keyword)
+    );
+    
+    const hasIncompatibleGenre = movieGenres.some((genre: string) => 
+      rule.incompatibleGenres.includes(genre)
+    );
+    
+    const hasIncompatibleKeyword = movieKeywords.some((keyword: string) => 
+      rule.incompatibleKeywords.some(incompatible => 
+        keyword.includes(incompatible)
+      )
+    );
+
+    if (hasIncompatibleOption && (hasIncompatibleGenre || hasIncompatibleKeyword)) {
+      console.log(`❌ Incompatibilidade detectada: ${rule.reason}`);
+      return { 
+        compatible: false, 
+        reason: rule.reason 
+      };
+    }
+  }
+
+  console.log(`✅ Compatibilidade contextual validada`);
+  return { compatible: true };
 }
 
 // ===== FUNÇÃO PRINCIPAL =====
