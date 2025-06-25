@@ -6,9 +6,23 @@ import * as readline from 'readline';
 
 const prisma = new PrismaClient();
 
+// ===== NOVAS INTERFACES PARA INTENÇÃO EMOCIONAL =====
+interface EmotionalIntention {
+  id: number;
+  mainSentimentId: number;
+  intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE';
+  description: string;
+  preferredGenres: string[];
+  avoidGenres: string[];
+  emotionalTone: string;
+  subSentimentWeights: any;
+}
+
 interface JourneyPath {
   mainSentimentId: number;
   mainSentimentName: string;
+  emotionalIntentionId?: number;
+  emotionalIntentionType?: string;
   journeyFlowId: number;
   steps: Array<{
     stepId: number;
@@ -432,6 +446,149 @@ async function searchMovieSilent(movieTitle: string, movieYear?: number) {
   }
 }
 
+// ===== FASE 1.5: SELEÇÃO DA INTENÇÃO EMOCIONAL =====
+async function selectEmotionalIntention(mainSentimentId: number, movieGenres: string[]): Promise<{ 
+  success: boolean; 
+  emotionalIntention?: EmotionalIntention; 
+  message?: string 
+}> {
+  console.log(`\n🎭 === FASE 1.5: SELEÇÃO DA INTENÇÃO EMOCIONAL ===`);
+  console.log(`🧠 Selecionando intenção emocional para o sentimento ID: ${mainSentimentId}`);
+  
+  try {
+    // 1. Buscar sentimento principal
+    const mainSentiment = await prisma.mainSentiment.findUnique({
+      where: { id: mainSentimentId }
+    });
+
+    if (!mainSentiment) {
+      throw new Error(`Sentimento não encontrado: ID ${mainSentimentId}`);
+    }
+
+    console.log(`📊 Sentimento encontrado: ${mainSentiment.name}`);
+
+    // 2. Buscar intenções emocionais disponíveis para este sentimento
+    const availableIntentions = await prisma.emotionalIntention.findMany({
+      where: { mainSentimentId: mainSentimentId }
+    });
+
+    // Ordenar na ordem lógica desejada: PROCESS, TRANSFORM, MAINTAIN, EXPLORE
+    const intentionOrder = ['PROCESS', 'TRANSFORM', 'MAINTAIN', 'EXPLORE'];
+    availableIntentions.sort((a, b) => {
+      return intentionOrder.indexOf(a.intentionType) - intentionOrder.indexOf(b.intentionType);
+    });
+
+    if (availableIntentions.length === 0) {
+      console.log(`⚠️ Nenhuma intenção emocional configurada para ${mainSentiment.name}`);
+      console.log(`ℹ️ Continuando com jornada tradicional...`);
+      return { success: true };
+    }
+
+    // 3. Apresentar intenções para seleção
+    console.log(`\n🎯 Intenções emocionais disponíveis para "${mainSentiment.name}":`);
+    availableIntentions.forEach((intention, index) => {
+      const intentionLabel = getIntentionLabel(intention.intentionType);
+      console.log(`${index + 1}. ${intentionLabel} - ${intention.description}`);
+    });
+    console.log(`${availableIntentions.length + 1}. Pular (usar jornada tradicional)`);
+
+    const choice = await question("\nDigite o número da opção: ");
+    const selectedIndex = parseInt(choice) - 1;
+    
+    if (selectedIndex < 0 || selectedIndex >= availableIntentions.length) {
+      if (selectedIndex === availableIntentions.length) {
+        console.log(`⏭️ Jornada tradicional selecionada`);
+        return { success: true };
+      } else {
+        throw new Error("Opção inválida");
+      }
+    }
+
+    const selectedIntention = availableIntentions[selectedIndex];
+    const intentionLabel = getIntentionLabel(selectedIntention.intentionType);
+    
+        console.log(`\n🎉 Intenção selecionada: ${intentionLabel}`);
+    console.log(`📝 Descrição: ${selectedIntention.description}`);
+
+    // 4. Validar compatibilidade apenas da intenção selecionada
+    console.log(`\n🔍 Validando compatibilidade da intenção ${intentionLabel}:`);
+    console.log(`📱 Gêneros preferidos: ${selectedIntention.preferredGenres.join(', ')}`);
+    console.log(`🚫 Gêneros evitados: ${selectedIntention.avoidGenres.join(', ')}`);
+    console.log(`🎬 Gêneros do filme: ${movieGenres.join(', ')}`);
+
+    // Verificar gêneros evitados
+    const hasAvoidedGenres = selectedIntention.avoidGenres.some(avoidGenre => 
+      movieGenres.some(movieGenre => 
+        movieGenre.toLowerCase().includes(avoidGenre.toLowerCase()) ||
+        avoidGenre.toLowerCase().includes(movieGenre.toLowerCase())
+      )
+    );
+
+    if (hasAvoidedGenres) {
+      console.log(`⚠️ ATENÇÃO: Filme possui gêneros evitados para esta intenção`);
+      console.log(`💡 Isso pode resultar em uma recomendação menos eficaz para seu objetivo emocional.`);
+      const proceed = await question("Deseja continuar com esta intenção mesmo assim, ou prefere voltar e escolher outra? (s = continuar / n = voltar): ");
+      if (proceed.toLowerCase() !== 's') {
+        console.log(`❌ Operação cancelada pelo usuário`);
+        return { success: false, message: "Intenção incompatível cancelada pelo usuário" };
+      }
+      console.log(`✅ Continuando com intenção apesar dos gêneros evitados`);
+    }
+
+    // Verificar gêneros preferidos
+    if (selectedIntention.preferredGenres.length > 0) {
+      const hasPreferredGenres = selectedIntention.preferredGenres.some(prefGenre => 
+        movieGenres.some(movieGenre => 
+          movieGenre.toLowerCase().includes(prefGenre.toLowerCase()) ||
+          prefGenre.toLowerCase().includes(movieGenre.toLowerCase())
+        )
+      );
+
+      if (hasPreferredGenres) {
+        console.log(`✅ Excelente! Filme possui gêneros preferidos para esta intenção`);
+      } else {
+        console.log(`⚠️ Filme não possui gêneros preferidos para esta intenção`);
+        console.log(`📋 Gêneros preferidos: ${selectedIntention.preferredGenres.join(', ')}`);
+        console.log(`🎬 Gêneros do filme: ${movieGenres.join(', ')}`);
+        console.log(`💡 A recomendação pode ser menos alinhada com seu objetivo emocional, mas ainda é possível.`);
+        const proceed = await question("Deseja continuar com esta intenção mesmo assim, ou prefere voltar e escolher outra? (s = continuar / n = voltar): ");
+        if (proceed.toLowerCase() !== 's') {
+          console.log(`❌ Operação cancelada pelo usuário`);
+          return { success: false, message: "Intenção sem gêneros preferidos cancelada pelo usuário" };
+        }
+        console.log(`✅ Continuando com intenção apesar da incompatibilidade de gêneros`);
+      }
+    } else {
+      console.log(`✅ Intenção sem restrições específicas de gênero`);
+    }
+    
+    console.log(`🎬 Tom emocional: ${selectedIntention.emotionalTone}`);
+
+    return { 
+      success: true, 
+      emotionalIntention: selectedIntention as EmotionalIntention
+    };
+
+  } catch (error) {
+    console.error('Erro na seleção da intenção emocional:', error);
+    return { 
+      success: false, 
+      message: `Erro: ${error}` 
+    };
+  }
+}
+
+// Função auxiliar para rótulos das intenções
+function getIntentionLabel(intentionType: string): string {
+  const labels = {
+    'PROCESS': 'PROCESSAR',
+    'TRANSFORM': 'TRANSFORMAR', 
+    'MAINTAIN': 'MANTER',
+    'EXPLORE': 'EXPLORAR'
+  };
+  return labels[intentionType as keyof typeof labels] || intentionType;
+}
+
 // ===== FASE 2: ANÁLISE DE SENTIMENTOS =====
 async function analyzeMovieSentiments(movieId: string, targetSentimentId?: number): Promise<SentimentAnalysisResult> {
   console.log(`\n🧠 === FASE 2: ANÁLISE DE SENTIMENTOS ===`);
@@ -559,15 +716,20 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
     const finalSubSentiments: Array<{ name: string; score: number; source: string }> = [];
 
     // Adicionar SubSentiments obrigatórios dos temas (PRIORIDADE MÁXIMA)
+    const processedSubSentiments = new Set<string>(); // Para evitar duplicatas
+    
     for (const required of requiredSubSentiments) {
       const subSentiment = availableSubSentiments.find(ss => ss.name === required.name);
-      if (subSentiment) {
+      if (subSentiment && !processedSubSentiments.has(required.name)) {
         finalSubSentiments.push({
           name: required.name,
           score: required.minWeight,
           source: 'tema_obrigatorio'
         });
+        processedSubSentiments.add(required.name);
         console.log(`✅ Adicionado obrigatório: ${required.name} (score: ${required.minWeight})`);
+      } else if (processedSubSentiments.has(required.name)) {
+        console.log(`ℹ️ Já processado obrigatório: ${required.name}`);
       } else {
         console.log(`⚠️ SubSentiment obrigatório não encontrado no banco: ${required.name}`);
       }
@@ -575,13 +737,13 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
 
     // Adicionar SubSentiments sugeridos pela IA (se não estiverem já incluídos)
     for (const suggestion of contextualAnalysis.suggestedSubSentiments) {
-      const alreadyIncluded = finalSubSentiments.some(ss => ss.name === suggestion.name);
-      if (!alreadyIncluded) {
+      if (!processedSubSentiments.has(suggestion.name)) {
         finalSubSentiments.push({
           name: suggestion.name,
           score: suggestion.relevance,
           source: 'ia_contextual'
         });
+        processedSubSentiments.add(suggestion.name);
         console.log(`✅ Adicionado da IA: ${suggestion.name} (score: ${suggestion.relevance})`);
       } else {
         console.log(`ℹ️ Já incluído: ${suggestion.name}`);
@@ -590,14 +752,14 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
 
     // Adicionar SubSentiments comuns dos temas (se não estiverem já incluídos e se a IA sugeriu)
     for (const common of commonSubSentiments) {
-      const alreadyIncluded = finalSubSentiments.some(ss => ss.name === common);
       const suggestedByAI = contextualAnalysis.suggestedSubSentiments.some(ss => ss.name === common);
-      if (!alreadyIncluded && suggestedByAI) {
+      if (!processedSubSentiments.has(common) && suggestedByAI) {
         finalSubSentiments.push({
           name: common,
           score: 0.6, // Score padrão para SubSentiments comuns
           source: 'tema_comum'
         });
+        processedSubSentiments.add(common);
         console.log(`✅ Adicionado comum: ${common} (score: 0.6)`);
       }
     }
@@ -609,20 +771,52 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
         console.log(`\n- ${suggestion.name} (Score: ${suggestion.score}, Fonte: ${suggestion.source})`);
       });
 
-      // 10. Criar registros na MovieSentiment
+      // 10. Determinar o MainSentiment alvo primeiro
+      let targetMainSentimentId: number;
+      let targetMainSentiment: any;
+
+      // Se há um sentimento alvo específico, usar ele
+      if (targetSentimentId) {
+        targetMainSentiment = await prisma.mainSentiment.findUnique({
+          where: { id: targetSentimentId }
+        });
+        if (targetMainSentiment) {
+          targetMainSentimentId = targetSentimentId;
+          console.log(`🎯 Usando sentimento alvo especificado: ${targetMainSentiment.name} (ID: ${targetMainSentimentId})`);
+        } else {
+          throw new Error(`Sentimento alvo ID ${targetSentimentId} não encontrado`);
+        }
+      } 
+      // Senão, usar o primeiro sentimento dos SubSentiments encontrados
+      else {
+        const mainSentimentIds = new Set<number>();
+        finalSubSentiments.forEach(suggestion => {
+          const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
+          if (subSentiment) {
+            mainSentimentIds.add(subSentiment.mainSentimentId);
+          }
+        });
+        
+        targetMainSentimentId = Array.from(mainSentimentIds)[0];
+        targetMainSentiment = await prisma.mainSentiment.findUnique({
+          where: { id: targetMainSentimentId }
+        });
+        console.log(`📊 Usando primeiro sentimento detectado: ${targetMainSentiment?.name} (ID: ${targetMainSentimentId})`);
+      }
+
+      // 11. Criar registros na MovieSentiment APENAS para o sentimento alvo
       const createdSubSentiments: Array<{ name: string; score: number }> = [];
-      const mainSentimentIds = new Set<number>();
       
       for (const suggestion of finalSubSentiments) {
         const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
-        if (subSentiment) {
-          mainSentimentIds.add(subSentiment.mainSentimentId);
-
+        
+        // FILTRO CRÍTICO: Apenas criar se o SubSentiment pertence ao sentimento alvo
+        if (subSentiment && subSentiment.mainSentimentId === targetMainSentimentId) {
           // Verificar se o registro já existe
           const existingSentiment = await prisma.movieSentiment.findFirst({
             where: {
               movieId: movieId,
-              mainSentimentId: subSentiment.mainSentimentId,
+              mainSentimentId: targetMainSentimentId,
               subSentimentId: subSentiment.id
             }
           });
@@ -631,33 +825,29 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
             await prisma.movieSentiment.create({
               data: {
                 movieId: movieId,
-                mainSentimentId: subSentiment.mainSentimentId,
+                mainSentimentId: targetMainSentimentId,
                 subSentimentId: subSentiment.id
               }
             });
-            console.log(`✅ Criado: ${suggestion.name}`);
+            console.log(`✅ Criado (${targetMainSentiment?.name}): ${suggestion.name}`);
           } else {
-            console.log(`ℹ️ Já existe: ${suggestion.name}`);
+            console.log(`ℹ️ Já existe (${targetMainSentiment?.name}): ${suggestion.name}`);
           }
 
           createdSubSentiments.push({
             name: suggestion.name,
             score: suggestion.score
           });
+        } else if (subSentiment) {
+          console.log(`⏭️ Ignorado (sentimento diferente): ${suggestion.name} pertence a ID ${subSentiment.mainSentimentId}, mas alvo é ID ${targetMainSentimentId}`);
         }
       }
 
-      // 11. Determinar o MainSentiment principal
-      const mainSentimentId = Array.from(mainSentimentIds)[0];
-      const mainSentiment = await prisma.mainSentiment.findUnique({
-        where: { id: mainSentimentId }
-      });
-
-      if (mainSentiment) {
-        console.log(`\n🎯 MainSentiment determinado: ${mainSentiment.name} (ID: ${mainSentiment.id})`);
+      if (targetMainSentiment) {
+        console.log(`\n🎯 MainSentiment determinado: ${targetMainSentiment.name} (ID: ${targetMainSentiment.id})`);
         return {
           success: true,
-          mainSentiment: mainSentiment.name,
+          mainSentiment: targetMainSentiment.name,
           subSentiments: createdSubSentiments
         };
       }
@@ -712,26 +902,43 @@ async function performTraditionalAnalysis(movie: any): Promise<SentimentAnalysis
 }
 
 // ===== FASE 3: CURADORIA E VALIDAÇÃO DA JORNADA =====
-async function curateAndValidateJourney(movieId: string, sentimentAnalysis: SentimentAnalysisResult): Promise<{ success: boolean; journeyPath?: JourneyPath; message?: string }> {
+async function curateAndValidateJourney(
+  movieId: string, 
+  sentimentAnalysis: SentimentAnalysisResult, 
+  emotionalIntention?: EmotionalIntention
+): Promise<{ success: boolean; journeyPath?: JourneyPath; message?: string }> {
   console.log(`\n🎯 === FASE 3: CURADORIA E VALIDAÇÃO DA JORNADA ===`);
   
   try {
     // 1. Escolher jornada baseada no sentimento
     let mainSentimentId: number;
+    let sentimentSource: string;
     
-    if (sentimentAnalysis.mainSentiment) {
+    // Se há intenção emocional, usar o sentimento da intenção (prioridade)
+    if (emotionalIntention) {
+      mainSentimentId = emotionalIntention.mainSentimentId;
+      const intentionSentiment = await prisma.mainSentiment.findUnique({
+        where: { id: mainSentimentId }
+      });
+      sentimentSource = `intenção emocional: ${intentionSentiment?.name}`;
+      console.log(`🎭 Usando sentimento da ${sentimentSource} (ID: ${mainSentimentId})`);
+    }
+    // Senão, usar sentimento detectado na análise
+    else if (sentimentAnalysis.mainSentiment) {
       const mainSentiment = await prisma.mainSentiment.findFirst({
         where: { name: sentimentAnalysis.mainSentiment }
       });
       
       if (mainSentiment) {
         mainSentimentId = mainSentiment.id;
-        console.log(`🎭 Usando sentimento detectado: ${sentimentAnalysis.mainSentiment} (ID: ${mainSentimentId})`);
+        sentimentSource = `análise: ${sentimentAnalysis.mainSentiment}`;
+        console.log(`🎭 Usando sentimento detectado na ${sentimentSource} (ID: ${mainSentimentId})`);
       } else {
         throw new Error(`Sentimento "${sentimentAnalysis.mainSentiment}" não encontrado no banco`);
       }
-    } else {
-      // Escolha manual se não foi detectado
+    } 
+    // Última opção: escolha manual
+    else {
       console.log("\n📋 Escolha o sentimento principal:");
       const mainSentiments = await prisma.mainSentiment.findMany({ orderBy: { id: 'asc' } });
       
@@ -747,10 +954,19 @@ async function curateAndValidateJourney(movieId: string, sentimentAnalysis: Sent
       }
 
       mainSentimentId = mainSentiments[selectedIndex].id;
+      sentimentSource = "escolha manual";
+      console.log(`🎭 Usando sentimento da ${sentimentSource} (ID: ${mainSentimentId})`);
     }
 
-    // 2. Descobrir jornada
-    const journeyPath = await discoverJourneySteps(mainSentimentId);
+    // 2. Adicionar informação sobre intenção emocional
+    if (emotionalIntention) {
+      const intentionLabel = getIntentionLabel(emotionalIntention.intentionType);
+      console.log(`🧠 Intenção emocional selecionada: ${intentionLabel}`);
+      console.log(`📝 Descrição: ${emotionalIntention.description}`);
+    }
+
+    // 3. Descobrir jornada (agora com suporte à intenção emocional)
+    const journeyPath = await discoverJourneySteps(mainSentimentId, emotionalIntention);
     
     // 3. Validar última opção da jornada
     const lastStep = journeyPath.steps[journeyPath.steps.length - 1];
@@ -917,8 +1133,13 @@ async function curateAndValidateJourney(movieId: string, sentimentAnalysis: Sent
   }
 }
 
-async function discoverJourneySteps(mainSentimentId: number): Promise<JourneyPath> {
+async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?: EmotionalIntention): Promise<JourneyPath> {
   console.log(`\n🎯 Descobrindo jornada para o sentimento ID: ${mainSentimentId}...`);
+  
+  if (emotionalIntention) {
+    const intentionLabel = getIntentionLabel(emotionalIntention.intentionType);
+    console.log(`🧠 Usando intenção emocional: ${intentionLabel}`);
+  }
   
   // Buscar JourneyFlow
   const journeyFlow = await prisma.journeyFlow.findFirst({
@@ -929,19 +1150,70 @@ async function discoverJourneySteps(mainSentimentId: number): Promise<JourneyPat
     throw new Error("JourneyFlow não encontrado para este sentimento");
   }
 
-  // Buscar Steps
-  const steps = await prisma.journeyStepFlow.findMany({
-    where: { journeyFlowId: journeyFlow.id },
-    orderBy: { order: 'asc' }
-  });
+  let steps: any[] = [];
+  
+  // Se há intenção emocional, buscar steps personalizados
+  if (emotionalIntention) {
+    console.log(`🔍 Buscando steps personalizados para intenção ${getIntentionLabel(emotionalIntention.intentionType)}...`);
+    
+    const customSteps = await prisma.emotionalIntentionJourneyStep.findMany({
+      where: { emotionalIntentionId: emotionalIntention.id },
+      include: {
+        journeyStepFlow: true
+      },
+      orderBy: [
+        { priority: 'asc' },
+        { journeyStepFlow: { order: 'asc' } }
+      ]
+    });
+
+    if (customSteps.length > 0) {
+      console.log(`✅ Encontrados ${customSteps.length} steps personalizados para a intenção`);
+      steps = customSteps.map(cs => ({
+        ...cs.journeyStepFlow,
+        customQuestion: cs.customQuestion,
+        contextualHint: cs.contextualHint,
+        isRequired: cs.isRequired,
+        priority: cs.priority
+      }));
+      
+      // Mostrar informações sobre personalização
+      customSteps.forEach(cs => {
+        if (cs.customQuestion) {
+          console.log(`   💡 Pergunta personalizada: "${cs.customQuestion}"`);
+        }
+        if (cs.contextualHint) {
+          console.log(`   🔮 Dica contextual: "${cs.contextualHint}"`);
+        }
+      });
+    } else {
+      console.log(`⚠️ Nenhum step personalizado encontrado, usando steps padrão da jornada`);
+    }
+  }
+  
+  // Se não há steps personalizados ou não há intenção, usar steps padrão
+  if (steps.length === 0) {
+    console.log(`🔍 Usando steps padrão da jornada...`);
+    steps = await prisma.journeyStepFlow.findMany({
+      where: { journeyFlowId: journeyFlow.id },
+      orderBy: { order: 'asc' }
+    });
+  }
 
   const selectedSteps: Array<{ stepId: number; optionId: number }> = [];
 
-  // Começar com o primeiro step (ordem 1)
-  let currentStep = steps.find(s => s.order === 1);
+  // Começar com o primeiro step (ordem 1 ou priority 1)
+  let currentStep = steps.find(s => (s.order === 1) || (s.priority === 1)) || steps[0];
   
   while (currentStep) {
-    console.log(`\n📝 Passo: ${currentStep.question}`);
+    // Usar pergunta personalizada se disponível
+    const questionToShow = currentStep.customQuestion || currentStep.question;
+    console.log(`\n📝 Passo: ${questionToShow}`);
+    
+    // Mostrar dica contextual se disponível
+    if (currentStep.contextualHint) {
+      console.log(`💡 Dica: ${currentStep.contextualHint}`);
+    }
     
     // Buscar opções do step atual
     const options = await prisma.journeyOptionFlow.findMany({
@@ -980,8 +1252,15 @@ async function discoverJourneySteps(mainSentimentId: number): Promise<JourneyPat
         break;
       }
     } else {
-      // Se não há nextStepId, buscar o próximo step por ordem
-      currentStep = steps.find(s => s.order === currentStep!.order + 1);
+      // Se não há nextStepId, buscar o próximo step por ordem ou priority
+      const nextOrder = currentStep.order ? currentStep.order + 1 : null;
+      const nextPriority = currentStep.priority ? currentStep.priority + 1 : null;
+      
+      currentStep = steps.find(s => 
+        (nextOrder && s.order === nextOrder) || 
+        (nextPriority && s.priority === nextPriority)
+      );
+      
       if (!currentStep) {
         console.log("⚠️ Não há mais steps na jornada");
         break;
@@ -989,9 +1268,13 @@ async function discoverJourneySteps(mainSentimentId: number): Promise<JourneyPat
     }
   }
 
+  const mainSentiment = await prisma.mainSentiment.findUnique({ where: { id: mainSentimentId } });
+  
   return {
     mainSentimentId,
-    mainSentimentName: (await prisma.mainSentiment.findUnique({ where: { id: mainSentimentId } }))?.name || "",
+    mainSentimentName: mainSentiment?.name || "",
+    emotionalIntentionId: emotionalIntention?.id,
+    emotionalIntentionType: emotionalIntention ? getIntentionLabel(emotionalIntention.intentionType) : undefined,
     journeyFlowId: journeyFlow.id,
     steps: selectedSteps
   };
@@ -1117,8 +1400,12 @@ async function validateContextualCompatibility(
     return { compatible: false, reason: "Opção não encontrada" };
   }
 
-  const movieGenres = movie.genres.map((g: any) => g.name.toLowerCase());
-  const movieKeywords = movie.keywords?.map((k: string) => k.toLowerCase()) || [];
+  const movieGenres = Array.isArray(movie.genres) 
+    ? movie.genres.map((g: any) => typeof g === 'string' ? g.toLowerCase() : g.name?.toLowerCase()).filter(Boolean)
+    : [];
+  const movieKeywords = Array.isArray(movie.keywords) 
+    ? movie.keywords.map((k: string) => k.toLowerCase())
+    : [];
   const optionTextLower = optionText.toLowerCase();
 
   console.log(`\n🔍 Validando compatibilidade contextual:`);
@@ -1184,14 +1471,15 @@ async function main() {
     const args = process.argv.slice(2);
     
     if (args.length < 2) {
-      console.log("🎬 === SISTEMA DE CURAÇÃO AUTOMÁTICA DE FILMES ===");
-      console.log("Uso: npx ts-node discoverAndCurate.ts \"Nome do Filme\" ano [sentimentoId]");
-      console.log("Exemplo: npx ts-node discoverAndCurate.ts \"Imperdoável\" 2021 14");
-      console.log("\nEste script irá:");
-      console.log("1. Descobrir/adicionar o filme ao banco");
-      console.log("2. Analisar sentimentos automaticamente (ou apenas o sentimento especificado)");
-      console.log("3. Curar e validar a jornada (com resolução automática de problemas)");
-      console.log("4. Popular a sugestão final");
+          console.log("🎬 === SISTEMA DE CURAÇÃO AUTOMÁTICA DE FILMES ===");
+    console.log("Uso: npx ts-node discoverAndCurate.ts \"Nome do Filme\" ano [sentimentoId]");
+    console.log("Exemplo: npx ts-node discoverAndCurate.ts \"Imperdoável\" 2021 14");
+    console.log("\nEste script irá:");
+    console.log("1. Descobrir/adicionar o filme ao banco");
+    console.log("1.5. Selecionar intenção emocional (PROCESSAR, TRANSFORMAR, MANTER, EXPLORAR)");
+    console.log("2. Analisar sentimentos automaticamente (ou apenas o sentimento especificado)");
+    console.log("3. Curar e validar a jornada personalizada (baseada na intenção emocional)");
+    console.log("4. Popular a sugestão final");
       return;
     }
 
@@ -1209,6 +1497,17 @@ async function main() {
     // FASE 1: Descobrimento do filme
     const movie = await discoverMovie(movieTitle, movieYear);
 
+    // FASE 1.5: Seleção da intenção emocional (se aplicável)
+    let emotionalIntention: EmotionalIntention | undefined;
+    if (targetSentimentId) {
+      const intentionResult = await selectEmotionalIntention(targetSentimentId, movie.genres);
+      if (!intentionResult.success) {
+        console.log(`❌ Seleção de intenção emocional falhou: ${intentionResult.message}`);
+        return;
+      }
+      emotionalIntention = intentionResult.emotionalIntention;
+    }
+
     // FASE 2: Análise de sentimentos
     const sentimentAnalysis = await analyzeMovieSentiments(movie.id, targetSentimentId);
     
@@ -1218,7 +1517,7 @@ async function main() {
     }
 
     // FASE 3: Curadoria e validação da jornada
-    const curationResult = await curateAndValidateJourney(movie.id, sentimentAnalysis);
+    const curationResult = await curateAndValidateJourney(movie.id, sentimentAnalysis, emotionalIntention);
     
     if (!curationResult.success) {
       console.log(`❌ Curadoria falhou: ${curationResult.message}`);
@@ -1232,6 +1531,9 @@ async function main() {
       console.log("\n🎉 === CURADORIA CONCLUÍDA COM SUCESSO! ===");
       console.log(`✅ Filme: ${movie.title} (${movie.year})`);
       console.log(`✅ Sentimento: ${sentimentAnalysis.mainSentiment}`);
+      if (curationResult.journeyPath!.emotionalIntentionType) {
+        console.log(`✅ Intenção Emocional: ${curationResult.journeyPath!.emotionalIntentionType}`);
+      }
       console.log(`✅ Jornada: ${curationResult.journeyPath!.mainSentimentName}`);
       console.log(`✅ UUID: ${movie.id}`);
     } else {
