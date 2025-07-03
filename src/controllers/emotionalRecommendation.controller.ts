@@ -146,7 +146,7 @@ export class EmotionalRecommendationController {
         });
       }
 
-      // Usar steps personalizados
+      // Usar steps personalizados + incluir steps referenciados por nextStepId
       const customizedSteps = personalizedSteps.map(personalizedStep => {
         const step = personalizedStep.journeyStepFlow;
         return {
@@ -171,11 +171,92 @@ export class EmotionalRecommendationController {
         };
       });
 
+      // CORREÇÃO: Incluir TODOS os steps referenciados por nextStepId (recursivamente)
+      async function includeReferencedSteps(steps: any[], journeyFlowId: number): Promise<any[]> {
+        const allSteps = [...steps];
+        const processedStepIds = new Set<string>();
+        let hasNewSteps = true;
+
+        while (hasNewSteps) {
+          hasNewSteps = false;
+          const referencedStepIds = new Set<string>();
+          
+          // Coletar todos os nextStepId referenciados
+          allSteps.forEach(step => {
+            step.options.forEach((option: any) => {
+              if (option.nextStepId && !option.isEndState && !processedStepIds.has(option.nextStepId)) {
+                referencedStepIds.add(option.nextStepId);
+              }
+            });
+          });
+
+          // Filtrar apenas os que ainda não existem
+          const existingStepIds = new Set(allSteps.map(s => s.stepId));
+          const missingStepIds = Array.from(referencedStepIds).filter(stepId => !existingStepIds.has(stepId));
+
+          if (missingStepIds.length > 0) {
+            console.log(`🔍 Buscando steps referenciados ausentes: ${missingStepIds.join(', ')}`);
+            
+            const missingSteps = await prisma.journeyStepFlow.findMany({
+              where: {
+                journeyFlowId: journeyFlowId,
+                stepId: { in: missingStepIds }
+              },
+              include: {
+                options: {
+                  include: {
+                    movieSuggestions: {
+                      include: {
+                        movie: true
+                      }
+                    }
+                  }
+                }
+              }
+            });
+
+            if (missingSteps.length > 0) {
+              const additionalSteps = missingSteps.map(step => ({
+                id: step.id,
+                stepId: step.stepId,
+                order: step.order,
+                question: step.question,
+                priority: 999, // Priority baixa para steps não personalizados
+                contextualHint: null,
+                isRequired: false,
+                options: step.options.map(option => ({
+                  id: option.id,
+                  text: option.text,
+                  nextStepId: option.nextStepId,
+                  isEndState: option.isEndState,
+                  movieSuggestions: option.movieSuggestions?.map(ms => ({
+                    id: ms.id,
+                    movie: ms.movie,
+                    reason: ms.reason
+                  }))
+                }))
+              }));
+
+              allSteps.push(...additionalSteps);
+              console.log(`✅ Adicionados ${additionalSteps.length} steps referenciados à jornada personalizada`);
+              hasNewSteps = true;
+            }
+          }
+
+          // Marcar todos os stepIds como processados
+          referencedStepIds.forEach(stepId => processedStepIds.add(stepId));
+        }
+
+        return allSteps;
+      }
+
+      const completeSteps = await includeReferencedSteps(customizedSteps, journeyFlow.id);
+
       res.json({
         id: journeyFlow.id,
         mainSentimentId: parseInt(sentimentId),
         emotionalIntentionId: parseInt(intentionId),
-        steps: customizedSteps
+        steps: completeSteps
       });
 
     } catch (error) {

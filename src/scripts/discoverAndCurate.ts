@@ -1023,8 +1023,11 @@ async function curateAndValidateJourney(
     console.log(`📊 SubSentiments do filme: ${movieSubSentiments.length}`);
 
     // 6. Verificar compatibilidade
+    const MIN_WEIGHT_THRESHOLD = 0.5; // Limiar mínimo para compatibilidade de peso
     const compatibleSubSentiments = movieSubSentiments.filter(mss => 
-      optionSubSentiments.some(jofss => jofss.subSentimentId === mss.subSentimentId)
+      optionSubSentiments.some(jofss => 
+        jofss.subSentimentId === mss.subSentimentId && jofss.weight.toNumber() >= MIN_WEIGHT_THRESHOLD
+      )
     );
 
     // LÓGICA ESPECIAL PARA SENTIMENTO "INDIFERENTE"
@@ -1439,7 +1442,7 @@ async function validateContextualCompatibility(
   // Verificar regras de incompatibilidade
   for (const rule of incompatibilityRules) {
     const hasIncompatibleOption = rule.optionKeywords.some(keyword => 
-      optionTextLower.includes(keyword)
+      new RegExp(`\b${keyword}\b`).test(optionTextLower)
     );
     
     const hasIncompatibleGenre = movieGenres.some((genre: string) => 
@@ -1451,6 +1454,8 @@ async function validateContextualCompatibility(
         keyword.includes(incompatible)
       )
     );
+
+    
 
     if (hasIncompatibleOption && (hasIncompatibleGenre || hasIncompatibleKeyword)) {
       console.log(`❌ Incompatibilidade detectada: ${rule.reason}`);
