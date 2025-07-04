@@ -1001,12 +1001,25 @@ async function curateAndValidateJourney(
       }
     }
 
-    // 4. Buscar SubSentiments da opção
-    const optionSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
-      where: { journeyOptionFlowId: lastStep.optionId }
-    });
+    // 4. Buscar SubSentiments da opção atual ou de opções anteriores na jornada
+    let optionSubSentiments: any[] = [];
+    let currentOptionIndex = journeyPath.steps.length - 1;
 
-    console.log(`📊 SubSentiments associados à opção: ${optionSubSentiments.length}`);
+    while (optionSubSentiments.length === 0 && currentOptionIndex >= 0) {
+      const optionIdToValidate = journeyPath.steps[currentOptionIndex].optionId;
+      optionSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
+        where: { journeyOptionFlowId: optionIdToValidate }
+      });
+      if (optionSubSentiments.length > 0) {
+        console.log(`📊 SubSentiments associados à opção (ID: ${optionIdToValidate}): ${optionSubSentiments.length}`);
+        break; // Encontrou SubSentiments, pode parar
+      }
+      currentOptionIndex--;
+    }
+
+    if (optionSubSentiments.length === 0) {
+      console.log(`❌ Nenhuma associação de SubSentiments encontrada em nenhuma opção da jornada.`);
+    }
 
     // 5. Buscar SubSentiments do filme
     const movieSubSentiments = await prisma.movieSentiment.findMany({
@@ -1244,31 +1257,40 @@ async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?
 
     // Se é estado final, parar
     if (selectedOption.isEndState) {
+      console.log(`🏁 Opção final selecionada. Fim da jornada de perguntas.`);
       break;
     }
 
-    // Buscar o próximo step baseado no nextStepId da opção escolhida
+    // Lógica de transição para o próximo step
+    let nextStep = null;
+
+    // Prioridade 1: Usar nextStepId da opção para saltar para um step específico
     if (selectedOption.nextStepId) {
-      currentStep = steps.find(s => s.stepId === selectedOption.nextStepId);
-      if (!currentStep) {
-        console.log(`⚠️ Próximo step não encontrado para nextStepId: ${selectedOption.nextStepId}`);
+      console.log(`🔄 Transição via nextStepId: ${selectedOption.nextStepId}`);
+      nextStep = await prisma.journeyStepFlow.findFirst({
+        where: { stepId: selectedOption.nextStepId }
+      });
+      if (!nextStep) {
+        console.log(`⚠️ Próximo step (ID: ${selectedOption.nextStepId}) não encontrado no banco.`);
         break;
       }
-    } else {
-      // Se não há nextStepId, buscar o próximo step por ordem ou priority
+    } 
+    // Prioridade 2: Se não houver salto, seguir a ordem linear da jornada original
+    else {
       const nextOrder = currentStep.order ? currentStep.order + 1 : null;
       const nextPriority = currentStep.priority ? currentStep.priority + 1 : null;
       
-      currentStep = steps.find(s => 
+      nextStep = steps.find(s => 
         (nextOrder && s.order === nextOrder) || 
         (nextPriority && s.priority === nextPriority)
       );
       
-      if (!currentStep) {
-        console.log("⚠️ Não há mais steps na jornada");
+      if (!nextStep) {
+        console.log("✅ Não há mais steps na sequência linear da jornada.");
         break;
       }
     }
+    currentStep = nextStep;
   }
 
   const mainSentiment = await prisma.mainSentiment.findUnique({ where: { id: mainSentimentId } });

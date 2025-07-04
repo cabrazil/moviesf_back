@@ -319,33 +319,59 @@ async function main() {
     console.log('\nAnalisando filme com OpenAI...');
     const analysis = await analyzeMovieWithOpenAI(tmdbMovie.movie, keywords, subSentimentNames);
 
-    // 4. Mostrar sugestões
-    console.log('\nSugestões de SubSentiments:');
-    analysis.suggestedSubSentiments.forEach(suggestion => {
-      console.log(`\n- ${suggestion.name} (Relevância: ${suggestion.relevance})`);
-      console.log(`  Explicação: ${suggestion.explanation}`);
+    // 4. Validar e filtrar sugestões da IA
+    console.log('\n🔍 Validando sugestões da IA com o sentimento de destino...');
+    const validatedSubSentiments = analysis.suggestedSubSentiments.filter(suggestion => {
+      const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
+      if (!subSentiment) {
+        console.log(`⚠️ Subsentimento "${suggestion.name}" sugerido pela IA não foi encontrado no banco. Ignorando.`);
+        return false;
+      }
+      
+      if (subSentiment.mainSentimentId === mainSentimentId) {
+        console.log(`✅ Mantido: "${suggestion.name}" (pertence ao sentimento de destino)`);
+        return true;
+      } else {
+        console.log(`❌ Descartado: "${suggestion.name}" (não pertence ao sentimento de destino ID ${mainSentimentId})`);
+        return false;
+      }
     });
 
-    // 5. Sugerir MovieSentiments
+    // 5. Mostrar sugestões validadas
+    console.log('\nSugestões de SubSentiments (após validação):');
+    if (validatedSubSentiments.length === 0) {
+      console.log('Nenhuma sugestão da IA foi compatível com o sentimento de destino.');
+    } else {
+      validatedSubSentiments.forEach(suggestion => {
+        console.log(`\n- ${suggestion.name} (Relevância: ${suggestion.relevance})`);
+        console.log(`  Explicação: ${suggestion.explanation}`);
+      });
+    }
+
+    // 6. Sugerir MovieSentiments
     console.log('\n=== SUGESTÃO DE INSERTS ===');
-    console.log('\n-- MovieSentiment:');
-    analysis.suggestedSubSentiments.forEach(suggestion => {
-      const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
-      if (subSentiment) {
-        console.log(`\nINSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt")`);
-        console.log(`VALUES ('${movieId}', ${mainSentimentId}, ${subSentiment.id}, NOW(), NOW());`);
-      }
-    });
+    if (validatedSubSentiments.length > 0) {
+      console.log('\n-- MovieSentiment:');
+      validatedSubSentiments.forEach(suggestion => {
+        const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
+        if (subSentiment) {
+          console.log(`\nINSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt")`);
+          console.log(`VALUES ('${movieId}', ${mainSentimentId}, ${subSentiment.id}, NOW(), NOW());`);
+        }
+      });
 
-    // 6. Sugerir JourneyOptionFlowSubSentiments
-    console.log('\n-- JourneyOptionFlowSubSentiment:');
-    analysis.suggestedSubSentiments.forEach(suggestion => {
-      const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
-      if (subSentiment) {
-        console.log(`\nINSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt")`);
-        console.log(`VALUES (${journeyOptionFlowId}, ${subSentiment.id}, ${suggestion.relevance}, NOW(), NOW());`);
-      }
-    });
+      // 7. Sugerir JourneyOptionFlowSubSentiments
+      console.log('\n-- JourneyOptionFlowSubSentiment:');
+      validatedSubSentiments.forEach(suggestion => {
+        const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
+        if (subSentiment) {
+          console.log(`\nINSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt")`);
+          console.log(`VALUES (${journeyOptionFlowId}, ${subSentiment.id}, ${suggestion.relevance}, NOW(), NOW());`);
+        }
+      });
+    } else {
+      console.log('\nNenhum INSERT gerado pois não houve subsentimentos validados.');
+    }
 
   } catch (error) {
     console.error('Erro:', error);

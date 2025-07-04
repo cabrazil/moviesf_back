@@ -648,18 +648,23 @@ async function processMoviesFromFile(filePath: string) {
           } else {
             // Buscar ou criar os gêneros
             const genreIds: number[] = [];
-            for (const genre of movie.genres) {
+            for (const tmdbGenre of movie.genres) {
+              // O nome do gênero já vem em português da API do TMDB.
+              // A busca é feita de forma case-insensitive para evitar problemas (ex: Ficção Científica vs Ficção científica).
               const existingGenre = await prisma.genre.findFirst({
-                where: { name: genre.name }
+                where: { 
+                  name: { 
+                    equals: tmdbGenre.name, 
+                    mode: 'insensitive' 
+                  }
+                }
               });
 
               if (existingGenre) {
                 genreIds.push(existingGenre.id);
               } else {
-                const newGenre = await prisma.genre.create({
-                  data: { name: genre.name }
-                });
-                genreIds.push(newGenre.id);
+                // Apenas avisa se um gênero retornado pelo TMDB não existe na sua base.
+                console.warn(`⚠️ Gênero "${tmdbGenre.name}" retornado pelo TMDB não foi encontrado no banco de dados local. Pulando.`);
               }
             }
 
