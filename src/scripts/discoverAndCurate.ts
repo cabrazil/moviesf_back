@@ -517,12 +517,13 @@ async function selectEmotionalIntention(mainSentimentId: number, movieGenres: st
     console.log(`🎬 Gêneros do filme: ${movieGenres.join(', ')}`);
 
     // Verificar gêneros evitados
-    const hasAvoidedGenres = selectedIntention.avoidGenres.some(avoidGenre => 
-      movieGenres.some(movieGenre => 
-        movieGenre.toLowerCase().includes(avoidGenre.toLowerCase()) ||
-        avoidGenre.toLowerCase().includes(movieGenre.toLowerCase())
-      )
-    );
+    const hasAvoidedGenres = selectedIntention.avoidGenres.some(avoidGenre => {
+      const avoidGenreLower = avoidGenre.toLowerCase().trim();
+      return movieGenres.some(movieGenre => {
+        const movieGenreLower = movieGenre.toLowerCase().trim();
+        return movieGenreLower === avoidGenreLower;
+      });
+    });
 
     if (hasAvoidedGenres) {
       console.log(`⚠️ ATENÇÃO: Filme possui gêneros evitados para esta intenção`);
@@ -537,12 +538,13 @@ async function selectEmotionalIntention(mainSentimentId: number, movieGenres: st
 
     // Verificar gêneros preferidos
     if (selectedIntention.preferredGenres.length > 0) {
-      const hasPreferredGenres = selectedIntention.preferredGenres.some(prefGenre => 
-        movieGenres.some(movieGenre => 
-          movieGenre.toLowerCase().includes(prefGenre.toLowerCase()) ||
-          prefGenre.toLowerCase().includes(movieGenre.toLowerCase())
-        )
-      );
+      const hasPreferredGenres = selectedIntention.preferredGenres.some(prefGenre => {
+        const prefGenreLower = prefGenre.toLowerCase().trim();
+        return movieGenres.some(movieGenre => {
+          const movieGenreLower = movieGenre.toLowerCase().trim();
+          return movieGenreLower === prefGenreLower;
+        });
+      });
 
       if (hasPreferredGenres) {
         console.log(`✅ Excelente! Filme possui gêneros preferidos para esta intenção`);
@@ -989,7 +991,8 @@ async function curateAndValidateJourney(
       const contextualValidation = await validateContextualCompatibility(
         movieDetails, 
         lastStep.optionId, 
-        option.text
+        option.text,
+        emotionalIntention
       );
 
       if (!contextualValidation.compatible) {
@@ -1413,7 +1416,8 @@ Não repita o nome do filme.
 async function validateContextualCompatibility(
   movie: any, 
   optionId: number, 
-  optionText: string
+  optionText: string,
+  emotionalIntention?: EmotionalIntention // NOVO PARÂMETRO
 ): Promise<{ compatible: boolean; reason?: string }> {
   
   // Buscar detalhes da opção
@@ -1442,49 +1446,59 @@ async function validateContextualCompatibility(
   // Regras de incompatibilidade
   const incompatibilityRules = [
     {
+      // Regra original: Filme sério/dramático não compatível com opção de entretenimento leve
       optionKeywords: ['animação', 'animacao', 'divertida', 'colorida', 'leve', 'bobinha', 'comédia', 'comedia'],
       incompatibleGenres: ['drama', 'guerra', 'thriller', 'terror', 'crime', 'biografia'],
       incompatibleKeywords: ['holocausto', 'nazista', 'guerra', 'morte', 'tragédia', 'tragedia', 'violência', 'violencia', 'perseguição', 'perseguicao'],
-      reason: "Filme sério/dramático não compatível com opção de entretenimento leve"
+      reason: "Filme sério/dramático não compatível com opção de entretenimento leve",
+      // Condição para aplicar esta regra: NÃO aplicar se a intenção for TRANSFORMAR (radical)
+      applyCondition: (intention?: EmotionalIntention) => !(intention && intention.intentionType === 'TRANSFORM' && intention.mainSentimentId === 15)
     },
     {
+      // Regra original: Filme romântico/familiar não compatível com opção de ação/aventura
       optionKeywords: ['ação', 'acao', 'aventura', 'empolgante', 'energético', 'energetico'],
-      incompatibleGenres: ['romance', 'comédia', 'comedia', 'drama'],
+      incompatibleGenres: ['romance', 'comédia', 'comedia', 'drama'], // Drama está aqui!
       incompatibleKeywords: ['romântico', 'romantico', 'amor', 'casamento', 'família', 'familia'],
-      reason: "Filme romântico/familiar não compatível com opção de ação/aventura"
+      reason: "Filme romântico/familiar não compatível com opção de ação/aventura",
+      // Condição para aplicar esta regra: NÃO aplicar se a intenção for TRANSFORMAR (radical)
+      applyCondition: (intention?: EmotionalIntention) => !(intention && intention.intentionType === 'TRANSFORM' && intention.mainSentimentId === 15)
     },
     {
+      // Regra original: Filme de entretenimento não compatível com opção de reflexão profunda
       optionKeywords: ['reflexão', 'reflexao', 'filosófica', 'filosofica', 'profunda', 'contemplação', 'contemplacao'],
       incompatibleGenres: ['comédia', 'comedia', 'ação', 'acao', 'aventura'],
       incompatibleKeywords: ['divertido', 'engraçado', 'engracado', 'ação', 'acao', 'aventura'],
-      reason: "Filme de entretenimento não compatível com opção de reflexão profunda"
+      reason: "Filme de entretenimento não compatível com opção de reflexão profunda",
+      // Condição para aplicar esta regra: SEMPRE aplicar, pois reflexão profunda não combina com entretenimento leve
+      applyCondition: (intention?: EmotionalIntention) => true 
     }
   ];
 
   // Verificar regras de incompatibilidade
   for (const rule of incompatibilityRules) {
-    const hasIncompatibleOption = rule.optionKeywords.some(keyword => 
-      new RegExp(`\b${keyword}\b`).test(optionTextLower)
-    );
-    
-    const hasIncompatibleGenre = movieGenres.some((genre: string) => 
-      rule.incompatibleGenres.includes(genre)
-    );
-    
-    const hasIncompatibleKeyword = movieKeywords.some((keyword: string) => 
-      rule.incompatibleKeywords.some(incompatible => 
-        keyword.includes(incompatible)
-      )
-    );
+    // Aplicar a regra apenas se a condição for verdadeira
+    if (rule.applyCondition(emotionalIntention)) {
+      const hasIncompatibleOption = rule.optionKeywords.some(keyword => 
+        new RegExp(`\b${keyword}\b`).test(optionTextLower)
+      );
+      
+      const hasIncompatibleGenre = movieGenres.some((genre: string) => 
+        rule.incompatibleGenres.includes(genre)
+      );
+      
+      const hasIncompatibleKeyword = movieKeywords.some((keyword: string) => 
+        rule.incompatibleKeywords.some(incompatible => 
+          keyword.includes(incompatible)
+        )
+      );
 
-    
-
-    if (hasIncompatibleOption && (hasIncompatibleGenre || hasIncompatibleKeyword)) {
-      console.log(`❌ Incompatibilidade detectada: ${rule.reason}`);
-      return { 
-        compatible: false, 
-        reason: rule.reason 
-      };
+      if (hasIncompatibleOption && (hasIncompatibleGenre || hasIncompatibleKeyword)) {
+        console.log(`❌ Incompatibilidade detectada: ${rule.reason}`);
+        return { 
+          compatible: false, 
+          reason: rule.reason 
+        };
+      }
     }
   }
 

@@ -1,9 +1,10 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, SubSentiment } from '@prisma/client';
 import { searchMovie } from './populateMovies';
 import axios from 'axios';
 
 const prisma = new PrismaClient();
 
+// Interfaces
 interface OpenAIResponse {
   choices: Array<{
     message: {
@@ -22,6 +23,26 @@ interface ThemeConfig {
 
 interface ThemeDictionary {
   [key: string]: ThemeConfig;
+}
+
+interface JourneyOptionFlowSubSentiment {
+  subSentimentId: number;
+  weight: number;
+  subSentiment: {
+    name: string;
+  };
+}
+
+interface JourneyOptionFlow {
+  id: number;
+  text: string;
+  journeyOptionFlowSubSentiments: JourneyOptionFlowSubSentiment[];
+}
+
+interface RawSubSentiment {
+  subSentimentId: number;
+  weight: number;
+  subSentimentName: string;
 }
 
 // Dicionário de SubSentiments por gênero/tema
@@ -63,105 +84,86 @@ const SUB_SENTIMENTS_BY_THEME: ThemeDictionary = {
   }
 };
 
-async function analyzeMovieWithOpenAI(movie: any, keywords: string[], availableSubSentiments: string[]): Promise<{
+// Funções de Análise e Lógica de Match
+async function analyzeMovieWithOpenAI(
+  movie: any,
+  keywords: string[],
+  journeyOptionText: string,
+  mainSentimentId: number
+): Promise<{
   suggestedSubSentiments: Array<{
     name: string;
     relevance: number;
     explanation: string;
+    isNew?: boolean;
   }>;
 }> {
-  // Identificar temas do filme
-  const themes = identifyThemes(movie, keywords);
-  const requiredSubSentiments = themes.flatMap(theme => 
-    SUB_SENTIMENTS_BY_THEME[theme]?.required || []
-  );
-  const commonSubSentiments = themes.flatMap(theme => 
-    SUB_SENTIMENTS_BY_THEME[theme]?.common || []
-  );
+  // 1. Buscar subsentimentos existentes para o mainSentimentId de destino
+  const existingSubSentiments = await prisma.subSentiment.findMany({
+    where: { mainSentimentId: mainSentimentId },
+  });
+  const existingSubSentimentNames = existingSubSentiments.map(ss => ss.name);
 
+  // 2. Construir o prompt aprimorado
   const prompt = `
-Sinopse: ${movie.overview}
-Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
-Palavras-chave: ${keywords.join(', ')}
+Você é um especialista em análise de filmes com foco em emoções. Sua tarefa é analisar o filme "${movie.title}" para a jornada emocional: "${journeyOptionText}".
 
-Temas identificados: ${themes.join(', ')}
+**Filme:** ${movie.title} (${movie.year})
+**Sinopse:** ${movie.overview}
+**Gêneros:** ${movie.genres.map((g: any) => g.name).join(', ')}
+**Palavras-chave:** ${keywords.join(', ')}
 
-SubSentiments disponíveis:
-${availableSubSentiments.join('\n')}
+**Análise Solicitada:**
+Avalie se o filme se encaixa na opção de jornada: "${journeyOptionText}".
 
-SubSentiments obrigatórios para os temas identificados:
-${requiredSubSentiments.map(ss => `- ${ss.name} (peso mínimo: ${ss.minWeight})`).join('\n')}
+**Subsentimentos de "Feliz / Alegre" já existentes:**
+${existingSubSentimentNames.length > 0 ? existingSubSentimentNames.map(name => `- ${name}`).join('\n') : 'Nenhum subsentimento cadastrado para esta categoria.'}
 
-SubSentiments comuns para os temas:
-${commonSubSentiments.join('\n')}
+**Instruções:**
+1.  **Priorize a Lista:** Primeiro, verifique se algum dos subsentimentos existentes na lista acima descreve BEM a emoção central do filme em relação à jornada.
+2.  **Seja Relevante:** Sugira até 3 subsentimentos que sejam **fortemente** relevantes.
+3.  **Crie se Necessário:** Se NENHUM subsentimento da lista for um bom match, sugira um **novo** nome de subsentimento. O novo nome deve ser conciso (2-3 palavras), em português, e capturar perfeitamente a emoção do filme para a jornada "${journeyOptionText}". Marque-o com "isNew": true.
+4.  **Justifique:** Forneça uma explicação clara e concisa para cada sugestão, conectando o filme à jornada.
 
-Analise o filme e sugira os 3 SubSentiments mais relevantes da lista acima, considerando:
-1. Temas emocionais principais
-2. Arcos de personagens
-3. Mensagens centrais
-4. Tom e atmosfera
-
-IMPORTANTE: 
-- Escolha apenas SubSentiments da lista fornecida e use exatamente o mesmo nome
-- Considere os SubSentiments obrigatórios para os temas identificados
-- Respeite os pesos mínimos indicados para cada SubSentiment obrigatório
-- Considere também os SubSentiments comuns para os temas
-
-Para cada SubSentiment sugerido, forneça:
-1. Nome exato do SubSentiment (deve ser um dos listados acima)
-2. Relevância (0.1 a 1.0, respeitando os pesos mínimos)
-3. Explicação breve da conexão
-
-Formato esperado (JSON válido):
+**Formato de Saída (JSON VÁLIDO):**
 {
   "suggestedSubSentiments": [
     {
-      "name": "Nome do SubSentiment (exatamente como listado)",
-      "relevance": 0.8,
-      "explanation": "Explicação da conexão"
+      "name": "Nome do Subsentimento (Existente ou Novo)",
+      "relevance": 0.9,
+      "explanation": "Explicação concisa da sua escolha.",
+      "isNew": false
     }
   ]
 }
 `;
 
   try {
-    const response = await axios.post<OpenAIResponse>(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'Você é um especialista em análise de filmes, focado em aspectos emocionais e sentimentais. Você DEVE escolher apenas SubSentiments da lista fornecida e retornar um JSON válido.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    const response = await axios.post<OpenAIResponse>('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4-turbo', // Usar um modelo mais avançado para melhor compreensão
+      messages: [
+        { role: 'system', content: 'Você é um especialista em análise de filmes, focado em aspectos emocionais e sentimentais. Sua tarefa é avaliar filmes para jornadas emocionais específicas e retornar um JSON válido.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.5, // Reduzir a temperatura para respostas mais focadas
+      max_tokens: 600
+    }, {
+      headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }
+    });
 
     const content = response.data.choices[0].message.content;
     console.log('\nResposta do OpenAI:');
     console.log(content);
-
+    // Adiciona tratamento para respostas não-JSON
     try {
       return JSON.parse(content);
-    } catch (parseError) {
-      console.error('Erro ao fazer parse da resposta:', parseError);
+    } catch (jsonError) {
+      console.error('Erro ao fazer parse da resposta JSON da OpenAI:', jsonError);
+      console.error('Resposta recebida:', content);
       return { suggestedSubSentiments: [] };
     }
   } catch (error) {
-    console.error('Erro ao analisar filme:', error);
+    console.error('Erro ao analisar filme com OpenAI:', error);
     return { suggestedSubSentiments: [] };
   }
 }
@@ -172,70 +174,75 @@ function identifyThemes(movie: any, keywords: string[]): string[] {
   const genres = movie.genres.map((g: any) => g.name.toLowerCase());
   const keywordsLower = keywords.map(k => k.toLowerCase());
 
-  // Identificar temas baseado em palavras-chave e gêneros
-  if (synopsis.includes('superação') || synopsis.includes('superar') || 
-      keywordsLower.includes('superação') || keywordsLower.includes('inspiração')) {
-    themes.push('superacao');
-  }
+  if (synopsis.includes('superação') || synopsis.includes('superar') || keywordsLower.includes('superação') || keywordsLower.includes('inspiração')) themes.push('superacao');
+  if (synopsis.includes('família') || synopsis.includes('pai') || synopsis.includes('mãe') || synopsis.includes('filho') || synopsis.includes('filha') || keywordsLower.includes('família') || keywordsLower.includes('pai solteiro')) themes.push('familia');
+  if (synopsis.includes('morte') || synopsis.includes('perda') || synopsis.includes('luto') || keywordsLower.includes('morte') || keywordsLower.includes('luto')) themes.push('luto');
+  if (genres.includes('drama')) themes.push('drama');
+  if (synopsis.includes('guerra') || synopsis.includes('histórico') || keywordsLower.includes('guerra') || keywordsLower.includes('histórico') || keywordsLower.includes('segunda guerra mundial') || keywordsLower.includes('nazista')) themes.push('historico');
 
-  if (synopsis.includes('família') || synopsis.includes('pai') || synopsis.includes('mãe') || 
-      synopsis.includes('filho') || synopsis.includes('filha') ||
-      keywordsLower.includes('família') || keywordsLower.includes('pai solteiro')) {
-    themes.push('familia');
-  }
-
-  if (synopsis.includes('morte') || synopsis.includes('perda') || synopsis.includes('luto') ||
-      keywordsLower.includes('morte') || keywordsLower.includes('luto')) {
-    themes.push('luto');
-  }
-
-  if (genres.includes('drama')) {
-    themes.push('drama');
-  }
-
-  // Identificar tema histórico
-  if (synopsis.includes('guerra') || synopsis.includes('histórico') || 
-      keywordsLower.includes('guerra') || keywordsLower.includes('histórico') ||
-      keywordsLower.includes('segunda guerra mundial') || keywordsLower.includes('nazista')) {
-    themes.push('historico');
-  }
-
-  return [...new Set(themes)]; // Remove duplicatas
+  return [...new Set(themes)];
 }
 
-interface JourneyOptionFlowSubSentiment {
-  subSentimentId: number;
-  weight: number;
-  subSentiment: {
-    name: string;
-  };
-}
+function findBestMatch(
+  suggestion: { name: string; explanation: string },
+  dbSubSentiments: SubSentiment[]
+): SubSentiment | null {
+  const suggestionName = suggestion.name.toLowerCase();
+  const suggestionText = `${suggestionName} ${suggestion.explanation.toLowerCase()}`;
+  let bestMatch: SubSentiment | null = null;
+  let maxScore = 0;
 
-interface JourneyOptionFlow {
-  id: number;
-  text: string;
-  journeyOptionFlowSubSentiments: JourneyOptionFlowSubSentiment[];
-}
+  for (const dbSub of dbSubSentiments) {
+    let currentScore = 0;
+    const dbSubName = dbSub.name.toLowerCase();
+    
+    // Heavily weight direct name matches
+    const nameWords = dbSubName.split(/[^a-zA-Z0-9]+/);
+    const suggestionNameWords = suggestionName.split(/[^a-zA-Z0-9]+/);
+    
+    let commonNameWords = 0;
+    for (const word of nameWords) {
+        if (suggestionNameWords.includes(word)) {
+            commonNameWords++;
+        }
+    }
+    // Calculate a name match score based on the proportion of common words
+    if (nameWords.length > 0) {
+        currentScore += (commonNameWords / nameWords.length) * 10;
+    }
 
-interface RawSubSentiment {
-  subSentimentId: number;
-  weight: number;
-  subSentimentName: string;
+
+    // Add smaller score for keyword matches in the explanation
+    for (const keyword of dbSub.keywords) {
+      if (suggestionText.includes(keyword.toLowerCase())) {
+        currentScore++;
+      }
+    }
+
+    if (currentScore > maxScore) {
+      maxScore = currentScore;
+      bestMatch = dbSub;
+    }
+  }
+
+  // Require a minimum score to consider it a valid match
+  if (maxScore > 5) { // Increased threshold to ensure quality matches
+    console.log(`\n  -> Match found for "${suggestion.name}": "${bestMatch?.name}" with score ${maxScore.toFixed(2)}`);
+    return bestMatch;
+  }
+  
+  console.log(`\n  -> No suitable match found for "${suggestion.name}" (best score: ${maxScore.toFixed(2)})`);
+  return null;
 }
 
 async function getJourneyOptionFlow(journeyOptionFlowId: number) {
   try {
-    // Buscar a opção
-    const option = await prisma.journeyOptionFlow.findUnique({
-      where: { id: journeyOptionFlowId }
-    });
-
+    const option = await prisma.journeyOptionFlow.findUnique({ where: { id: journeyOptionFlowId } });
     if (!option) {
       console.log(`❌ Opção de jornada não encontrada: ${journeyOptionFlowId}`);
       return null;
     }
 
-    // Buscar os SubSentiments associados
     const subSentiments = await prisma.$queryRaw<RawSubSentiment[]>`
       SELECT jofss."subSentimentId", jofss.weight, ss.name as "subSentimentName"
       FROM "JourneyOptionFlowSubSentiment" jofss
@@ -245,55 +252,49 @@ async function getJourneyOptionFlow(journeyOptionFlowId: number) {
 
     console.log(`\nOpção de jornada: ${option.text}`);
     console.log('SubSentiments associados:');
-    subSentiments.forEach(ss => {
-      console.log(`- ${ss.subSentimentName} (peso: ${ss.weight})`);
-    });
+    subSentiments.forEach(ss => console.log(`- ${ss.subSentimentName} (peso: ${ss.weight})`));
 
-    return {
-      option,
-      subSentiments
-    };
+    return { option, subSentiments };
   } catch (error) {
     console.error('Erro ao buscar opção de jornada:', error);
     return null;
   }
 }
 
+// Função Principal
 async function main() {
   try {
-    // Aceitar movieId, journeyOptionFlowId e mainSentimentId como argumentos
     const args = process.argv.slice(2);
-    const movieId = args[0];
-    const journeyOptionFlowId = args[1] ? parseInt(args[1]) : 159;
-    const mainSentimentId = args[2] ? parseInt(args[2]) : null;
-    
-    if (!movieId) {
-      console.log('❌ ID do filme não fornecido');
+    const title = args[0];
+    const year = args[1] ? parseInt(args[1]) : undefined;
+    const journeyOptionFlowId = args[2] ? parseInt(args[2]) : 159; // Defaulting to a common one
+    const mainSentimentId = args[3] ? parseInt(args[3]) : null;
+
+    if (!title || !mainSentimentId) {
+      console.log('❌ Uso: ts-node analyzeMovieSentiments.ts <title> <year> <journeyOptionFlowId> <mainSentimentId>');
       return;
     }
 
-    if (!mainSentimentId) {
-      console.log('❌ ID do MainSentiment não fornecido');
-      return;
-    }
-
-    // Buscar filme no banco
-    const movie = await prisma.movie.findUnique({
-      where: { id: movieId }
+    // Find the movie in the database by title and year
+    const movie = await prisma.movie.findFirst({
+      where: {
+        title: {
+          equals: title,
+          mode: 'insensitive',
+        },
+        year: year,
+      },
     });
 
     if (!movie) {
-      console.log(`❌ Filme não encontrado no banco: ${movieId}`);
+      console.log(`❌ Filme "${title}" (${year || 'qualquer ano'}) não encontrado no banco de dados.`);
       return;
     }
-    
+    const movieId = movie.id; // Use a consistent variable name for clarity
+
     console.log(`\n=== Analisando filme: ${movie.title} (${movie.year}) ===\n`);
-    
-    // Buscar opção de jornada para contexto
     const journeyOption = await getJourneyOptionFlow(journeyOptionFlowId);
-    if (!journeyOption) {
-      return;
-    }
+    if (!journeyOption) return;
 
     const tmdbMovie = await searchMovie(movie.title, movie.year || undefined);
     if (!tmdbMovie) {
@@ -301,74 +302,93 @@ async function main() {
       return;
     }
 
-    // 2. Buscar SubSentiments disponíveis
-    const availableSubSentiments = await prisma.subSentiment.findMany();
-    const subSentimentNames = availableSubSentiments.map(ss => ss.name);
+    const keywords = [...(tmdbMovie.movie as any).keywords?.map((k: any) => k.name) || [], ...(tmdbMovie.movie as any).genres?.map((g: any) => g.name) || []];
+    const analysis = await analyzeMovieWithOpenAI(tmdbMovie.movie, keywords, journeyOption.option.text, mainSentimentId);
 
-    console.log('\nSubSentiments disponíveis:');
-    availableSubSentiments.forEach(ss => {
-      console.log(`\n- ${ss.name}`);
-    });
+    console.log('\n🔍 Validando sugestões da IA com o sentimento de destino (Lógica Inteligente)...');
+    const validatedSubSentiments: { suggestion: any; dbMatch: SubSentiment | null }[] = [];
 
-    // 3. Analisar filme com OpenAI
-    const keywords = [
-      ...(tmdbMovie.movie as any).keywords?.map((k: any) => k.name) || [],
-      ...(tmdbMovie.movie as any).genres?.map((g: any) => g.name) || []
-    ];
+    const allSubSentiments = await prisma.subSentiment.findMany(); // Needed for matching
 
-    console.log('\nAnalisando filme com OpenAI...');
-    const analysis = await analyzeMovieWithOpenAI(tmdbMovie.movie, keywords, subSentimentNames);
-
-    // 4. Validar e filtrar sugestões da IA
-    console.log('\n🔍 Validando sugestões da IA com o sentimento de destino...');
-    const validatedSubSentiments = analysis.suggestedSubSentiments.filter(suggestion => {
-      const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
-      if (!subSentiment) {
-        console.log(`⚠️ Subsentimento "${suggestion.name}" sugerido pela IA não foi encontrado no banco. Ignorando.`);
-        return false;
-      }
-      
-      if (subSentiment.mainSentimentId === mainSentimentId) {
-        console.log(`✅ Mantido: "${suggestion.name}" (pertence ao sentimento de destino)`);
-        return true;
+    for (const suggestion of analysis.suggestedSubSentiments) {
+      if (suggestion.isNew) {
+        console.log(`✨ Nova sugestão de SubSentiment: "${suggestion.name}"`);
+        // O dbMatch será null, indicando que precisa ser criado
+        validatedSubSentiments.push({ suggestion, dbMatch: null });
       } else {
-        console.log(`❌ Descartado: "${suggestion.name}" (não pertence ao sentimento de destino ID ${mainSentimentId})`);
-        return false;
+        const bestMatch = findBestMatch(suggestion, allSubSentiments);
+        if (bestMatch) {
+          if (bestMatch.mainSentimentId === mainSentimentId) {
+            console.log(`✅ Match: IA "${suggestion.name}" -> BD "${bestMatch.name}" (ID: ${bestMatch.id})`);
+            validatedSubSentiments.push({ suggestion, dbMatch: bestMatch });
+          } else {
+            console.log(`❌ Descartado: Match "${bestMatch.name}" pertence a outro sentimento (ID: ${bestMatch.mainSentimentId})`);
+          }
+        } else {
+          console.log(`⚠️ Sem correspondência no BD para a sugestão da IA: "${suggestion.name}". Tratando como nova sugestão.`);
+          // Mesmo que isNew seja false, se não encontrarmos um match, tratamos como novo.
+          validatedSubSentiments.push({ suggestion, dbMatch: null });
+        }
       }
-    });
+    }
 
-    // 5. Mostrar sugestões validadas
     console.log('\nSugestões de SubSentiments (após validação):');
     if (validatedSubSentiments.length === 0) {
       console.log('Nenhuma sugestão da IA foi compatível com o sentimento de destino.');
     } else {
-      validatedSubSentiments.forEach(suggestion => {
-        console.log(`\n- ${suggestion.name} (Relevância: ${suggestion.relevance})`);
-        console.log(`  Explicação: ${suggestion.explanation}`);
+      validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
+        if (dbMatch) {
+          console.log(`\n- ${dbMatch.name} (Relevância: ${suggestion.relevance})`);
+          console.log(`  (Match para "${suggestion.name}")`);
+        } else {
+          console.log(`\n- ${suggestion.name} (Relevância: ${suggestion.relevance}) [NOVO]`);
+        }
+        console.log(`  Explicação IA: ${suggestion.explanation}`);
       });
     }
 
-    // 6. Sugerir MovieSentiments
     console.log('\n=== SUGESTÃO DE INSERTS ===');
     if (validatedSubSentiments.length > 0) {
+      const newSubSentimentsToCreate: any[] = [];
+      
+      console.log('\n-- Novos SubSentiments (se houver):');
+      validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
+        if (!dbMatch) {
+          console.log(`INSERT INTO "SubSentiment" ("name", "mainSentimentId", "keywords", "createdAt", "updatedAt")`);
+          console.log(`VALUES ('${suggestion.name}', ${mainSentimentId}, ARRAY['${suggestion.name.toLowerCase()}'], NOW(), NOW());`);
+          newSubSentimentsToCreate.push(suggestion);
+        }
+      });
+      if (newSubSentimentsToCreate.length === 0) {
+        console.log('Nenhum novo SubSentiment para criar.');
+      }
+
       console.log('\n-- MovieSentiment:');
-      validatedSubSentiments.forEach(suggestion => {
-        const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
-        if (subSentiment) {
-          console.log(`\nINSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt")`);
-          console.log(`VALUES ('${movieId}', ${mainSentimentId}, ${subSentiment.id}, NOW(), NOW());`);
+      validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
+        if (dbMatch) {
+          console.log(`\n-- Match: IA "${suggestion.name}" -> BD "${dbMatch.name}"`);
+          console.log(`INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt")`);
+          console.log(`VALUES ('${movieId}', ${mainSentimentId}, ${dbMatch.id}, NOW(), NOW());`);
+        } else {
+          console.log(`\n-- Novo SubSentiment: "${suggestion.name}"`);
+          console.log(`-- O INSERT para MovieSentiment dependerá do ID gerado para o novo SubSentiment.`);
+          console.log(`-- Exemplo: INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", ...) VALUES ('${movieId}', ${mainSentimentId}, [ID_DO_NOVO_SUBSENTIMENT], ...);`);
         }
       });
 
-      // 7. Sugerir JourneyOptionFlowSubSentiments
       console.log('\n-- JourneyOptionFlowSubSentiment:');
-      validatedSubSentiments.forEach(suggestion => {
-        const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
-        if (subSentiment) {
-          console.log(`\nINSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt")`);
-          console.log(`VALUES (${journeyOptionFlowId}, ${subSentiment.id}, ${suggestion.relevance}, NOW(), NOW());`);
+      validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
+        if (dbMatch) {
+          console.log(`\n-- Match: IA "${suggestion.name}" -> BD "${dbMatch.name}"`);
+          console.log(`INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt")`);
+          console.log(`VALUES (${journeyOptionFlowId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(2)}, NOW(), NOW());`);
+        } else {
+          console.log(`\n-- Novo SubSentiment: "${suggestion.name}"`);
+          console.log(`-- O INSERT para JourneyOptionFlowSubSentiment dependerá do ID gerado para o novo SubSentiment.`);
+          console.log(`-- Exemplo: INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", ...) VALUES (${journeyOptionFlowId}, [ID_DO_NOVO_SUBSENTIMENT], ${suggestion.relevance.toFixed(2)}, ...);`);
         }
       });
+
     } else {
       console.log('\nNenhum INSERT gerado pois não houve subsentimentos validados.');
     }

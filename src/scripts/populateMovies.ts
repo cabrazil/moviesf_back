@@ -555,181 +555,197 @@ export async function searchMovie(title: string, year?: number): Promise<{ movie
   }
 }
 
-async function processMoviesFromFile(filePath: string) {
+async function processSingleMovie(title: string, year?: number) {
+  console.log(`\n=== Processando filme: ${title}${year ? ` (${year})` : ''} ===`);
+
   try {
-    console.log('\n=== Iniciando processamento de filmes ===');
-    console.log(`Arquivo de entrada: ${filePath}`);
+    const movieResult = await searchMovie(title, year);
 
-    // Verificar se o arquivo existe
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`Arquivo não encontrado: ${filePath}`);
-    }
+    if (movieResult) {
+      const { movie, platforms, director, certification, keywords } = movieResult;
+      console.log(`Filme encontrado no TMDB: ${movie.title} (${movie.release_date})`);
+      console.log(`Título original: ${movie.original_title}`);
+      console.log(`Diretores: ${director || 'Não encontrado'}`);
+      console.log(`Plataformas encontradas: ${platforms.join(', ')}`);
+      console.log(`Certificação: ${certification || 'Não disponível'}`);
+      console.log(`Palavras-chave: ${keywords.join(', ')}`);
+      console.log(`Média de votos: ${movie.vote_average}`);
+      console.log(`Total de votos: ${movie.vote_count}`);
+      console.log(`Adulto: ${movie.adult}`);
 
-    // Ler o arquivo linha por linha
-    const fileStream = fs.createReadStream(filePath);
-    const rl = readline.createInterface({
-      input: fileStream,
-      crlfDelay: Infinity
-    });
-
-    let lineNumber = 0;
-    let successCount = 0;
-    let errorCount = 0;
-    let duplicateCount = 0;
-    const processedTitles = new Set<string>();
-
-    for await (const line of rl) {
-      lineNumber++;
-
-      // Ignorar linhas em branco ou comentários
-      if (!line.trim() || line.trim().startsWith('#')) {
-        continue;
-      }
-      
-      // Pular cabeçalho se existir
-      if (lineNumber === 1 && line.toLowerCase().includes('título')) {
-        continue;
-      }
-
-      const [title, year] = line.split(',').map(item => item.trim());
-      
-      if (!title) {
-        console.error(`❌ Linha ${lineNumber}: Formato inválido - ${line}`);
-        errorCount++;
-        continue;
-      }
-
-      // Validar o ano se fornecido
-      let parsedYear: number | undefined;
-      if (year) {
-        parsedYear = parseInt(year);
-        if (isNaN(parsedYear) || parsedYear < 1888 || parsedYear > new Date().getFullYear() + 1) {
-          console.error(`❌ Linha ${lineNumber}: Ano inválido - ${year}`);
-          errorCount++;
-          continue;
+      // Verificar se o filme já existe
+      const existingMovie = await prisma.movie.findFirst({
+        where: {
+          title: movie.title,
+          year: new Date(movie.release_date).getFullYear()
         }
-      }
+      });
 
-      // Verificar duplicata no arquivo
-      if (processedTitles.has(title)) {
-        console.log(`⚠️ Linha ${lineNumber}: Título duplicado no arquivo - ${title}`);
-        duplicateCount++;
-        continue;
-      }
-      processedTitles.add(title);
-
-      console.log(`\n=== Processando filme ${lineNumber}: ${title}${parsedYear ? ` (${parsedYear})` : ''} ===`);
-      
-      try {
-        const movieResult = await searchMovie(title, parsedYear);
-        
-        if (movieResult) {
-          const { movie, platforms, director, certification, keywords } = movieResult;
-          console.log(`Filme encontrado no TMDB: ${movie.title} (${movie.release_date})`);
-          console.log(`Título original: ${movie.original_title}`);
-          console.log(`Diretores: ${director || 'Não encontrado'}`);
-          console.log(`Plataformas encontradas: ${platforms.join(', ')}`);
-          console.log(`Certificação: ${certification || 'Não disponível'}`);
-          console.log(`Palavras-chave: ${keywords.join(', ')}`);
-          console.log(`Média de votos: ${movie.vote_average}`);
-          console.log(`Total de votos: ${movie.vote_count}`);
-          console.log(`Adulto: ${movie.adult}`);
-          
-          // Verificar se o filme já existe
-          const existingMovie = await prisma.movie.findFirst({
+      if (existingMovie) {
+        console.log(`⚠️ Filme já existe no banco: ${movie.title}`);
+        return { success: true, duplicate: true };
+      } else {
+        // Buscar ou criar os gêneros
+        const genreIds: number[] = [];
+        for (const tmdbGenre of movie.genres) {
+          const existingGenre = await prisma.genre.findFirst({
             where: {
-              title: movie.title,
-              year: new Date(movie.release_date).getFullYear()
+              name: {
+                equals: tmdbGenre.name,
+                mode: 'insensitive'
+              }
             }
           });
 
-          if (existingMovie) {
-            console.log(`⚠️ Filme já existe no banco: ${movie.title}`);
+          if (existingGenre) {
+            genreIds.push(existingGenre.id);
           } else {
-            // Buscar ou criar os gêneros
-            const genreIds: number[] = [];
-            for (const tmdbGenre of movie.genres) {
-              // O nome do gênero já vem em português da API do TMDB.
-              // A busca é feita de forma case-insensitive para evitar problemas (ex: Ficção Científica vs Ficção científica).
-              const existingGenre = await prisma.genre.findFirst({
-                where: { 
-                  name: { 
-                    equals: tmdbGenre.name, 
-                    mode: 'insensitive' 
-                  }
-                }
-              });
-
-              if (existingGenre) {
-                genreIds.push(existingGenre.id);
-              } else {
-                // Apenas avisa se um gênero retornado pelo TMDB não existe na sua base.
-                console.warn(`⚠️ Gênero "${tmdbGenre.name}" retornado pelo TMDB não foi encontrado no banco de dados local. Pulando.`);
-              }
-            }
-
-            // Criar o filme com os gêneros
-            const createdMovie = await prisma.movie.create({
-              data: {
-                title: movie.title,
-                year: new Date(movie.release_date).getFullYear(),
-                director: director || undefined,
-                genres: movie.genres.map(g => g.name),
-                streamingPlatforms: platforms,
-                description: movie.overview,
-                thumbnail: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : undefined,
-                original_title: movie.original_title,
-                vote_average: movie.vote_average,
-                vote_count: movie.vote_count,
-                certification: certification || undefined,
-                adult: movie.adult,
-                keywords: keywords,
-                genreIds: genreIds,
-                runtime: movie.runtime || undefined
-              }
-            });
-            console.log(`✅ Filme criado: ${createdMovie.title}`);
-            console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
-            console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
+            console.warn(`⚠️ Gênero "${tmdbGenre.name}" retornado pelo TMDB não foi encontrado no banco de dados local. Pulando.`);
           }
-
-          successCount++;
-        } else {
-          console.log(`❌ Filme não encontrado no TMDB: ${title}`);
-          errorCount++;
         }
-      } catch (error) {
-        console.error(`❌ Erro ao processar filme ${title}:`, error);
+
+        // Criar o filme com os gêneros
+        const createdMovie = await prisma.movie.create({
+          data: {
+            title: movie.title,
+            year: new Date(movie.release_date).getFullYear(),
+            director: director || undefined,
+            genres: movie.genres.map(g => g.name),
+            streamingPlatforms: platforms,
+            description: movie.overview,
+            thumbnail: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : undefined,
+            original_title: movie.original_title,
+            vote_average: movie.vote_average,
+            vote_count: movie.vote_count,
+            certification: certification || undefined,
+            adult: movie.adult,
+            keywords: keywords,
+            genreIds: genreIds,
+            runtime: movie.runtime || undefined
+          }
+        });
+        console.log(`✅ Filme criado: ${createdMovie.title}`);
+        console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
+        console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
+        return { success: true, duplicate: false };
+      }
+    } else {
+      console.log(`❌ Filme não encontrado no TMDB: ${title}`);
+      return { success: false, duplicate: false };
+    }
+  } catch (error) {
+    console.error(`❌ Erro ao processar filme ${title}:`, error);
+    return { success: false, duplicate: false };
+  }
+}
+
+async function processMoviesFromFile(filePath: string) {
+  console.log('\n=== Iniciando processamento de filmes ===');
+  console.log(`Arquivo de entrada: ${filePath}`);
+
+  // Verificar se o arquivo existe
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Arquivo não encontrado: ${filePath}`);
+  }
+
+  // Ler o arquivo linha por linha
+  const fileStream = fs.createReadStream(filePath);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity
+  });
+
+  let lineNumber = 0;
+  let successCount = 0;
+  let errorCount = 0;
+  let duplicateCount = 0;
+  const processedTitles = new Set<string>();
+
+  for await (const line of rl) {
+    lineNumber++;
+
+    // Ignorar linhas em branco ou comentários
+    if (!line.trim() || line.trim().startsWith('#')) {
+      continue;
+    }
+
+    // Pular cabeçalho se existir
+    if (lineNumber === 1 && line.toLowerCase().includes('título')) {
+      continue;
+    }
+
+    const [title, year] = line.split(',').map(item => item.trim());
+
+    if (!title) {
+      console.error(`❌ Linha ${lineNumber}: Formato inválido - ${line}`);
+      errorCount++;
+      continue;
+    }
+
+    // Validar o ano se fornecido
+    let parsedYear: number | undefined;
+    if (year) {
+      parsedYear = parseInt(year);
+      if (isNaN(parsedYear) || parsedYear < 1888 || parsedYear > new Date().getFullYear() + 1) {
+        console.error(`❌ Linha ${lineNumber}: Ano inválido - ${year}`);
         errorCount++;
+        continue;
       }
     }
 
-    console.log('\n=== Resumo do Processamento ===');
-    console.log(`Total de linhas processadas: ${lineNumber}`);
-    console.log(`Sucessos: ${successCount}`);
-    console.log(`Erros: ${errorCount}`);
-    console.log(`Duplicatas: ${duplicateCount}`);
+    // Verificar duplicata no arquivo
+    if (processedTitles.has(title)) {
+      console.log(`⚠️ Linha ${lineNumber}: Título duplicado no arquivo - ${title}`);
+      duplicateCount++;
+      continue;
+    }
+    processedTitles.add(title);
 
-  } catch (error) {
-    console.error('❌ Erro ao processar arquivo:', error);
-  } finally {
-    console.log('\nEncerrando conexão com o banco de dados...');
-    await prisma.$disconnect();
-    console.log('Conexão encerrada');
+    const result = await processSingleMovie(title, parsedYear);
+    if (result.success) {
+      if (result.duplicate) {
+        duplicateCount++;
+      } else {
+        successCount++;
+      }
+    } else {
+      errorCount++;
+    }
   }
+
+  console.log('\n=== Resumo do Processamento ===');
+  console.log(`Total de linhas processadas: ${lineNumber}`);
+  console.log(`Sucessos: ${successCount}`);
+  console.log(`Erros: ${errorCount}`);
+  console.log(`Duplicatas: ${duplicateCount}`);
 }
 
 // Processar argumentos da linha de comando
 if (require.main === module) {
   const args = process.argv.slice(2);
-  if (args.length === 0 || !args[0].startsWith('--file=')) {
-    console.log(`
-Uso: 
-  npx ts-node src/scripts/populateMovies.ts --file=caminho/para/arquivo.csv
-  `);
+  let filePath: string | undefined;
+  let movieTitle: string | undefined;
+  let movieYear: number | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith('--file=')) {
+      filePath = args[i].split('=')[1];
+    } else if (args[i].startsWith('--title=')) {
+      movieTitle = args[i].split('=')[1];
+    } else if (args[i].startsWith('--year=')) {
+      movieYear = parseInt(args[i].split('=')[1]);
+    }
+  }
+
+  if (filePath) {
+    processMoviesFromFile(filePath);
+  } else if (movieTitle) {
+    processSingleMovie(movieTitle, movieYear);
+  } else {
+    console.log(`\nUso:\n  npx ts-node src/scripts/populateMovies.ts --file=caminho/para/arquivo.csv\n  npx ts-node src/scripts/populateMovies.ts --title="Nome do Filme" [--year=Ano]\n`);
     process.exit(1);
   }
 
-  const filePath = args[0].split('=')[1];
-  processMoviesFromFile(filePath); 
+  // Certifique-se de desconectar o Prisma no final da execução
+  prisma.$disconnect();
 } 
