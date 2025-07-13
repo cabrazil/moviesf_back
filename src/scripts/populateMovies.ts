@@ -400,8 +400,11 @@ export async function searchMovie(title: string, year?: number): Promise<{ movie
   try {
     console.log(`Buscando filme no TMDB: ${title}${year ? ` (${year})` : ''}`);
     
-    // Remover o ano do título se existir
-    const cleanTitle = title.replace(/\s*\d{4}$/, '').trim();
+    // Remover o ano do título se existir, a menos que o próprio título seja o ano
+    let cleanTitle = title.trim();
+    if (!/^\d{4}$/.test(cleanTitle)) {
+        cleanTitle = cleanTitle.replace(/\s*\d{4}$/, '').trim();
+    }
     
     // Tentar primeiro com o título em português
     let response = await axios.get<TMDBResponse>(`${TMDB_API_URL}/search/movie`, {
@@ -414,21 +417,23 @@ export async function searchMovie(title: string, year?: number): Promise<{ movie
       }
     });
 
-    // Se não encontrar, traduzir para inglês e tentar novamente
-    if (response.data.results.length === 0) {
+    // Se não encontrar, traduzir para inglês e tentar novamente, a menos que o título seja numérico
+    if (response.data.results.length === 0 && isNaN(Number(cleanTitle))) {
       console.log(`Traduzindo título para inglês...`);
       const translatedTitle = await translateText(cleanTitle);
       console.log(`Título traduzido: ${translatedTitle}`);
-      
-      response = await axios.get<TMDBResponse>(`${TMDB_API_URL}/search/movie`, {
-        params: {
-          api_key: TMDB_API_KEY,
-          language: 'pt-BR',
-          query: translatedTitle,
-          year: year,
-          page: 1
-        }
-      });
+
+      if (translatedTitle && translatedTitle.toLowerCase() !== cleanTitle.toLowerCase()) {
+        response = await axios.get<TMDBResponse>(`${TMDB_API_URL}/search/movie`, {
+          params: {
+            api_key: TMDB_API_KEY,
+            language: 'pt-BR',
+            query: translatedTitle,
+            year: year,
+            page: 1
+          },
+        });
+      }
     }
 
     // Se ainda não encontrar, tentar uma busca mais flexível
