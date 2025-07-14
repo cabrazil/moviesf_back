@@ -45,6 +45,30 @@ interface RawSubSentiment {
   subSentimentName: string;
 }
 
+interface TMDBMovie {
+  id: string;
+  title: string;
+  original_title: string;
+  release_date: string;
+  vote_average: number;
+  vote_count: number;
+  adult: boolean;
+  poster_path: string | null;
+  overview: string;
+  genres: { id: number; name: string }[];
+  genre_ids?: number[];
+  director?: string | null;
+  runtime?: number;
+  popularity?: number;
+}
+
+interface TMDBKeywordsResponse {
+  keywords: Array<{
+    id: number;
+    name: string;
+  }>;
+}
+
 // Dicionário de SubSentiments por gênero/tema
 const SUB_SENTIMENTS_BY_THEME: ThemeDictionary = {
   drama: {
@@ -89,7 +113,8 @@ async function analyzeMovieWithOpenAI(
   movie: any,
   keywords: string[],
   journeyOptionText: string,
-  mainSentimentId: number
+  mainSentimentId: number,
+  mainSentimentName: string
 ): Promise<{
   suggestedSubSentiments: Array<{
     name: string;
@@ -116,7 +141,7 @@ Você é um especialista em análise de filmes com foco em emoções. Sua tarefa
 **Análise Solicitada:**
 Avalie se o filme se encaixa na opção de jornada: "${journeyOptionText}".
 
-**Subsentimentos de "Feliz / Alegre" já existentes:**
+**Subsentimentos de "${mainSentimentName}" já existentes:**
 ${existingSubSentimentNames.length > 0 ? existingSubSentimentNames.map(name => `- ${name}`).join('\n') : 'Nenhum subsentimento cadastrado para esta categoria.'}
 
 **Instruções:**
@@ -296,19 +321,25 @@ async function main() {
     const journeyOption = await getJourneyOptionFlow(journeyOptionFlowId);
     if (!journeyOption) return;
 
-    const tmdbMovie = await searchMovie(movie.title, movie.year || undefined);
+    const tmdbMovie = await searchMovie(undefined, undefined, movie.tmdbId || undefined);
     if (!tmdbMovie) {
       console.log('❌ Filme não encontrado no TMDB');
       return;
     }
 
     const keywords = [...(tmdbMovie.movie as any).keywords?.map((k: any) => k.name) || [], ...(tmdbMovie.movie as any).genres?.map((g: any) => g.name) || []];
-    const analysis = await analyzeMovieWithOpenAI(tmdbMovie.movie, keywords, journeyOption.option.text, mainSentimentId);
+    const mainSentiment = await prisma.mainSentiment.findUnique({ where: { id: mainSentimentId } });
+    if (!mainSentiment) {
+      console.log(`❌ MainSentiment com ID ${mainSentimentId} não encontrado.`);
+      return;
+    }
+
+    const analysis = await analyzeMovieWithOpenAI(tmdbMovie.movie, keywords, journeyOption.option.text, mainSentimentId, mainSentiment.name);
 
     console.log('\n🔍 Validando sugestões da IA com o sentimento de destino (Lógica Inteligente)...');
     const validatedSubSentiments: { suggestion: any; dbMatch: SubSentiment | null }[] = [];
 
-    const allSubSentiments = await prisma.subSentiment.findMany(); // Needed for matching
+    const allSubSentiments = await prisma.subSentiment.findMany({ where: { mainSentimentId: mainSentimentId } }); // Needed for matching
 
     for (const suggestion of analysis.suggestedSubSentiments) {
       if (suggestion.isNew) {

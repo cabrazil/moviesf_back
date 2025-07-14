@@ -428,7 +428,7 @@ async function discoverMovie(movieTitle: string, movieYear: number) {
 }
 
 // Função auxiliar para buscar no TMDB de forma silenciosa
-async function searchMovieSilent(movieTitle: string, movieYear?: number) {
+async function searchMovieSilent(movieTitle?: string, movieYear?: number, tmdbId?: number) {
   // Temporariamente suprimir logs do console
   const originalLog = console.log;
   const originalError = console.error;
@@ -437,7 +437,7 @@ async function searchMovieSilent(movieTitle: string, movieYear?: number) {
   console.error = () => {}; // Suprimir erros
   
   try {
-    const result = await searchMovie(movieTitle, movieYear);
+    const result = await searchMovie(movieTitle, movieYear, tmdbId);
     return result;
   } finally {
     // Restaurar logs
@@ -1331,7 +1331,7 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
     }
 
     // 2. Buscar filme no TMDB para obter sinopse
-    const tmdbMovie = await searchMovieSilent(movieDetails.title, movieDetails.year || undefined);
+    const tmdbMovie = await searchMovieSilent(undefined, undefined, movieDetails.tmdbId || undefined);
     if (!tmdbMovie) {
       console.log('❌ Filme não encontrado no TMDB');
       return false;

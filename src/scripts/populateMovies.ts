@@ -30,6 +30,14 @@ interface TMDBMovie {
 
 interface TMDBMovieDetails {
   id: number;
+  title: string;
+  original_title: string;
+  release_date: string;
+  vote_average: number;
+  vote_count: number;
+  adult: boolean;
+  poster_path: string | null;
+  overview: string;
   genres: { id: number; name: string }[];
   keywords: { id: number; name: string }[];
   release_dates: {
@@ -396,8 +404,50 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
   }
 }
 
-export async function searchMovie(title: string, year?: number): Promise<{ movie: TMDBMovie; platforms: string[]; director: string | null; certification: string | null; keywords: string[] } | null> {
+export async function searchMovie(title?: string, year?: number, tmdbId?: number): Promise<{ movie: TMDBMovie; platforms: string[]; director: string | null; certification: string | null; keywords: string[] } | null> {
   try {
+    if (tmdbId) {
+      console.log(`Buscando filme no TMDB pelo ID: ${tmdbId}`);
+      const detailsResponse = await axios.get<TMDBMovieDetails>(`${TMDB_API_URL}/movie/${tmdbId}`, {
+        params: {
+          api_key: TMDB_API_KEY,
+          language: 'pt-BR'
+        }
+      });
+
+      const movieDetails = detailsResponse.data;
+
+      const directors = await getMovieDirectors(tmdbId);
+      const keywords = await getMovieKeywords(tmdbId);
+      const platforms = await getMovieStreamingInfo(tmdbId);
+      const certification = await getBrazilianCertification(tmdbId);
+
+      return {
+        movie: {
+          id: movieDetails.id.toString(),
+          title: movieDetails.title,
+          original_title: movieDetails.original_title,
+          release_date: movieDetails.release_date,
+          vote_average: movieDetails.vote_average,
+          vote_count: movieDetails.vote_count,
+          adult: movieDetails.adult,
+          poster_path: movieDetails.poster_path,
+          overview: movieDetails.overview,
+          genres: movieDetails.genres,
+          runtime: movieDetails.runtime,
+        },
+        platforms,
+        director: directors || null,
+        certification,
+        keywords
+      };
+    }
+
+    if (!title) {
+      console.log('Título não fornecido para busca por título/ano.');
+      return null;
+    }
+
     console.log(`Buscando filme no TMDB: ${title}${year ? ` (${year})` : ''}`);
     
     // Remover o ano do título se existir, a menos que o próprio título seja o ano
@@ -626,7 +676,8 @@ async function processSingleMovie(title: string, year?: number) {
             adult: movie.adult,
             keywords: keywords,
             genreIds: genreIds,
-            runtime: movie.runtime || undefined
+            runtime: movie.runtime || undefined,
+            tmdbId: parseInt(movie.id)
           }
         });
         console.log(`✅ Filme criado: ${createdMovie.title}`);

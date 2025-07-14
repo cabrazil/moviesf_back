@@ -54,6 +54,14 @@ async function main() {
     console.log(`Comandos com erro: ${errorCount}`);
     console.log('--------------------------');
 
+    // Limpar o arquivo após a execução para evitar conflitos futuros
+    try {
+      await fs.writeFile(filePath, '', 'utf-8');
+      console.log(`🧹 Arquivo ${path.basename(filePath)} limpo com sucesso.`);
+    } catch (cleanupError) {
+      console.warn(`⚠️ Aviso: Não foi possível limpar o arquivo ${path.basename(filePath)}`);
+    }
+
   } catch (e) {
     const error = e as Error;
     console.error('❌ Erro fatal ao ler o arquivo ou conectar ao banco:', error.message);
