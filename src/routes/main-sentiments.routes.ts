@@ -12,6 +12,7 @@ router.get('/summary', async (req, res) => {
         id: true,
         name: true,
         description: true,
+        shortDescription: true,
       },
       orderBy: { id: 'asc' },
     });

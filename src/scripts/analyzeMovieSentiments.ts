@@ -1,6 +1,8 @@
 import { PrismaClient, SubSentiment } from '@prisma/client';
 import { searchMovie } from './populateMovies';
 import axios from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -179,9 +181,18 @@ ${existingSubSentimentNames.length > 0 ? existingSubSentimentNames.map(name => `
     const content = response.data.choices[0].message.content;
     console.log('\nResposta do OpenAI:');
     console.log(content);
-    // Adiciona tratamento para respostas não-JSON
+
     try {
-      return JSON.parse(content);
+      // Regex para extrair o JSON de dentro de um bloco de código Markdown
+      const jsonRegex = /```json\n([\s\S]*?)\n```/;
+      const match = content.match(jsonRegex);
+
+      if (match && match[1]) {
+        return JSON.parse(match[1]);
+      } else {
+        // Se não houver markdown, tenta fazer o parse do conteúdo inteiro
+        return JSON.parse(content);
+      }
     } catch (jsonError) {
       console.error('Erro ao fazer parse da resposta JSON da OpenAI:', jsonError);
       console.error('Resposta recebida:', content);
@@ -378,47 +389,65 @@ async function main() {
       });
     }
 
-    console.log('\n=== SUGESTÃO DE INSERTS ===');
+    console.log('\n=== GERANDO INSERTS SQL ===');
+    let sqlInserts: string[] = [];
+    const newSubSentimentsForApproval: any[] = [];
+
     if (validatedSubSentiments.length > 0) {
-      const newSubSentimentsToCreate: any[] = [];
-      
-      console.log('\n-- Novos SubSentiments (se houver):');
+      // Coletar novos subsentimentos para aprovação
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
         if (!dbMatch) {
-          console.log(`INSERT INTO "SubSentiment" ("name", "mainSentimentId", "keywords", "createdAt", "updatedAt")`);
-          console.log(`VALUES ('${suggestion.name}', ${mainSentimentId}, ARRAY['${suggestion.name.toLowerCase()}'], NOW(), NOW());`);
-          newSubSentimentsToCreate.push(suggestion);
+          newSubSentimentsForApproval.push(suggestion);
         }
       });
-      if (newSubSentimentsToCreate.length === 0) {
-        console.log('Nenhum novo SubSentiment para criar.');
+
+      // Se houver novos subsentimentos, imprimir o sinal para o orquestrador
+      if (newSubSentimentsForApproval.length > 0) {
+        console.log(`CURATOR_APPROVAL_NEEDED: ${JSON.stringify(newSubSentimentsForApproval)}`);
       }
 
-      console.log('\n-- MovieSentiment:');
+      // Gerar inserts para subsentimentos existentes
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
         if (dbMatch) {
-          console.log(`\n-- Match: IA "${suggestion.name}" -> BD "${dbMatch.name}"`);
-          console.log(`INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt")`);
-          console.log(`VALUES ('${movieId}', ${mainSentimentId}, ${dbMatch.id}, NOW(), NOW());`);
-        } else {
-          console.log(`\n-- Novo SubSentiment: "${suggestion.name}"`);
-          console.log(`-- O INSERT para MovieSentiment dependerá do ID gerado para o novo SubSentiment.`);
-          console.log(`-- Exemplo: INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", ...) VALUES ('${movieId}', ${mainSentimentId}, [ID_DO_NOVO_SUBSENTIMENT], ...);`);
+          sqlInserts.push(
+            `-- Match: IA "${suggestion.name}" -> BD "${dbMatch.name}"`,
+            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt") VALUES ('${movieId}', ${mainSentimentId}, ${dbMatch.id}, NOW(), NOW());`,
+            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt") VALUES (${journeyOptionFlowId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(2)}, NOW(), NOW());`
+          );
         }
       });
 
-      console.log('\n-- JourneyOptionFlowSubSentiment:');
+      // Gerar inserts para novos subsentimentos
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
-        if (dbMatch) {
-          console.log(`\n-- Match: IA "${suggestion.name}" -> BD "${dbMatch.name}"`);
-          console.log(`INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt")`);
-          console.log(`VALUES (${journeyOptionFlowId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(2)}, NOW(), NOW());`);
-        } else {
-          console.log(`\n-- Novo SubSentiment: "${suggestion.name}"`);
-          console.log(`-- O INSERT para JourneyOptionFlowSubSentiment dependerá do ID gerado para o novo SubSentiment.`);
-          console.log(`-- Exemplo: INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", ...) VALUES (${journeyOptionFlowId}, [ID_DO_NOVO_SUBSENTIMENT], ${suggestion.relevance.toFixed(2)}, ...);`);
+        if (!dbMatch) {
+          const subSentimentName = suggestion.name.replace(/'/g, "''"); // Escapar aspas simples
+          sqlInserts.push(
+            `-- Novo SubSentiment: "${suggestion.name}"`,
+            `WITH new_sub AS (`,
+            `  INSERT INTO "SubSentiment" ("name", "mainSentimentId", "keywords", "createdAt", "updatedAt")`,
+            `  VALUES ('${subSentimentName}', ${mainSentimentId}, ARRAY['${subSentimentName.toLowerCase()}'], NOW(), NOW())`,
+            `  RETURNING id`,
+            `)`,
+            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt")`,
+            `SELECT '${movieId}', ${mainSentimentId}, id, NOW(), NOW() FROM new_sub;`,
+            ``,
+            `WITH new_sub AS (`,
+            `  SELECT id FROM "SubSentiment" WHERE name = '${subSentimentName}' AND "mainSentimentId" = ${mainSentimentId} LIMIT 1`,
+            `)`,
+            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt")`,
+            `SELECT ${journeyOptionFlowId}, id, ${suggestion.relevance.toFixed(2)}, NOW(), NOW() FROM new_sub;`
+          );
         }
       });
+
+      if (sqlInserts.length > 0) {
+        const insertFilePath = path.join(__dirname, '../../inserts.sql');
+        // Usamos appendFileSync para adicionar ao arquivo. O orquestrador deve limpar o arquivo antes.
+        fs.writeFileSync(insertFilePath, sqlInserts.join('\n') + '\n');
+        console.log(`\n✅ ${sqlInserts.length} comandos SQL foram gerados e salvos em inserts.sql`);
+      } else {
+        console.log('\nNenhum INSERT gerado.');
+      }
 
     } else {
       console.log('\nNenhum INSERT gerado pois não houve subsentimentos validados.');
