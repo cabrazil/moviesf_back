@@ -6,6 +6,14 @@ import axios from 'axios';
 const prisma = new PrismaClient();
 
 // ===== INTERFACES =====
+interface OpenAIResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+}
+
 interface EmotionalIntention {
   id: number;
   mainSentimentId: number;
@@ -395,12 +403,81 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
 }
 
 async function generateReflectionForMovie(movie: any): Promise<string> {
-  const themes = {
-    'Moonlight: Sob a Luz do Luar': 'Uma jornada profunda sobre identidade, masculinidade e autodescoberta. O filme mergulha suavemente na complexidade das relações humanas através de três momentos cruciais da vida de Chiron, explorando temas de aceitação, amor e a busca por pertencimento.',
-    'Para Sempre': 'Uma jornada emocional sobre amor, memória e reconstrução. O filme mergulha suavemente na complexidade das relações humanas através da história de um casal que precisa redescobrir seu amor após um acidente traumático.'
-  };
+  // Buscar informações do filme no banco para obter keywords dos sentimentos
+  const movieWithSentiments = await prisma.movie.findUnique({
+    where: { id: movie.id },
+    include: {
+      movieSentiments: {
+        include: {
+          subSentiment: true
+        }
+      }
+    }
+  });
 
-  return themes[movie.title as keyof typeof themes] || `Uma exploração cinematográfica que mergulha suavemente na complexidade da vida e das relações humanas através de "${movie.title}".`;
+  const keywords = movieWithSentiments?.movieSentiments
+    .flatMap(ms => ms.subSentiment.keywords)
+    .filter((value, index, self) => self.indexOf(value) === index) || [];
+
+  // Buscar dados do TMDB para obter sinopse
+  const tmdbMovie = await searchMovie(movie.title, movie.year);
+  const movieData = tmdbMovie?.movie;
+
+  if (!movieData) {
+    return `Uma reflexão inspiradora sobre ${movie.title} que explora temas profundos da experiência humana.`;
+  }
+
+  return await generateReflectionWithOpenAI(movieData, keywords);
+}
+
+async function generateReflectionWithOpenAI(movie: any, keywords: string[]): Promise<string> {
+  const prompt = `
+Filme: ${movie.title} (${movie.year || 'Ano não especificado'})
+Sinopse: ${movie.overview}
+Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
+Palavras-chave emocionais: ${keywords.join(', ')}
+
+Com base nessas informações, escreva uma reflexão curta, inspiradora e específica sobre este filme, capturando sua essência emocional e os temas principais da história.
+
+A reflexão deve:
+- Ter entre 20-35 palavras
+- Ser inspiradora e envolvente
+- Capturar o tom e tema específico do filme
+- Terminar com um ponto final
+- Não repetir o nome do filme
+- Conectar os temas principais com o impacto emocional
+
+Seja específico para este filme, não genérico.
+`;
+
+  try {
+    const response = await axios.post<OpenAIResponse>('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'Você é um crítico de cinema especializado em análise emocional de filmes. Escreva reflexões concisas e inspiradoras que capturem a essência emocional única de cada filme.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.8,
+      max_tokens: 120
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const reflection = response.data.choices[0].message.content.trim();
+    return reflection;
+  } catch (error) {
+    console.error('Erro ao gerar reflexão com OpenAI:', error);
+    return `Uma jornada cinematográfica que explora a complexidade das emoções humanas com profundidade e sensibilidade.`;
+  }
 }
 
 function getIntentionLabel(intentionType: string): string {

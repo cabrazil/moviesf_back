@@ -106,12 +106,20 @@ class MovieCurationOrchestrator {
         return { success: false, error: `Falha na curadoria: ${curateResult.error}` };
       }
 
-      const createdMovie = await prisma.movie.findFirst({ where: { title: movie.title, year: movie.year } });
+      const createdMovie = await prisma.movie.findFirst({ 
+        where: { title: movie.title, year: movie.year },
+        include: { movieSuggestionFlows: true }
+      });
       if (!createdMovie) {
         return { success: false, error: 'Filme não encontrado no banco de dados após o processo.' };
       }
 
       console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
+      // Log da reflexão sobre o filme (reason) do MovieSuggestionFlow mais recente
+      if (createdMovie.movieSuggestionFlows.length > 0) {
+        const latestSuggestion = createdMovie.movieSuggestionFlows[createdMovie.movieSuggestionFlows.length - 1];
+        console.log(`💭 Reflexão sobre o filme: ${latestSuggestion.reason}`);
+      }
       return { 
         success: true, 
         movie: { 
@@ -197,8 +205,7 @@ async function main() {
     }
 
     const movie: MovieToProcess = parsed as MovieToProcess;
-    const results = await orchestrator.processMovieList([movie], approveNewSubSentiments);
-    console.log('\n📊 Resultado:', results[0]);
+    await orchestrator.processMovieList([movie], approveNewSubSentiments);
 
   } catch (error) {
     console.error('❌ Erro fatal:', error);
