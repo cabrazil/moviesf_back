@@ -301,32 +301,35 @@ async function getJourneyOptionFlow(journeyOptionFlowId: number) {
 async function main() {
   try {
     const args = process.argv.slice(2);
-    const title = args[0];
-    const year = args[1] ? parseInt(args[1]) : undefined;
-    const journeyOptionFlowId = args[2] ? parseInt(args[2]) : 159; // Defaulting to a common one
-    const mainSentimentId = args[3] ? parseInt(args[3]) : null;
+    const movieId = args[0];
+    const journeyOptionFlowId = args[1] ? parseInt(args[1]) : 159; // Defaulting to a common one
+    const mainSentimentId = args[2] ? parseInt(args[2]) : null;
 
-    if (!title || !mainSentimentId) {
-      console.log('❌ Uso: ts-node analyzeMovieSentiments.ts <title> <year> <journeyOptionFlowId> <mainSentimentId>');
+    if (!movieId || !mainSentimentId) {
+      console.log('❌ Uso: ts-node analyzeMovieSentiments.ts <movieId> <journeyOptionFlowId> <mainSentimentId>');
       return;
     }
 
-    // Find the movie in the database by title and year
-    const movie = await prisma.movie.findFirst({
+    // Find the movie in the database by ID
+    const movie = await prisma.movie.findUnique({
       where: {
-        title: {
-          equals: title,
-          mode: 'insensitive',
-        },
-        year: year,
+        id: movieId,
       },
     });
 
     if (!movie) {
-      console.log(`❌ Filme "${title}" (${year || 'qualquer ano'}) não encontrado no banco de dados.`);
+      console.log(`❌ Filme com ID "${movieId}" não encontrado no banco de dados.`);
       return;
     }
-    const movieId = movie.id; // Use a consistent variable name for clarity
+
+    // --- Nova verificação de imdbRating ---
+    if (movie.imdbRating === null || movie.imdbRating.toNumber() < 6.0) {
+      console.log(`❌ Filme "${movie.title}" (IMDb Rating: ${movie.imdbRating || 'N/A'}) não atende ao requisito de rating mínimo (6.0). Processo interrompido.`);
+      return;
+    }
+    // --- Fim da nova verificação ---
+
+    
 
     console.log(`\n=== Analisando filme: ${movie.title} (${movie.year}) ===\n`);
     const journeyOption = await getJourneyOptionFlow(journeyOptionFlowId);

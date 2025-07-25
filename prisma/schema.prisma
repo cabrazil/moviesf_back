@@ -29,6 +29,9 @@ model Movie {
   genreIds             Int[]
   runtime              Int?
   tmdbId               Int?                  @unique
+  imdbRating           Decimal? @db.Decimal(3, 1)
+  rottenTomatoesRating Int?
+  metacriticRating     Int?
   movieSentiments      MovieSentiment[]
   movieSuggestionFlows MovieSuggestionFlow[]
 

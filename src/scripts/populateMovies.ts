@@ -8,6 +8,94 @@ import readline from 'readline';
 // Configurar o Prisma Client da forma mais simples possível
 const prisma = new PrismaClient();
 
+// --- OMDb Types ---
+interface OmdbRating {
+  Source: string;
+  Value: string;
+}
+
+interface OmdbMovieResponse {
+  Title: string;
+  Year: string;
+  Response: 'True' | 'False';
+  Error?: string;
+  Ratings?: OmdbRating[];
+}
+
+interface ExternalIdsResponse {
+  imdb_id: string | null;
+}
+
+/**
+ * Parses a rating string (e.g., "8.5/10", "95%") and returns a number.
+ */
+function parseRating(source: string, value: string): number | null {
+  try {
+    if (source === 'Internet Movie Database') return parseFloat(value.split('/')[0]);
+    if (source === 'Rotten Tomatoes') return parseInt(value.replace('%', ''), 10);
+    if (source === 'Metacritic') return parseInt(value.split('/')[0], 10);
+    return null;
+  } catch (error) {
+    console.error(`Error parsing rating from ${source} with value "${value}":`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches the IMDb ID for a given TMDB movie ID.
+ */
+async function getImdbId(tmdbId: number): Promise<string | null> {
+  if (!TMDB_API_KEY) {
+    console.error('TMDB API key is not configured.');
+    return null;
+  }
+  try {
+    const response = await axios.get<ExternalIdsResponse>(`${TMDB_API_URL}/movie/${tmdbId}/external_ids`, {
+      params: { api_key: TMDB_API_KEY }
+    });
+    return response.data.imdb_id;
+  } catch (error) {
+    console.error(`Error fetching IMDb ID for TMDB ID ${tmdbId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches movie ratings from OMDb using the IMDb ID.
+ */
+async function getOmdbRatings(imdbId: string): Promise<Record<string, number>> {
+  const apiKey = process.env.OMDB_API_KEY;
+  if (!apiKey) {
+    console.error('OMDb API key is not set.');
+    return {};
+  }
+
+  try {
+    const response = await axios.get<OmdbMovieResponse>('http://www.omdbapi.com/', {
+      params: { i: imdbId, apikey: apiKey }
+    });
+
+    if (response.data.Response === 'False' || !response.data.Ratings) {
+      return {};
+    }
+
+    const ratings: Record<string, number> = {};
+    for (const rating of response.data.Ratings) {
+      const numericValue = parseRating(rating.Source, rating.Value);
+      if (numericValue === null) continue;
+
+      if (rating.Source === 'Internet Movie Database') ratings.imdbRating = numericValue;
+      else if (rating.Source === 'Rotten Tomatoes') ratings.rottenTomatoesRating = numericValue;
+      else if (rating.Source === 'Metacritic') ratings.metacriticRating = numericValue;
+    }
+    return ratings;
+  } catch (error) {
+    console.error(`Error fetching OMDb ratings for IMDb ID ${imdbId}:`, error);
+    return {};
+  }
+}
+
+
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_API_URL = process.env.TMDB_API_URL || 'https://api.themoviedb.org/3';
 
@@ -376,7 +464,6 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
           unmappedKeywords.map(async (keyword) => {
             try {
               const translated = await translateText(keyword);
-              console.log(`Traduzindo: "${keyword}" -> "${translated}"`);
               return translated;
             } catch (error) {
               console.error(`Erro ao traduzir palavra-chave "${keyword}":`, error);
@@ -638,7 +725,8 @@ async function processSingleMovie(title: string, year?: number) {
 
       if (existingMovie) {
         console.log(`⚠️ Filme já existe no banco: ${movie.title}`);
-        return { success: true, duplicate: true };
+        console.log(`MOVIE_ID_FOUND: ${existingMovie.id}`);
+        return { success: true, duplicate: true, movieId: existingMovie.id };
       } else {
         // Buscar ou criar os gêneros
         const genreIds: number[] = [];
@@ -659,6 +747,17 @@ async function processSingleMovie(title: string, year?: number) {
           }
         }
 
+        // Obter ratings da OMDb
+        let omdbRatings = {};
+        const imdbId = await getImdbId(parseInt(movie.id));
+        if (imdbId) {
+          console.log(`IMDb ID encontrado: ${imdbId}. Buscando ratings...`);
+          omdbRatings = await getOmdbRatings(imdbId);
+          console.log('Ratings da OMDb encontrados:', omdbRatings);
+        } else {
+          console.log('IMDb ID não encontrado. Pulando busca de ratings.');
+        }
+
         // Criar o filme com os gêneros
         const createdMovie = await prisma.movie.create({
           data: {
@@ -677,13 +776,15 @@ async function processSingleMovie(title: string, year?: number) {
             keywords: keywords,
             genreIds: genreIds,
             runtime: movie.runtime || undefined,
-            tmdbId: parseInt(movie.id)
+            tmdbId: parseInt(movie.id),
+            ...omdbRatings
           }
         });
         console.log(`✅ Filme criado: ${createdMovie.title}`);
         console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
         console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
-        return { success: true, duplicate: false };
+        console.log(`MOVIE_ID_FOUND: ${createdMovie.id}`);
+        return { success: true, duplicate: false, movieId: createdMovie.id };
       }
     } else {
       console.log(`❌ Filme não encontrado no TMDB: ${title}`);

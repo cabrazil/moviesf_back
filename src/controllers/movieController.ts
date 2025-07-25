@@ -53,13 +53,21 @@ export const getMovieSuggestions = asyncHandler(async (req: Request, res: Respon
           description: true,
           year: true,
           director: true,
-          genres: true
+          genres: true,
+          vote_average: true,
+          imdbRating: true,
+          rottenTomatoesRating: true,
+          metacriticRating: true
         }
       }
     },
-    orderBy: {
-      relevance: 'desc'
-    }
+    orderBy: [
+      {
+        movie: {
+          imdbRating: 'desc'
+        }
+      }
+    ]
   });
 
   res.json(suggestions);

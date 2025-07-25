@@ -50,19 +50,28 @@ class MovieCurationOrchestrator {
       if (!addResult.success) {
         return { success: false, error: `Falha ao adicionar filme: ${addResult.error}` };
       }
+      const movieIdMatch = addResult.output.match(/MOVIE_ID_FOUND: (\S+)/);
+      if (!movieIdMatch || !movieIdMatch[1]) {
+        return { success: false, error: `Não foi possível extrair o Movie ID da saída de populateMovies.ts` };
+      }
+      const movieId = movieIdMatch[1];
+      console.log(`✅ Filme adicionado. ID: ${movieId}`);
 
       // Etapa 2: Analisar sentimentos
       console.log(`🧠 Etapa 2: Analisando sentimentos...`);
       const analysisResult = await this.runScript('analyzeMovieSentiments.ts', [
-        movie.title,
-        movie.year.toString(),
+        movieId,
         movie.journeyOptionFlowId.toString(),
-        movie.analysisLens.toString()
+        movie.analysisLens.toString() // analysisLens é o mainSentimentId aqui
       ]);
       
       if (!analysisResult.success) {
         return { success: false, error: `Falha na análise: ${analysisResult.error}` };
       }
+      console.log(`
+--- Saída da Análise de Sentimentos ---
+${analysisResult.output}
+--------------------------------------`);
 
       // Etapa 2.5: Verificação de Aprovação do Curador
       const approvalLine = analysisResult.output.split('\n').find(line => line.startsWith('CURATOR_APPROVAL_NEEDED'));
@@ -91,6 +100,11 @@ class MovieCurationOrchestrator {
       if (!insertResult.success) {
         console.log(`⚠️ Aviso: Falha ao executar INSERTs: ${insertResult.error}`);
       }
+      console.log(`
+--- Saída da Execução de INSERTs ---
+${insertResult.output}
+------------------------------------`);
+
 
       // Etapa 4: Descobrir e curar
       console.log(`🎯 Etapa 4: Descobrindo e curando...`);
@@ -105,6 +119,10 @@ class MovieCurationOrchestrator {
       if (!curateResult.success) {
         return { success: false, error: `Falha na curadoria: ${curateResult.error}` };
       }
+      console.log(`
+--- Saída da Curadoria ---
+${curateResult.output}
+--------------------------`);
 
       const createdMovie = await prisma.movie.findFirst({ 
         where: { title: movie.title, year: movie.year },
@@ -114,12 +132,12 @@ class MovieCurationOrchestrator {
         return { success: false, error: 'Filme não encontrado no banco de dados após o processo.' };
       }
 
-      console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
-      // Log da reflexão sobre o filme (reason) do MovieSuggestionFlow mais recente
       if (createdMovie.movieSuggestionFlows.length > 0) {
         const latestSuggestion = createdMovie.movieSuggestionFlows[createdMovie.movieSuggestionFlows.length - 1];
         console.log(`💭 Reflexão sobre o filme: ${latestSuggestion.reason}`);
       }
+      console.log(`
+✅ Curadoria e processamento de "${movie.title}" (${movie.year}) concluídos com sucesso!`);
       return { 
         success: true, 
         movie: { 
@@ -148,15 +166,10 @@ class MovieCurationOrchestrator {
       let errorOutput = '';
 
       child.stdout.on('data', (data) => {
-        const chunk = data.toString();
-        if (!chunk.startsWith('CURATOR_APPROVAL_NEEDED')) {
-            process.stdout.write(chunk);
-        }
-        output += chunk;
+        output += data.toString();
       });
 
       child.stderr.on('data', (data) => {
-        process.stderr.write(data);
         errorOutput += data.toString();
       });
 
