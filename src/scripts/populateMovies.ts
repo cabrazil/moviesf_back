@@ -725,7 +725,7 @@ async function processSingleMovie(title: string, year?: number) {
 
       if (existingMovie) {
         console.log(`⚠️ Filme já existe no banco: ${movie.title}`);
-        console.log(`MOVIE_ID_FOUND: ${existingMovie.id}`);
+        console.log(`TMDB_ID_FOUND: ${existingMovie.tmdbId}`);
         return { success: true, duplicate: true, movieId: existingMovie.id };
       } else {
         // Buscar ou criar os gêneros
@@ -783,7 +783,7 @@ async function processSingleMovie(title: string, year?: number) {
         console.log(`✅ Filme criado: ${createdMovie.title}`);
         console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
         console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
-        console.log(`MOVIE_ID_FOUND: ${createdMovie.id}`);
+        console.log(`TMDB_ID_FOUND: ${createdMovie.tmdbId}`);
         return { success: true, duplicate: false, movieId: createdMovie.id };
       }
     } else {

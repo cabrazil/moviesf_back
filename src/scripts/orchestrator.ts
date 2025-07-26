@@ -11,6 +11,7 @@ interface MovieToProcess {
   journeyOptionFlowId: number;
   analysisLens: number;
   journeyValidation: number;
+  aiProvider?: 'openai' | 'gemini';
 }
 
 interface ProcessingResult {
@@ -50,28 +51,33 @@ class MovieCurationOrchestrator {
       if (!addResult.success) {
         return { success: false, error: `Falha ao adicionar filme: ${addResult.error}` };
       }
-      const movieIdMatch = addResult.output.match(/MOVIE_ID_FOUND: (\S+)/);
-      if (!movieIdMatch || !movieIdMatch[1]) {
-        return { success: false, error: `Não foi possível extrair o Movie ID da saída de populateMovies.ts` };
+
+      // Extrair o TMDB ID do output
+      const tmdbIdMatch = addResult.output.match(/TMDB_ID_FOUND: (\d+)/);
+      if (!tmdbIdMatch) {
+        return { success: false, error: 'TMDB ID do filme não encontrado no output do populateMovies' };
       }
-      const movieId = movieIdMatch[1];
-      console.log(`✅ Filme adicionado. ID: ${movieId}`);
+      const tmdbId = parseInt(tmdbIdMatch[1]);
+      console.log(`🎯 TMDB ID capturado: ${tmdbId}`);
 
       // Etapa 2: Analisar sentimentos
       console.log(`🧠 Etapa 2: Analisando sentimentos...`);
-      const analysisResult = await this.runScript('analyzeMovieSentiments.ts', [
-        movieId,
+      const analysisArgs = [
+        tmdbId.toString(), // Usar o tmdbId
         movie.journeyOptionFlowId.toString(),
-        movie.analysisLens.toString() // analysisLens é o mainSentimentId aqui
-      ]);
+        movie.analysisLens.toString()
+      ];
+      
+      // Adicionar provedor de IA se especificado
+      if (movie.aiProvider) {
+        analysisArgs.push(`--ai-provider=${movie.aiProvider}`);
+      }
+      
+      const analysisResult = await this.runScript('analyzeMovieSentiments.ts', analysisArgs);
       
       if (!analysisResult.success) {
         return { success: false, error: `Falha na análise: ${analysisResult.error}` };
       }
-      console.log(`
---- Saída da Análise de Sentimentos ---
-${analysisResult.output}
---------------------------------------`);
 
       // Etapa 2.5: Verificação de Aprovação do Curador
       const approvalLine = analysisResult.output.split('\n').find(line => line.startsWith('CURATOR_APPROVAL_NEEDED'));
@@ -100,29 +106,26 @@ ${analysisResult.output}
       if (!insertResult.success) {
         console.log(`⚠️ Aviso: Falha ao executar INSERTs: ${insertResult.error}`);
       }
-      console.log(`
---- Saída da Execução de INSERTs ---
-${insertResult.output}
-------------------------------------`);
-
 
       // Etapa 4: Descobrir e curar
       console.log(`🎯 Etapa 4: Descobrindo e curando...`);
-      const curateResult = await this.runScript('discoverAndCurateAutomated.ts', [
-        movie.title,
-        movie.year.toString(),
+      const curateArgs = [
+        tmdbId.toString(), // Usar tmdbId
         movie.journeyValidation.toString(),
         movie.journeyOptionFlowId.toString(),
         'PROCESS'
-      ]);
+      ];
+      
+      // Adicionar provedor de IA se especificado
+      if (movie.aiProvider) {
+        curateArgs.push(`--ai-provider=${movie.aiProvider}`);
+      }
+      
+      const curateResult = await this.runScript('discoverAndCurateAutomated.ts', curateArgs);
       
       if (!curateResult.success) {
         return { success: false, error: `Falha na curadoria: ${curateResult.error}` };
       }
-      console.log(`
---- Saída da Curadoria ---
-${curateResult.output}
---------------------------`);
 
       const createdMovie = await prisma.movie.findFirst({ 
         where: { title: movie.title, year: movie.year },
@@ -132,12 +135,12 @@ ${curateResult.output}
         return { success: false, error: 'Filme não encontrado no banco de dados após o processo.' };
       }
 
+      console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
+      // Log da reflexão sobre o filme (reason) do MovieSuggestionFlow mais recente
       if (createdMovie.movieSuggestionFlows.length > 0) {
         const latestSuggestion = createdMovie.movieSuggestionFlows[createdMovie.movieSuggestionFlows.length - 1];
         console.log(`💭 Reflexão sobre o filme: ${latestSuggestion.reason}`);
       }
-      console.log(`
-✅ Curadoria e processamento de "${movie.title}" (${movie.year}) concluídos com sucesso!`);
       return { 
         success: true, 
         movie: { 
@@ -166,10 +169,15 @@ ${curateResult.output}
       let errorOutput = '';
 
       child.stdout.on('data', (data) => {
-        output += data.toString();
+        const chunk = data.toString();
+        if (!chunk.startsWith('CURATOR_APPROVAL_NEEDED')) {
+            process.stdout.write(chunk);
+        }
+        output += chunk;
       });
 
       child.stderr.on('data', (data) => {
+        process.stderr.write(data);
         errorOutput += data.toString();
       });
 
@@ -192,6 +200,7 @@ function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
     else if (arg.startsWith('--journeyOptionFlowId=')) parsed.journeyOptionFlowId = parseInt(arg.split('=')[1]);
     else if (arg.startsWith('--analysisLens=')) parsed.analysisLens = parseInt(arg.split('=')[1]);
     else if (arg.startsWith('--journeyValidation=')) parsed.journeyValidation = parseInt(arg.split('=')[1]);
+    else if (arg.startsWith('--ai-provider=')) parsed.aiProvider = arg.split('=')[1] as 'openai' | 'gemini';
   }
   return parsed;
 }
@@ -208,6 +217,7 @@ async function main() {
       console.log(`\nUso: npx ts-node orchestrator.ts --title="Título" --year=2023 --journeyOptionFlowId=81 --analysisLens=14 --journeyValidation=15`);
       console.log(`\nFlags opcionais:`);
       console.log(`   --approve-new-subsentiments: Aprova automaticamente a criação de novos subsentimentos sugeridos pela IA.`);
+      console.log(`   --ai-provider=openai|gemini: Escolhe o provedor de IA (padrão: openai).`);
       return;
     }
 

@@ -1,18 +1,18 @@
 import { PrismaClient, SubSentiment } from '@prisma/client';
 import { searchMovie } from './populateMovies';
-import axios from 'axios';
+import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const prisma = new PrismaClient();
 
-// Interfaces
-interface OpenAIResponse {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
+// Determinar provedor de IA baseado em argumentos ou variável de ambiente
+function getAIProvider(): AIProvider {
+  const args = process.argv.slice(2);
+  const providerArg = args.find(arg => arg.startsWith('--ai-provider='));
+  const provider = providerArg ? providerArg.split('=')[1] as AIProvider : process.env.AI_PROVIDER as AIProvider;
+  
+  return provider === 'gemini' ? 'gemini' : 'openai';
 }
 
 interface ThemeConfig {
@@ -111,7 +111,7 @@ const SUB_SENTIMENTS_BY_THEME: ThemeDictionary = {
 };
 
 // Funções de Análise e Lógica de Match
-async function analyzeMovieWithOpenAI(
+async function analyzeMovieWithAI(
   movie: any,
   keywords: string[],
   journeyOptionText: string,
@@ -166,20 +166,24 @@ ${existingSubSentimentNames.length > 0 ? existingSubSentimentNames.map(name => `
 `;
 
   try {
-    const response = await axios.post<OpenAIResponse>('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4-turbo', // Usar um modelo mais avançado para melhor compreensão
-      messages: [
-        { role: 'system', content: 'Você é um especialista em análise de filmes, focado em aspectos emocionais e sentimentais. Sua tarefa é avaliar filmes para jornadas emocionais específicas e retornar um JSON válido.' },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.5, // Reduzir a temperatura para respostas mais focadas
-      max_tokens: 600
-    }, {
-      headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }
+    const provider = getAIProvider();
+    const config = getDefaultConfig(provider);
+    const aiProvider = createAIProvider(config);
+    
+    const systemPrompt = 'Você é um especialista em análise de filmes, focado em aspectos emocionais e sentimentais. Sua tarefa é avaliar filmes para jornadas emocionais específicas e retornar um JSON válido.';
+    
+    const response = await aiProvider.generateResponse(systemPrompt, prompt, {
+      temperature: 0.5,
+      maxTokens: 600
     });
 
-    const content = response.data.choices[0].message.content;
-    console.log('\nResposta do OpenAI:');
+    if (!response.success) {
+      console.error(`Erro na API ${provider}:`, response.error);
+      return { suggestedSubSentiments: [] };
+    }
+
+    const content = response.content;
+    console.log(`\nResposta do ${provider.toUpperCase()}:`);
     console.log(content);
 
     try {
@@ -194,12 +198,12 @@ ${existingSubSentimentNames.length > 0 ? existingSubSentimentNames.map(name => `
         return JSON.parse(content);
       }
     } catch (jsonError) {
-      console.error('Erro ao fazer parse da resposta JSON da OpenAI:', jsonError);
+      console.error(`Erro ao fazer parse da resposta JSON da ${provider}:`, jsonError);
       console.error('Resposta recebida:', content);
       return { suggestedSubSentiments: [] };
     }
   } catch (error) {
-    console.error('Erro ao analisar filme com OpenAI:', error);
+    console.error(`Erro ao analisar filme com ${getAIProvider()}:`, error);
     return { suggestedSubSentiments: [] };
   }
 }
@@ -301,24 +305,24 @@ async function getJourneyOptionFlow(journeyOptionFlowId: number) {
 async function main() {
   try {
     const args = process.argv.slice(2);
-    const movieId = args[0];
-    const journeyOptionFlowId = args[1] ? parseInt(args[1]) : 159; // Defaulting to a common one
+    const tmdbId = args[0] ? parseInt(args[0]) : null;
+    const journeyOptionFlowId = args[1] ? parseInt(args[1]) : 159;
     const mainSentimentId = args[2] ? parseInt(args[2]) : null;
 
-    if (!movieId || !mainSentimentId) {
-      console.log('❌ Uso: ts-node analyzeMovieSentiments.ts <movieId> <journeyOptionFlowId> <mainSentimentId>');
+    if (!tmdbId || !mainSentimentId) {
+      console.log('❌ Uso: ts-node analyzeMovieSentiments.ts <tmdbId> <journeyOptionFlowId> <mainSentimentId>');
       return;
     }
 
-    // Find the movie in the database by ID
+    // Find the movie in the database by TMDB ID
     const movie = await prisma.movie.findUnique({
       where: {
-        id: movieId,
+        tmdbId: tmdbId,
       },
     });
 
     if (!movie) {
-      console.log(`❌ Filme com ID "${movieId}" não encontrado no banco de dados.`);
+      console.log(`❌ Filme com TMDB ID "${tmdbId}" não encontrado no banco de dados.`);
       return;
     }
 
@@ -331,7 +335,8 @@ async function main() {
 
     
 
-    console.log(`\n=== Analisando filme: ${movie.title} (${movie.year}) ===\n`);
+    console.log(`\n=== Analisando filme: ${movie.title} (${movie.year}) ===`);
+    console.log(`TMDB ID: ${movie.tmdbId} | UUID: ${movie.id}\n`);
     const journeyOption = await getJourneyOptionFlow(journeyOptionFlowId);
     if (!journeyOption) return;
 
@@ -348,7 +353,7 @@ async function main() {
       return;
     }
 
-    const analysis = await analyzeMovieWithOpenAI(tmdbMovie.movie, keywords, journeyOption.option.text, mainSentimentId, mainSentiment.name);
+    const analysis = await analyzeMovieWithAI(tmdbMovie.movie, keywords, journeyOption.option.text, mainSentimentId, mainSentiment.name);
 
     console.log('\n🔍 Validando sugestões da IA com o sentimento de destino (Lógica Inteligente)...');
     const validatedSubSentiments: { suggestion: any; dbMatch: SubSentiment | null }[] = [];
@@ -414,7 +419,7 @@ async function main() {
         if (dbMatch) {
           sqlInserts.push(
             `-- Match: IA "${suggestion.name}" -> BD "${dbMatch.name}"`,
-            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt") VALUES ('${movieId}', ${mainSentimentId}, ${dbMatch.id}, NOW(), NOW());`,
+            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt") VALUES ('${movie.id}', ${mainSentimentId}, ${dbMatch.id}, NOW(), NOW());`,
             `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt") VALUES (${journeyOptionFlowId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(2)}, NOW(), NOW());`
           );
         }
@@ -432,7 +437,7 @@ async function main() {
             `  RETURNING id`,
             `)`,
             `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt")`,
-            `SELECT '${movieId}', ${mainSentimentId}, id, NOW(), NOW() FROM new_sub;`,
+            `SELECT '${movie.id}', ${mainSentimentId}, id, NOW(), NOW() FROM new_sub;`,
             ``,
             `WITH new_sub AS (`,
             `  SELECT id FROM "SubSentiment" WHERE name = '${subSentimentName}' AND "mainSentimentId" = ${mainSentimentId} LIMIT 1`,

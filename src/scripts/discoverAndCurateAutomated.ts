@@ -1,17 +1,17 @@
 import { PrismaClient } from '@prisma/client';
 import { searchMovie } from './populateMovies';
 import { validateMovieSentiments } from './validateMovieSentiments';
-import axios from 'axios';
+import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 
 const prisma = new PrismaClient();
 
-// ===== INTERFACES =====
-interface OpenAIResponse {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
+// Determinar provedor de IA baseado em argumentos ou variável de ambiente
+function getAIProvider(): AIProvider {
+  const args = process.argv.slice(2);
+  const providerArg = args.find(arg => arg.startsWith('--ai-provider='));
+  const provider = providerArg ? providerArg.split('=')[1] as AIProvider : process.env.AI_PROVIDER as AIProvider;
+  
+  return provider === 'gemini' ? 'gemini' : 'openai';
 }
 
 interface EmotionalIntention {
@@ -49,21 +49,20 @@ interface SentimentAnalysisResult {
 
 // ===== FUNÇÃO PRINCIPAL AUTOMATIZADA =====
 async function automatedCuration(
-  movieTitle: string, 
-  movieYear: number, 
+  tmdbId: number, 
   targetSentimentId: number,
   journeyOptionFlowId: number,
   intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE' = 'PROCESS'
 ) {
   try {
     console.log("🎬 === SISTEMA DE CURAÇÃO AUTOMÁTICA DE FILMES (AUTOMATIZADO) ===");
-    console.log(`🎯 Objetivo: Adicionar "${movieTitle}" (${movieYear}) como sugestão de filme`);
+    console.log(`🎯 Objetivo: Adicionar filme (TMDB ID: ${tmdbId}) como sugestão de filme`);
     console.log(`🎭 Sentimento alvo: ID ${targetSentimentId}`);
     console.log(`🧠 Intenção emocional: ${intentionType}`);
     console.log();
 
     // FASE 1: Descobrimento do filme
-    const movie = await discoverMovie(movieTitle, movieYear);
+    const movie = await discoverMovieByTmdbId(tmdbId);
 
     // FASE 1.5: Seleção automática da intenção emocional
     const emotionalIntention = await selectEmotionalIntentionAutomated(
@@ -116,23 +115,22 @@ async function automatedCuration(
 
 // ===== FUNÇÕES AUXILIARES AUTOMATIZADAS =====
 
-async function discoverMovie(movieTitle: string, movieYear: number) {
+async function discoverMovieByTmdbId(tmdbId: number) {
   console.log(`\n🎬 === FASE 1: DESCOBRIMENTO DO FILME ===`);
-  console.log(`🔍 Buscando filme: "${movieTitle}" (${movieYear})...`);
+  console.log(`🔍 Buscando filme por TMDB ID: ${tmdbId}...`);
   
-  const movie = await prisma.movie.findFirst({
+  const movie = await prisma.movie.findUnique({
     where: {
-      title: { contains: movieTitle, mode: 'insensitive' },
-      year: movieYear
+      tmdbId: tmdbId
     }
   });
 
   if (movie) {
-    console.log(`✅ Filme encontrado no banco: "${movie.title}" (ID: ${movie.id})`);
+    console.log(`✅ Filme encontrado no banco: "${movie.title}" (${movie.year}) (TMDB ID: ${movie.tmdbId})`);
     return movie;
   }
 
-  throw new Error(`Filme "${movieTitle}" (${movieYear}) não encontrado no banco`);
+  throw new Error(`Filme com TMDB ID "${tmdbId}" não encontrado no banco`);
 }
 
 async function selectEmotionalIntentionAutomated(
@@ -427,10 +425,10 @@ async function generateReflectionForMovie(movie: any): Promise<string> {
     return `Uma reflexão inspiradora sobre ${movie.title} que explora temas profundos da experiência humana.`;
   }
 
-  return await generateReflectionWithOpenAI(movieData, keywords);
+  return await generateReflectionWithAI(movieData, keywords);
 }
 
-async function generateReflectionWithOpenAI(movie: any, keywords: string[]): Promise<string> {
+async function generateReflectionWithAI(movie: any, keywords: string[]): Promise<string> {
   const prompt = `
 Filme: ${movie.title} (${movie.year || 'Ano não especificado'})
 Sinopse: ${movie.overview}
@@ -451,31 +449,25 @@ Seja específico para este filme, não genérico.
 `;
 
   try {
-    const response = await axios.post<OpenAIResponse>('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: 'Você é um crítico de cinema especializado em análise emocional de filmes. Escreva reflexões concisas e inspiradoras que capturem a essência emocional única de cada filme.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
+    const provider = getAIProvider();
+    const config = getDefaultConfig(provider);
+    const aiProvider = createAIProvider(config);
+    
+    const systemPrompt = 'Você é um crítico de cinema especializado em análise emocional de filmes. Escreva reflexões concisas e inspiradoras que capturem a essência emocional única de cada filme.';
+    
+    const response = await aiProvider.generateResponse(systemPrompt, prompt, {
       temperature: 0.8,
-      max_tokens: 120
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
+      maxTokens: 120
     });
 
-    const reflection = response.data.choices[0].message.content.trim();
-    return reflection;
+    if (!response.success) {
+      console.error(`Erro na API ${provider}:`, response.error);
+      return `Uma jornada cinematográfica que explora a complexidade das emoções humanas com profundidade e sensibilidade.`;
+    }
+
+    return response.content.trim();
   } catch (error) {
-    console.error('Erro ao gerar reflexão com OpenAI:', error);
+    console.error(`Erro ao gerar reflexão com ${getAIProvider()}:`, error);
     return `Uma jornada cinematográfica que explora a complexidade das emoções humanas com profundidade e sensibilidade.`;
   }
 }
@@ -502,15 +494,13 @@ async function main() {
       return;
     }
 
-    const movieTitle = args[0];
-    const movieYear = parseInt(args[1]);
-    const targetSentimentId = parseInt(args[2]);
-    const journeyOptionFlowId = parseInt(args[3]);
-    const intentionType = (args[4] as any) || 'PROCESS';
+    const tmdbId = parseInt(args[0]);
+    const targetSentimentId = parseInt(args[1]);
+    const journeyOptionFlowId = parseInt(args[2]);
+    const intentionType = (args[3] as any) || 'PROCESS';
 
     const result = await automatedCuration(
-      movieTitle, 
-      movieYear, 
+      tmdbId, 
       targetSentimentId, 
       journeyOptionFlowId, 
       intentionType
