@@ -216,12 +216,12 @@ export class EmotionalRecommendationService {
             intentionAlignment,
             contextualFactors: {
               subSentimentMatches: movie.movieSentiments
-                .filter(ms => subSentimentWeights[ms.subSentiment.name])
-                .map(ms => ({
+                .filter((ms: MovieSentiment) => subSentimentWeights[ms.subSentiment.name])
+                .map((ms: MovieSentiment) => ({
                   name: ms.subSentiment.name,
                   weight: subSentimentWeights[ms.subSentiment.name]
                 })),
-              genreMatches: movie.genres.filter(genre => 
+              genreMatches: movie.genres.filter((genre: string) => 
                 preferredGenres.some(pref => 
                   genre.toLowerCase().includes(pref.toLowerCase())
                 )

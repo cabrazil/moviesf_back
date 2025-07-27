@@ -5,6 +5,81 @@ import EmotionalRecommendationService, { EmotionalRecommendationRequest } from '
 const prisma = new PrismaClient();
 const emotionalService = new EmotionalRecommendationService();
 
+interface Movie {
+  id: string;
+  title: string;
+  year?: number;
+}
+
+interface MovieSuggestionFlow {
+  id: number;
+  movie: Movie;
+  reason: string;
+}
+
+interface JourneyOptionFlow {
+  id: number;
+  text: string;
+  nextStepId?: string;
+  isEndState: boolean;
+  movieSuggestions?: MovieSuggestionFlow[];
+}
+
+interface JourneyStepFlow {
+  id: number;
+  stepId: string;
+  order: number;
+  question: string;
+  options: JourneyOptionFlow[];
+}
+
+interface JourneyStepFlowWithRelations extends JourneyStepFlow {
+  options: (JourneyOptionFlow & { movieSuggestions?: MovieSuggestionFlow[] })[];
+}
+
+interface EmotionalIntentionJourneyStep {
+  journeyStepFlow: JourneyStepFlowWithRelations;
+  customQuestion?: string;
+  priority: number;
+  contextualHint?: string;
+  isRequired: boolean;
+}
+
+interface EmotionalSuggestion {
+  movieId: string;
+  movie: Movie;
+  personalizedReason: string;
+  relevanceScore: number;
+  intentionAlignment: number;
+  wasViewed: boolean;
+  wasAccepted: boolean;
+  userFeedback?: string;
+}
+
+interface MainSentiment {
+  name: string;
+}
+
+interface EmotionalIntention {
+  intentionType: string;
+  description: string;
+}
+
+interface RecommendationSession {
+  id: string;
+  mainSentiment: MainSentiment;
+  emotionalIntention?: EmotionalIntention;
+  startedAt: Date;
+  completedAt?: Date;
+  isActive: boolean;
+  emotionalSuggestions: EmotionalSuggestion[];
+}
+
+interface RecommendationSessionGroupByResult {
+  emotionalIntentionId: number;
+  _count: number;
+}
+
 export class EmotionalRecommendationController {
 
   /**
@@ -126,17 +201,17 @@ export class EmotionalRecommendationController {
           id: journeyFlow.id,
           mainSentimentId: parseInt(sentimentId),
           emotionalIntentionId: parseInt(intentionId),
-          steps: defaultSteps.map(step => ({
+          steps: defaultSteps.map((step: JourneyStepFlow) => ({
             id: step.id,
             stepId: step.stepId,
             order: step.order,
             question: step.question,
-            options: step.options.map(option => ({
+            options: step.options.map((option: JourneyOptionFlow) => ({
               id: option.id,
               text: option.text,
               nextStepId: option.nextStepId,
               isEndState: option.isEndState,
-              movieSuggestions: option.movieSuggestions?.map(ms => ({
+              movieSuggestions: option.movieSuggestions?.map((ms: MovieSuggestionFlow) => ({
                 id: ms.id,
                 movie: ms.movie,
                 reason: ms.reason
@@ -147,7 +222,7 @@ export class EmotionalRecommendationController {
       }
 
       // Usar steps personalizados + incluir steps referenciados por nextStepId
-      const customizedSteps = personalizedSteps.map(personalizedStep => {
+      const customizedSteps = personalizedSteps.map((personalizedStep: EmotionalIntentionJourneyStep) => {
         const step = personalizedStep.journeyStepFlow;
         return {
           id: step.id,
@@ -157,12 +232,12 @@ export class EmotionalRecommendationController {
           priority: personalizedStep.priority,
           contextualHint: personalizedStep.contextualHint,
           isRequired: personalizedStep.isRequired,
-          options: step.options.map(option => ({
+          options: step.options.map((option: JourneyOptionFlow) => ({
             id: option.id,
             text: option.text,
             nextStepId: option.nextStepId,
             isEndState: option.isEndState,
-            movieSuggestions: option.movieSuggestions?.map(ms => ({
+            movieSuggestions: option.movieSuggestions?.map((ms: MovieSuggestionFlow) => ({
               id: ms.id,
               movie: ms.movie,
               reason: ms.reason
@@ -172,7 +247,7 @@ export class EmotionalRecommendationController {
       });
 
       // CORREÇÃO: Incluir TODOS os steps referenciados por nextStepId (recursivamente)
-      async function includeReferencedSteps(steps: any[], journeyFlowId: number): Promise<any[]> {
+      async function includeReferencedSteps(steps: JourneyStepFlowWithRelations[], journeyFlowId: number): Promise<JourneyStepFlowWithRelations[]> {
         const allSteps = [...steps];
         const processedStepIds = new Set<string>();
         let hasNewSteps = true;
@@ -182,8 +257,8 @@ export class EmotionalRecommendationController {
           const referencedStepIds = new Set<string>();
           
           // Coletar todos os nextStepId referenciados
-          allSteps.forEach(step => {
-            step.options.forEach((option: any) => {
+          allSteps.forEach((step: JourneyStepFlowWithRelations) => {
+            step.options.forEach((option: JourneyOptionFlow) => {
               if (option.nextStepId && !option.isEndState && !processedStepIds.has(option.nextStepId)) {
                 referencedStepIds.add(option.nextStepId);
               }
@@ -191,7 +266,7 @@ export class EmotionalRecommendationController {
           });
 
           // Filtrar apenas os que ainda não existem
-          const existingStepIds = new Set(allSteps.map(s => s.stepId));
+          const existingStepIds = new Set(allSteps.map((s: JourneyStepFlowWithRelations) => s.stepId));
           const missingStepIds = Array.from(referencedStepIds).filter(stepId => !existingStepIds.has(stepId));
 
           if (missingStepIds.length > 0) {
@@ -224,12 +299,12 @@ export class EmotionalRecommendationController {
                 priority: 999, // Priority baixa para steps não personalizados
                 contextualHint: null,
                 isRequired: false,
-                options: step.options.map(option => ({
+                options: step.options.map((option: JourneyOptionFlow) => ({
                   id: option.id,
                   text: option.text,
                   nextStepId: option.nextStepId,
                   isEndState: option.isEndState,
-                  movieSuggestions: option.movieSuggestions?.map(ms => ({
+                  movieSuggestions: option.movieSuggestions?.map((ms: MovieSuggestionFlow) => ({
                     id: ms.id,
                     movie: ms.movie,
                     reason: ms.reason
@@ -385,9 +460,9 @@ export class EmotionalRecommendationController {
         completedAt: session.completedAt,
         isActive: session.isActive,
         recommendationsCount: session.emotionalSuggestions.length,
-        viewedCount: session.emotionalSuggestions.filter(s => s.wasViewed).length,
-        acceptedCount: session.emotionalSuggestions.filter(s => s.wasAccepted).length,
-        movies: session.emotionalSuggestions.map(suggestion => ({
+        viewedCount: session.emotionalSuggestions.filter((s: EmotionalSuggestion) => s.wasViewed).length,
+        acceptedCount: session.emotionalSuggestions.filter((s: EmotionalSuggestion) => s.wasAccepted).length,
+        movies: session.emotionalSuggestions.map((suggestion: EmotionalSuggestion) => ({
           movieId: suggestion.movieId,
           title: suggestion.movie.title,
           year: suggestion.movie.year,
@@ -433,7 +508,7 @@ export class EmotionalRecommendationController {
       });
 
       const intentionDetails = await Promise.all(
-        intentionStats.map(async (stat) => {
+        intentionStats.map(async (stat: RecommendationSessionGroupByResult) => {
           const intention = await prisma.emotionalIntention.findUnique({
             where: { id: stat.emotionalIntentionId! },
             include: { mainSentiment: true }

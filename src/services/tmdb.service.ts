@@ -70,7 +70,7 @@ export class TMDBService {
       const keywords = [...sentiment.keywords];
       
       if (sentiment.subSentiments) {
-        sentiment.subSentiments.forEach(sub => {
+        sentiment.subSentiments.forEach((sub: { keywords: string[]; }) => {
           keywords.push(...sub.keywords);
         });
       }
