@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import prisma from '../prisma';
-import { MainSentiment } from '@prisma/client';
 
 const router = Router();
 

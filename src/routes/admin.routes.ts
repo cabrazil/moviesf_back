@@ -421,7 +421,7 @@ router.get('/movie-journeys/:movieId', async (req, res) => {
     });
 
     // Buscar todas as intenções emocionais disponíveis para os sentimentos encontrados
-    const sentimentIds = [...new Set(movieSuggestions.map(s => s.journeyOptionFlow.journeyStepFlow.journeyFlow.mainSentimentId))];
+    const sentimentIds = [...new Set(movieSuggestions.map((s: any) => s.journeyOptionFlow.journeyStepFlow.journeyFlow.mainSentimentId))];
     
     const emotionalIntentions = await prisma.emotionalIntention.findMany({
       where: {
