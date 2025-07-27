@@ -103,7 +103,7 @@ export class EmotionalRecommendationController {
         });
       }
 
-      const response = intentions.map(intention => ({
+      const response = intentions.map((intention: any) => ({
         id: intention.id,
         type: intention.intentionType,
         description: intention.description,
@@ -291,7 +291,7 @@ export class EmotionalRecommendationController {
             });
 
             if (missingSteps.length > 0) {
-              const additionalSteps = missingSteps.map(step => ({
+              const additionalSteps = missingSteps.map((step: any) => ({
                 id: step.id,
                 stepId: step.stepId,
                 order: step.order,
@@ -299,12 +299,12 @@ export class EmotionalRecommendationController {
                 priority: 999, // Priority baixa para steps não personalizados
                 contextualHint: null,
                 isRequired: false,
-                options: step.options.map((option: JourneyOptionFlow) => ({
+                options: step.options.map((option: any) => ({
                   id: option.id,
                   text: option.text,
                   nextStepId: option.nextStepId,
                   isEndState: option.isEndState,
-                  movieSuggestions: option.movieSuggestions?.map((ms: MovieSuggestionFlow) => ({
+                  movieSuggestions: option.movieSuggestions?.map((ms: any) => ({
                     id: ms.id,
                     movie: ms.movie,
                     reason: ms.reason

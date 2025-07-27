@@ -1,18 +1,12 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import {
-  getEmotionalStates,
   getMovieSuggestions,
-  getMoviesBySentiment,
-  getEmotionalFlow
+  getMoviesBySentiment
 } from '../controllers/movieController';
 
 const router = express.Router();
 const prisma = new PrismaClient();
-
-// Rotas para estados emocionais
-router.get('/emotions/states', getEmotionalStates);
-router.get('/emotions/flow', getEmotionalFlow);
 
 // Rotas para filmes
 router.get('/suggestions', getMovieSuggestions);

@@ -277,6 +277,96 @@ interface JourneyPath {
   };
 }
 
+interface JourneyFullPathOption {
+  id: number;
+  optionId: string;
+  text: string;
+  nextStepId: string | null;
+  isEndState: boolean;
+  hasMovieSuggestion: boolean;
+}
+
+interface JourneyFullPathStep {
+  id: number;
+  stepId: string;
+  order: number;
+  question: string;
+  options: JourneyFullPathOption[];
+  emotionalIntentions: any[]; // Simplificado para este contexto
+  isVirtual?: boolean;
+  contextualHint?: string;
+  isRequired?: boolean;
+  priority?: number;
+}
+
+interface MovieSuggestionFlowWithMovie {
+  id: number;
+  reason: string;
+  relevance: number;
+  movieId: string;
+  movie: {
+    id: string;
+    title: string;
+    year?: number;
+    director?: string;
+    description?: string;
+    thumbnail?: string;
+    genres: string[];
+    streamingPlatforms: string[];
+  };
+}
+
+interface JourneyOptionFlowWithSuggestions {
+  id: number;
+  optionId: string;
+  text: string;
+  nextStepId: string | null;
+  isEndState: boolean;
+  movieSuggestions: MovieSuggestionFlowWithMovie[];
+}
+
+interface JourneyStepFlowWithRelations {
+  id: number;
+  stepId: string;
+  order: number;
+  question: string;
+  options: JourneyOptionFlowWithSuggestions[];
+  journeyFlow: {
+    id: number;
+    mainSentimentId: number;
+    mainSentiment: {
+      id: number;
+      name: string;
+      description: string;
+    };
+  };
+  emotionalIntentionJourneySteps: any[]; // Simplificado para este contexto
+}
+
+interface EmotionalIntentionJourneyStepAdmin {
+  journeyStepFlow: JourneyStepFlowWithRelations;
+  customQuestion?: string;
+  priority: number;
+  contextualHint?: string;
+  isRequired: boolean;
+}
+
+interface EmotionalIntentionAdmin {
+  id: number;
+  mainSentimentId: number;
+  intentionType: string;
+  description: string;
+  preferredGenres: string[];
+  avoidGenres: string[];
+  emotionalTone: string;
+  emotionalIntentionJourneySteps: EmotionalIntentionJourneyStepAdmin[];
+  mainSentiment: {
+    id: number;
+    name: string;
+    description: string;
+  };
+}
+
 // Buscar todas as jornadas que levam a um filme específico
 router.get('/movie-journeys/:movieId', async (req, res) => {
   try {
@@ -372,7 +462,7 @@ router.get('/movie-journeys/:movieId', async (req, res) => {
       for (const intentionStep of intentionSteps) {
         const step = intentionStep.journeyStepFlow;
         
-        for (const option of step.options) {
+        for (const option of step.options as JourneyOptionFlowWithSuggestions[]) {
           if (option.movieSuggestions.length > 0) {
             hasMovieInJourney = true;
             
@@ -557,7 +647,7 @@ router.get('/movie-journeys/:movieId', async (req, res) => {
         });
 
         // Steps 3+: Steps específicos da intenção emocional
-        intentionSteps.forEach((intentionStep, index) => {
+        intentionSteps.forEach((intentionStep: any, index: number) => {
           const step = intentionStep.journeyStepFlow;
           
           journey.fullPath.push({
@@ -565,7 +655,7 @@ router.get('/movie-journeys/:movieId', async (req, res) => {
             stepId: step.stepId,
             order: index + 2,
             question: intentionStep.customQuestion || step.question,
-            options: step.options.map(option => ({
+            options: step.options.map((option: any) => ({
               id: option.id,
               optionId: option.optionId,
               text: option.text,
@@ -596,12 +686,12 @@ router.get('/movie-journeys/:movieId', async (req, res) => {
           orderBy: { order: 'asc' }
         });
 
-        journey.fullPath = allSteps.map(step => ({
+        journey.fullPath = allSteps.map((step: JourneyStepFlowWithRelations) => ({
           id: step.id,
           stepId: step.stepId,
           order: step.order,
           question: step.question,
-          options: step.options.map(option => ({
+          options: step.options.map((option: JourneyOptionFlowWithSuggestions) => ({
             id: option.id,
             optionId: option.optionId,
             text: option.text,
@@ -627,11 +717,11 @@ router.get('/movie-journeys/:movieId', async (req, res) => {
       console.log(`  Tipo: ${journey.journeyType}`);
       console.log(`  Steps no caminho: ${journey.fullPath.length}`);
       
-      journey.fullPath.forEach((step: any, stepIndex: number) => {
-        const movieOptions = step.options.filter((opt: any) => opt.hasMovieSuggestion);
+      journey.fullPath.forEach((step: JourneyFullPathStep, stepIndex: number) => {
+        const movieOptions = step.options.filter((opt: JourneyFullPathOption) => opt.hasMovieSuggestion);
         if (movieOptions.length > 0) {
           console.log(`    📍 Step ${step.order + 1}: ${step.question}`);
-          movieOptions.forEach((opt: any) => {
+          movieOptions.forEach((opt: JourneyFullPathOption) => {
             console.log(`      ⭐ Opção: "${opt.text}" → LEVA AO FILME`);
           });
         }

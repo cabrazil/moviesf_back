@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import routes from './routes';
 import mainSentimentsRoutes from './routes/main-sentiments.routes';
-import emotionalStateRoutes from './routes/emotionalState.routes';
 import moviesRoutes from './routes/movies.routes';
 
 dotenv.config();
@@ -32,7 +31,6 @@ app.use((req, res, next) => {
 // Routes
 app.use('/', routes);
 app.use('/main-sentiments', mainSentimentsRoutes);
-app.use('/emotional-state', emotionalStateRoutes);
 app.use('/movies', moviesRoutes);
 
 // Error Handling Middleware
