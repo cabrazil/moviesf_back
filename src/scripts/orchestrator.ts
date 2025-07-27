@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { spawn } from 'child_process';
 import path from 'path';
 import { writeFileSync } from 'fs';
+import { selectOptimalAIProvider } from '../utils/aiProvider';
 
 const prisma = new PrismaClient();
 
@@ -11,7 +12,7 @@ interface MovieToProcess {
   journeyOptionFlowId: number;
   analysisLens: number;
   journeyValidation: number;
-  aiProvider?: 'openai' | 'gemini';
+  aiProvider?: 'openai' | 'gemini' | 'auto';
 }
 
 interface ProcessingResult {
@@ -48,29 +49,55 @@ class MovieCurationOrchestrator {
       // Etapa 1: Adicionar filme
       console.log(`📥 Etapa 1: Adicionando filme ao banco...`);
       const addResult = await this.runScript('populateMovies.ts', [`--title=${movie.title}`, `--year=${movie.year.toString()}`]);
+      
       if (!addResult.success) {
         return { success: false, error: `Falha ao adicionar filme: ${addResult.error}` };
       }
 
-      // Extrair o TMDB ID do output
+      // Capturar o TMDB ID do output
       const tmdbIdMatch = addResult.output.match(/TMDB_ID_FOUND: (\d+)/);
       if (!tmdbIdMatch) {
-        return { success: false, error: 'TMDB ID do filme não encontrado no output do populateMovies' };
+        return { success: false, error: 'TMDB ID não encontrado no output do populateMovies.ts' };
       }
       const tmdbId = parseInt(tmdbIdMatch[1]);
       console.log(`🎯 TMDB ID capturado: ${tmdbId}`);
 
+      // Determinar o AI Provider automaticamente se necessário
+      let finalAiProvider = movie.aiProvider;
+      if (movie.aiProvider === 'auto') {
+        // Buscar informações do filme para decisão automática
+        const movieData = await prisma.movie.findUnique({ 
+          where: { tmdbId: tmdbId }
+        });
+
+        if (movieData) {
+          const context = {
+            genres: movieData.genres || [],
+            keywords: movieData.keywords || [],
+            analysisLens: movie.analysisLens,
+            isComplexDrama: movieData.genres?.some((g: any) => g.toLowerCase().includes('drama')) || false
+          };
+
+          finalAiProvider = selectOptimalAIProvider(context);
+          console.log(`🤖 AI Provider selecionado automaticamente: ${finalAiProvider.toUpperCase()}`);
+          console.log(`📊 Baseado em: Gêneros [${context.genres?.join(', ')}], Lente ${movie.analysisLens}`);
+        } else {
+          finalAiProvider = 'gemini'; // Fallback para economia
+          console.log(`⚠️ Dados do filme não encontrados, usando Gemini como fallback`);
+        }
+      }
+
       // Etapa 2: Analisar sentimentos
       console.log(`🧠 Etapa 2: Analisando sentimentos...`);
       const analysisArgs = [
-        tmdbId.toString(), // Usar o tmdbId
+        tmdbId.toString(), // Usar tmdbId 
         movie.journeyOptionFlowId.toString(),
         movie.analysisLens.toString()
       ];
       
-      // Adicionar provedor de IA se especificado
-      if (movie.aiProvider) {
-        analysisArgs.push(`--ai-provider=${movie.aiProvider}`);
+      // Adicionar provedor de IA final
+      if (finalAiProvider) {
+        analysisArgs.push(`--ai-provider=${finalAiProvider}`);
       }
       
       const analysisResult = await this.runScript('analyzeMovieSentiments.ts', analysisArgs);
@@ -116,9 +143,9 @@ class MovieCurationOrchestrator {
         'PROCESS'
       ];
       
-      // Adicionar provedor de IA se especificado
-      if (movie.aiProvider) {
-        curateArgs.push(`--ai-provider=${movie.aiProvider}`);
+      // Adicionar provedor de IA final
+      if (finalAiProvider) {
+        curateArgs.push(`--ai-provider=${finalAiProvider}`);
       }
       
       const curateResult = await this.runScript('discoverAndCurateAutomated.ts', curateArgs);
@@ -200,7 +227,7 @@ function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
     else if (arg.startsWith('--journeyOptionFlowId=')) parsed.journeyOptionFlowId = parseInt(arg.split('=')[1]);
     else if (arg.startsWith('--analysisLens=')) parsed.analysisLens = parseInt(arg.split('=')[1]);
     else if (arg.startsWith('--journeyValidation=')) parsed.journeyValidation = parseInt(arg.split('=')[1]);
-    else if (arg.startsWith('--ai-provider=')) parsed.aiProvider = arg.split('=')[1] as 'openai' | 'gemini';
+    else if (arg.startsWith('--ai-provider=')) parsed.aiProvider = arg.split('=')[1] as 'openai' | 'gemini' | 'auto';
   }
   return parsed;
 }
@@ -217,7 +244,7 @@ async function main() {
       console.log(`\nUso: npx ts-node orchestrator.ts --title="Título" --year=2023 --journeyOptionFlowId=81 --analysisLens=14 --journeyValidation=15`);
       console.log(`\nFlags opcionais:`);
       console.log(`   --approve-new-subsentiments: Aprova automaticamente a criação de novos subsentimentos sugeridos pela IA.`);
-      console.log(`   --ai-provider=openai|gemini: Escolhe o provedor de IA (padrão: openai).`);
+      console.log(`   --ai-provider=openai|gemini|auto: Escolhe o provedor de IA (padrão: openai, auto=seleção automática baseada no filme).`);
       return;
     }
 

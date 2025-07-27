@@ -435,17 +435,19 @@ Sinopse: ${movie.overview}
 Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
 Palavras-chave emocionais: ${keywords.join(', ')}
 
-Com base nessas informações, escreva uma reflexão curta, inspiradora e específica sobre este filme, capturando sua essência emocional e os temas principais da história.
+Escreva uma reflexão curta e inspiradora sobre este filme, capturando sua essência emocional e os temas principais da história.
 
-A reflexão deve:
-- Ter entre 20-35 palavras
-- Ser inspiradora e envolvente
-- Capturar o tom e tema específico do filme
-- Terminar com um ponto final
-- Não repetir o nome do filme
-- Conectar os temas principais com o impacto emocional
+REGRAS IMPORTANTES:
+- Escreva APENAS o texto da reflexão, sem formatação JSON
+- Use entre 20-35 palavras
+- Seja inspiradora e envolvente
+- Capture o tom e tema específico do filme
+- Termine com um ponto final
+- Não repita o nome do filme
+- Conecte os temas principais com o impacto emocional
+- Seja específico para este filme, não genérico
 
-Seja específico para este filme, não genérico.
+RESPONDA APENAS COM O TEXTO DA REFLEXÃO, SEM JSON OU FORMATAÇÃO ESPECIAL.
 `;
 
   try {
@@ -453,7 +455,7 @@ Seja específico para este filme, não genérico.
     const config = getDefaultConfig(provider);
     const aiProvider = createAIProvider(config);
     
-    const systemPrompt = 'Você é um crítico de cinema especializado em análise emocional de filmes. Escreva reflexões concisas e inspiradoras que capturem a essência emocional única de cada filme.';
+    const systemPrompt = 'Você é um crítico de cinema especializado em análise emocional de filmes. Escreva reflexões concisas e inspiradoras que capturem a essência emocional única de cada filme. IMPORTANTE: Responda APENAS com o texto da reflexão, sem formatação JSON ou markdown.';
     
     const response = await aiProvider.generateResponse(systemPrompt, prompt, {
       temperature: 0.8,

@@ -103,8 +103,41 @@ class AIProviderManager {
     maxTokens: number
   ): Promise<AIResponse> {
     try {
-      // Combinar system e user prompt para Gemini (que não tem system role)
-      const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+      // Prompt otimizado específico para Gemini
+      const enhancedSystemPrompt = `
+${systemPrompt}
+
+INSTRUÇÕES ESPECÍFICAS PARA ANÁLISE PRECISA:
+1. PRIORIZE SEMPRE subsentimentos que já existem na base de dados
+2. Para cada gênero, considere os padrões comprovados:
+   - Ação/Aventura: "Adrenalina / Emoção Intensa", "Deslumbramento Visual", "Inspiração / Motivação para Agir"
+   - Romance/Comédia Romântica: "Conforto / Aconchego Emocional", "Doçura / Encanto", "Nostalgia (Positiva)"
+   - Família/Animação: "Leveza / Diversão Descompromissada", "Conforto / Aconchego Emocional", "Doçura / Encanto"
+   - Suspense/Thriller: "Suspense Crescente", "Desintegração Psicológica", "Desespero Crescente"
+   - Drama Guerra: "Conflito e Sobrevivência", "Esperança e Superação", "Conexão Humana e Natureza"
+   - Coming-of-age: "Autodescoberta e Crescimento", "Esperança e Superação", "Conexão Humana e Natureza"
+3. EVITE criar novos subsentimentos sem necessidade crítica real
+4. Use vocabulário técnico cinematográfico preciso e específico
+5. Foque na ESSÊNCIA emocional do filme para a jornada do usuário
+
+FORMATO DE RESPOSTA OBRIGATÓRIO:
+Responda SEMPRE com um JSON válido no formato exato:
+\`\`\`json
+{
+  "suggestedSubSentiments": [
+    {
+      "name": "Nome do SubSentimento",
+      "relevance": 0.95,
+      "explanation": "Explicação detalhada",
+      "isNew": false
+    }
+  ]
+}
+\`\`\`
+`;
+
+      // Combinar prompts otimizados
+      const combinedPrompt = `${enhancedSystemPrompt}\n\n${userPrompt}`;
       
       const response = await axios.post<GeminiResponse>(
         `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model || 'gemini-1.5-flash'}:generateContent`,
@@ -115,10 +148,12 @@ class AIProviderManager {
             }]
           }],
           generationConfig: {
-            temperature,
-            maxOutputTokens: maxTokens,
-            topP: 0.8,
-            topK: 40
+            temperature: 0.2,           // Mais determinístico
+            maxOutputTokens: 1500,      // Aumentado para JSON completo
+            topP: 0.8,                  // Menos restritivo para permitir criatividade
+            topK: 20,                   // Menos restritivo 
+            candidateCount: 1           // Uma resposta apenas
+            // Removido stopSequences que estava cortando o JSON
           }
         },
         {
@@ -132,7 +167,10 @@ class AIProviderManager {
       );
 
       const content = response.data.candidates[0].content.parts[0].text;
-      return { content, success: true };
+      return {
+        content,
+        success: true
+      };
     } catch (error) {
       console.error('Erro na API Gemini:', error);
       return {
@@ -149,20 +187,79 @@ export function createAIProvider(config: AIConfig): AIProviderManager {
 }
 
 export function getDefaultConfig(provider: AIProvider): AIConfig {
-  const configs = {
-    openai: {
-      provider: 'openai' as const,
-      model: 'gpt-4-turbo',
-      temperature: 0.7,
-      maxTokens: 600
-    },
-    gemini: {
-      provider: 'gemini' as const,
-      model: 'gemini-1.5-flash',
-      temperature: 0.7,
-      maxTokens: 600
-    }
+  return {
+    provider,
+    model: provider === 'openai' ? 'gpt-4-turbo' : 'gemini-1.5-flash',
+    temperature: 0.7,
+    maxTokens: 2000
   };
+}
 
-  return configs[provider];
+// Sistema de decisão automática de AI Provider
+interface MovieContext {
+  genres?: string[];
+  keywords?: string[];
+  analysisLens?: number;
+  isComplexDrama?: boolean;
+}
+
+export function selectOptimalAIProvider(context: MovieContext): AIProvider {
+  const { genres = [], keywords = [], analysisLens, isComplexDrama } = context;
+  
+  // Converter para lowercase para comparação
+  const lowerGenres = genres.map(g => g.toLowerCase());
+  const lowerKeywords = keywords.map(k => k.toLowerCase());
+  
+  // OpenAI necessário para casos complexos
+  const complexIndicators = [
+    'coming-of-age', 'chegando à maioridade', 'adolescente', 'autodescoberta',
+    'thriller psicológico', 'suspense psicológico', 'psicológico',
+    'drama complexo', 'trauma', 'depressão', 'saúde mental'
+  ];
+  
+  const isComplex = complexIndicators.some(indicator => 
+    lowerKeywords.includes(indicator) || lowerGenres.includes(indicator)
+  );
+  
+  // Coming-of-age sempre OpenAI
+  if (isComplex || isComplexDrama) {
+    return 'openai';
+  }
+  
+  // Gemini excelente para estes gêneros
+  const geminiOptimalGenres = [
+    'romance', 'comédia romântica', 'família', 'animação', 
+    'comédia', 'aventura', 'ação'
+  ];
+  
+  const isGeminiOptimal = geminiOptimalGenres.some(genre => 
+    lowerGenres.includes(genre) || lowerKeywords.includes(genre)
+  );
+  
+  if (isGeminiOptimal) {
+    return 'gemini';
+  }
+  
+  // Lógica por lente de análise
+  switch (analysisLens) {
+    case 13: // Feliz - Gemini bom para conteúdo positivo
+    case 17: // Animado - Gemini bom para energia
+      return 'gemini';
+    
+    case 14: // Triste - Depende do contexto
+      return isComplex ? 'openai' : 'gemini';
+    
+    case 16: // Ansioso - OpenAI melhor para suspense
+      return 'openai';
+    
+    default:
+      return 'gemini'; // Default para economia
+  }
+}
+
+// Função de conveniência para criar provider automaticamente
+export function createAutoAIProvider(context: MovieContext): AIProviderManager {
+  const provider = selectOptimalAIProvider(context);
+  const config = getDefaultConfig(provider);
+  return new AIProviderManager(config);
 } 
