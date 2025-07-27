@@ -4,23 +4,11 @@ import dotenv from 'dotenv';
 import routes from './routes';
 import mainSentimentsRoutes from './routes/main-sentiments.routes';
 import moviesRoutes from './routes/movies.routes';
-import prisma from './prisma';
 
 dotenv.config();
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
-
-// Teste de conexão com banco
-async function testDatabaseConnection() {
-  try {
-    await prisma.$connect();
-    console.log('✅ Conexão com banco estabelecida');
-  } catch (error) {
-    console.error('❌ Erro ao conectar com banco:', error);
-    throw error;
-  }
-}
 
 // Configuração CORS mais permissiva para desenvolvimento
 app.use(cors({
@@ -40,15 +28,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/health', async (req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  } catch (error) {
-    console.error('Health check failed:', error);
-    res.status(500).json({ status: 'error', message: 'Database connection failed' });
-  }
+// Health check endpoint simples
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Routes
@@ -67,16 +53,9 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 // Inicialização do servidor apenas se este arquivo for executado diretamente
 if (require.main === module) {
-  testDatabaseConnection()
-    .then(() => {
-      app.listen(port, '0.0.0.0', () => {
-        console.log(`Servidor rodando em http://0.0.0.0:${port}`);
-      });
-    })
-    .catch((error) => {
-      console.error('Falha ao inicializar servidor:', error);
-      process.exit(1);
-    });
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Servidor rodando em http://0.0.0.0:${port}`);
+  });
 }
 
 export default app; 
