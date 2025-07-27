@@ -3,10 +3,7 @@
   "builds": [
     {
       "src": "src/server.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["dist/**", "prisma/schema.prisma"]
-      }
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -15,12 +12,6 @@
       "dest": "src/server.ts"
     }
   ],
-  "installCommand": "npm install",
-  "buildCommand": "npm run build && npx prisma generate",
-  "outputDirectory": "dist",
-  "env": {
-    "NODE_ENV": "production"
-  },
   "functions": {
     "src/server.ts": {
       "maxDuration": 30
