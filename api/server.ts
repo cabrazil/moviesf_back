@@ -1,9 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import routes from './routes';
-import mainSentimentsRoutes from './routes/main-sentiments.routes';
-import moviesRoutes from './routes/movies.routes';
+import routes from '../src/routes';
+import mainSentimentsRoutes from '../src/routes/main-sentiments.routes';
+import movieRoutes from '../src/routes/movies.routes';
+import adminRoutes from '../src/routes/admin.routes';
+import emotionalRecommendationRoutes from '../src/routes/emotionalRecommendation.routes';
 
 dotenv.config();
 
@@ -40,7 +42,9 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/', routes);
 app.use('/main-sentiments', mainSentimentsRoutes);
-app.use('/movies', moviesRoutes);
+app.use('/movies', movieRoutes);
+app.use('/admin', adminRoutes);
+app.use('/emotional-recommendation', emotionalRecommendationRoutes);
 
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

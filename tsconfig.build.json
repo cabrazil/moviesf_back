@@ -1,18 +1,27 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "skipLibCheck": true,
+    "noEmitOnError": true
+  },
   "include": [
     "api/**/*",
     "src/controllers/**/*",
     "src/routes/**/*",
     "src/utils/**/*",
-    "src/prisma.ts",
-    "src/server.ts"
+    "src/prisma.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "src/scripts",
+    "src/services",
+    "src/tests",
     "src/scripts/**/*",
-    "src/services/**/*",
+    "src/services/**/*", 
     "src/tests/**/*"
   ]
 } 

@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { MovieSearchService } from '../services/movieSearch.service';
 
 const prisma = new PrismaClient();
-const movieSearchService = new MovieSearchService();
 
 export class MovieController {
   async getMoviesBySentiment(req: Request, res: Response): Promise<void> {
@@ -37,21 +35,16 @@ export class MovieController {
         },
       });
 
-      // Buscar filmes sugeridos baseados no sentimento
-      const suggestedMovies = await movieSearchService.searchMoviesBySentiment(
-        mainSentiment as string,
-        subSentiment as string
-      );
-
       res.json({
         moviesFromDatabase: dbMovies,
-        suggestedMovies
+        suggestedMovies: [] // Removido temporariamente para deploy
       });
     } catch (error: any) {
       console.error('Erro ao buscar filmes por sentimento:', error);
-      res.status(500).json({ error: 'Erro interno do servidor.' });
-    } finally {
-      await prisma.$disconnect();
+      res.status(500).json({
+        error: 'Erro interno do servidor',
+        details: error.message,
+      });
     }
   }
 } 
