@@ -17,5 +17,13 @@
   ],
   "installCommand": "npm install",
   "buildCommand": "npm run build && npx prisma generate",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "src/server.ts": {
+      "maxDuration": 30
+    }
+  }
 }
