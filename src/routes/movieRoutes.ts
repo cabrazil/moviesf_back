@@ -146,17 +146,16 @@ router.put('/:id', async (req, res) => {
     // Atualiza as sugestões do filme
     if (movieSuggestions) {
       // Remove sugestões existentes
-      await prisma.movieSuggestion.deleteMany({
+      await prisma.movieSuggestionFlow.deleteMany({
         where: { movieId: movie.id }
       });
 
       // Adiciona novas sugestões
       if (movieSuggestions.length > 0) {
-        await prisma.movieSuggestion.createMany({
+        await prisma.movieSuggestionFlow.createMany({
           data: movieSuggestions.map((suggestion: any) => ({
             movieId: movie.id,
-            emotionalStateId: suggestion.emotionalStateId,
-            journeyOptionId: suggestion.journeyOptionId,
+            journeyOptionFlowId: suggestion.journeyOptionFlowId,
             reason: suggestion.reason,
             relevance: suggestion.relevance,
           }))
@@ -189,7 +188,6 @@ router.put('/:id', async (req, res) => {
       where: { id: movie.id },
       include: {
         movieSentiments: true,
-        movieSuggestions: true,
         movieSuggestionFlows: true,
       },
     });

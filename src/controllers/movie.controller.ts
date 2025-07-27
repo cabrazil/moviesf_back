@@ -18,7 +18,7 @@ export class MovieController {
       // Buscar filmes do banco de dados
       const dbMovies = await prisma.movie.findMany({
         where: {
-          movieSentiment: {
+          movieSentiments: {
             some: {
               mainSentiment: {
                 name: mainSentiment as string,
@@ -28,7 +28,7 @@ export class MovieController {
           },
         },
         include: {
-          movieSentiment: {
+          movieSentiments: {
             include: {
               mainSentiment: true,
               subSentiment: true,

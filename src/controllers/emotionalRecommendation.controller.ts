@@ -197,54 +197,56 @@ export class EmotionalRecommendationController {
           orderBy: { order: 'asc' }
         });
 
-        return res.json({
-          id: journeyFlow.id,
-          mainSentimentId: parseInt(sentimentId),
-          emotionalIntentionId: parseInt(intentionId),
-          steps: defaultSteps.map((step: JourneyStepFlow) => ({
-            id: step.id,
-            stepId: step.stepId,
-            order: step.order,
-            question: step.question,
-            options: step.options.map((option: JourneyOptionFlow) => ({
-              id: option.id,
-              text: option.text,
-              nextStepId: option.nextStepId,
-              isEndState: option.isEndState,
-              movieSuggestions: option.movieSuggestions?.map((ms: MovieSuggestionFlow) => ({
-                id: ms.id,
-                movie: ms.movie,
-                reason: ms.reason
-              }))
-            }))
-          }))
-        });
-      }
-
-      // Usar steps personalizados + incluir steps referenciados por nextStepId
-      const customizedSteps = personalizedSteps.map((personalizedStep: EmotionalIntentionJourneyStep) => {
-        const step = personalizedStep.journeyStepFlow;
-        return {
+        const customizedSteps = defaultSteps.map((step: any) => ({
           id: step.id,
           stepId: step.stepId,
           order: step.order,
-          question: personalizedStep.customQuestion || step.question,
-          priority: personalizedStep.priority,
-          contextualHint: personalizedStep.contextualHint,
-          isRequired: personalizedStep.isRequired,
-          options: step.options.map((option: JourneyOptionFlow) => ({
+          question: step.question,
+          priority: 999, // Priority baixa para steps não personalizados
+          contextualHint: null,
+          isRequired: false,
+          options: step.options.map((option: any) => ({
             id: option.id,
             text: option.text,
             nextStepId: option.nextStepId,
             isEndState: option.isEndState,
-            movieSuggestions: option.movieSuggestions?.map((ms: MovieSuggestionFlow) => ({
+            movieSuggestions: option.movieSuggestions?.map((ms: any) => ({
               id: ms.id,
               movie: ms.movie,
               reason: ms.reason
             }))
           }))
-        };
-      });
+        }));
+
+        return res.json({
+          id: journeyFlow.id,
+          mainSentimentId: parseInt(sentimentId),
+          emotionalIntentionId: parseInt(intentionId),
+          steps: customizedSteps
+        });
+      }
+
+      // Usar steps personalizados + incluir steps referenciados por nextStepId
+      const customizedSteps = personalizedSteps.map((personalizedStep: any) => ({
+        id: personalizedStep.journeyStepFlow.id,
+        stepId: personalizedStep.journeyStepFlow.stepId,
+        order: personalizedStep.journeyStepFlow.order,
+        question: personalizedStep.customQuestion || personalizedStep.journeyStepFlow.question,
+        priority: personalizedStep.priority,
+        contextualHint: personalizedStep.contextualHint,
+        isRequired: personalizedStep.isRequired,
+        options: personalizedStep.journeyStepFlow.options.map((option: any) => ({
+          id: option.id,
+          text: option.text,
+          nextStepId: option.nextStepId,
+          isEndState: option.isEndState,
+          movieSuggestions: option.movieSuggestions?.map((ms: any) => ({
+            id: ms.id,
+            movie: ms.movie,
+            reason: ms.reason
+          }))
+        }))
+      }));
 
       // CORREÇÃO: Incluir TODOS os steps referenciados por nextStepId (recursivamente)
       async function includeReferencedSteps(steps: JourneyStepFlowWithRelations[], journeyFlowId: number): Promise<JourneyStepFlowWithRelations[]> {
@@ -488,64 +490,44 @@ export class EmotionalRecommendationController {
 
   /**
    * GET /api/emotional-recommendations/analytics
-   * Obtém analytics das recomendações emocionais
+   * Obtém estatísticas das recomendações emocionais
    */
   async getAnalytics(req: Request, res: Response) {
     try {
-      const totalSessions = await prisma.recommendationSession.count();
-      const activeSessions = await prisma.recommendationSession.count({
-        where: { isActive: true }
-      });
-      const completedSessions = await prisma.recommendationSession.count({
-        where: { isActive: false }
-      });
+      // Estatísticas básicas
+      const totalMovies = await prisma.movie.count();
+      const totalMainSentiments = await prisma.mainSentiment.count();
+      const totalSubSentiments = await prisma.subSentiment.count();
+      const totalEmotionalIntentions = await prisma.emotionalIntention.count();
 
-      // Estatísticas por intenção
-      const intentionStats = await prisma.recommendationSession.groupBy({
-        by: ['emotionalIntentionId'],
-        _count: true,
-        where: { emotionalIntentionId: { not: null } }
-      });
-
-      const intentionDetails = await Promise.all(
-        intentionStats.map(async (stat: RecommendationSessionGroupByResult) => {
-          const intention = await prisma.emotionalIntention.findUnique({
-            where: { id: stat.emotionalIntentionId! },
-            include: { mainSentiment: true }
-          });
-          return {
-            intention: intention?.intentionType,
-            sentiment: intention?.mainSentiment.name,
-            count: stat._count
-          };
-        })
-      );
-
-      // Taxa de aceitação
-      const totalSuggestions = await prisma.emotionalSuggestion.count();
-      const acceptedSuggestions = await prisma.emotionalSuggestion.count({
-        where: { wasAccepted: true }
-      });
-
-      const acceptanceRate = totalSuggestions > 0 ? 
-        (acceptedSuggestions / totalSuggestions * 100).toFixed(2) : '0';
+      // Estatísticas de sugestões
+      const totalSuggestions = await prisma.movieSuggestionFlow.count();
 
       res.json({
         success: true,
         data: {
-          totalSessions,
-          activeSessions,
-          completedSessions,
-          intentionStats: intentionDetails,
-          totalSuggestions,
-          acceptedSuggestions,
-          acceptanceRate: `${acceptanceRate}%`
+          movies: {
+            total: totalMovies
+          },
+          sentiments: {
+            main: totalMainSentiments,
+            sub: totalSubSentiments
+          },
+          intentions: {
+            total: totalEmotionalIntentions
+          },
+          suggestions: {
+            total: totalSuggestions
+          }
         }
       });
 
     } catch (error) {
       console.error('Erro ao buscar analytics:', error);
-      res.status(500).json({ error: 'Erro interno do servidor' });
+      res.status(500).json({ 
+        error: 'Erro interno do servidor',
+        message: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
     }
   }
 }

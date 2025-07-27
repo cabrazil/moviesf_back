@@ -462,7 +462,7 @@ router.get('/movie-journeys/:movieId', async (req, res) => {
       for (const intentionStep of intentionSteps) {
         const step = intentionStep.journeyStepFlow;
         
-        for (const option of step.options as JourneyOptionFlowWithSuggestions[]) {
+        for (const option of step.options as any[]) {
           if (option.movieSuggestions.length > 0) {
             hasMovieInJourney = true;
             
@@ -686,12 +686,12 @@ router.get('/movie-journeys/:movieId', async (req, res) => {
           orderBy: { order: 'asc' }
         });
 
-        journey.fullPath = allSteps.map((step: JourneyStepFlowWithRelations) => ({
+        journey.fullPath = allSteps.map((step: any) => ({
           id: step.id,
           stepId: step.stepId,
           order: step.order,
           question: step.question,
-          options: step.options.map((option: JourneyOptionFlowWithSuggestions) => ({
+          options: step.options.map((option: any) => ({
             id: option.id,
             optionId: option.optionId,
             text: option.text,
