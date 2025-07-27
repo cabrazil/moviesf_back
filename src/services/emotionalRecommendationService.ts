@@ -2,6 +2,36 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+interface SubSentiment {
+  name: string;
+}
+
+interface MovieSentiment {
+  subSentiment: SubSentiment;
+  mainSentiment: any; // Assuming mainSentiment is also an object, but not directly used in the error lines.
+}
+
+interface MovieWithSentiments {
+  id: string;
+  title: string;
+  year?: number;
+  thumbnail?: string;
+  runtime?: number;
+  genres: string[];
+  vote_average?: number;
+  movieSentiments: MovieSentiment[];
+}
+
+interface EmotionalIntentionConfig {
+  id: number;
+  description: string;
+  preferredGenres: string[];
+  avoidGenres: string[];
+  emotionalTone: string;
+  intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE';
+  subSentimentWeights: Record<string, number>;
+}
+
 export interface EmotionalRecommendationRequest {
   mainSentimentId: number;
   intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE';
@@ -92,7 +122,7 @@ export class EmotionalRecommendationService {
    */
   private async generateEmotionalRecommendations(
     sessionId: string,
-    intentionConfig: any
+    intentionConfig: EmotionalIntentionConfig
   ): Promise<EmotionalRecommendationResponse['recommendations']> {
     
     const subSentimentWeights = intentionConfig.subSentimentWeights as Record<string, number>;
@@ -130,12 +160,12 @@ export class EmotionalRecommendationService {
     console.log(`📊 Filmes encontrados com subsentiments: ${moviesWithSubSentiments.length}`);
 
     // 2. Filtrar por gêneros preferidos/evitados
-    const filteredMovies = moviesWithSubSentiments.filter(movie => {
-      const movieGenres = movie.genres.map(g => g.toLowerCase());
+    const filteredMovies = moviesWithSubSentiments.filter((movie: MovieWithSentiments) => {
+      const movieGenres = movie.genres.map((g: string) => g.toLowerCase());
       
       // Verificar se possui gêneros evitados
-      const hasAvoidedGenres = avoidGenres.some(avoidGenre => 
-        movieGenres.some(movieGenre => 
+      const hasAvoidedGenres = avoidGenres.some((avoidGenre: string) => 
+        movieGenres.some((movieGenre: string) => 
           movieGenre.includes(avoidGenre.toLowerCase()) || 
           avoidGenre.toLowerCase().includes(movieGenre)
         )
@@ -147,8 +177,8 @@ export class EmotionalRecommendationService {
 
       // Verificar se possui gêneros preferidos (se especificados)
       if (preferredGenres.length > 0) {
-        const hasPreferredGenres = preferredGenres.some(prefGenre => 
-          movieGenres.some(movieGenre => 
+        const hasPreferredGenres = preferredGenres.some((prefGenre: string) => 
+          movieGenres.some((movieGenre: string) => 
             movieGenre.includes(prefGenre.toLowerCase()) || 
             prefGenre.toLowerCase().includes(movieGenre)
           )
@@ -227,14 +257,14 @@ export class EmotionalRecommendationService {
   /**
    * Calcula score de relevância baseado nos subsentimentos
    */
-  private calculateRelevanceScore(movie: any, subSentimentWeights: Record<string, number>): number {
+  private calculateRelevanceScore(movie: MovieWithSentiments, subSentimentWeights: Record<string, number>): number {
     let totalScore = 0;
     let maxPossibleScore = 0;
 
     for (const [subSentimentName, weight] of Object.entries(subSentimentWeights)) {
       maxPossibleScore += weight;
       
-      const hasSubSentiment = movie.movieSentiments.some((ms: any) => 
+      const hasSubSentiment = movie.movieSentiments.some((ms: MovieSentiment) => 
         ms.subSentiment.name === subSentimentName
       );
       
@@ -249,7 +279,7 @@ export class EmotionalRecommendationService {
   /**
    * Calcula alinhamento com a intenção emocional
    */
-  private calculateIntentionAlignment(movie: any, intentionConfig: any): number {
+  private calculateIntentionAlignment(movie: MovieWithSentiments, intentionConfig: EmotionalIntentionConfig): number {
     let alignmentScore = 0;
     
     // Verificar alinhamento com gêneros preferidos
@@ -257,7 +287,7 @@ export class EmotionalRecommendationService {
     const preferredGenres = intentionConfig.preferredGenres.map((g: string) => g.toLowerCase());
     
     const genreMatches = movieGenres.filter((genre: string) => 
-      preferredGenres.some(pref => genre.includes(pref) || pref.includes(genre))
+      preferredGenres.some((pref: string) => genre.includes(pref) || pref.includes(genre))
     );
     
     alignmentScore += (genreMatches.length / Math.max(preferredGenres.length, 1)) * 0.5;
@@ -287,8 +317,8 @@ export class EmotionalRecommendationService {
    * Gera razão personalizada para a recomendação
    */
   private async generatePersonalizedReason(
-    movie: any,
-    intentionConfig: any,
+    movie: MovieWithSentiments,
+    intentionConfig: EmotionalIntentionConfig,
     relevanceScore: number
   ): Promise<string> {
     const intentionType = intentionConfig.intentionType;
