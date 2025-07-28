@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Personalized journey com Prisma
+// Personalized journey com Prisma - REBUILT
 router.get('/:sentimentId/:intentionId', async (req, res) => {
   try {
     const sentimentId = parseInt(req.params.sentimentId);

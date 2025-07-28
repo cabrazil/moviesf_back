@@ -297,7 +297,96 @@ app.get('/debug/journey-flow/:sentimentId', async (req, res) => {
   }
 });
 
-// NOVO ENDPOINT ALTERNATIVO - SEM CACHE
+// ENDPOINT PRINCIPAL COM PRISMA - REBUILT
+app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    
+    const sentimentId = parseInt(req.params.sentimentId);
+    const intentionId = parseInt(req.params.intentionId);
+    
+    console.log(`🔍 Prisma: Buscando jornada para sentimentId: ${sentimentId}, intentionId: ${intentionId}`);
+    
+    // Buscar journey flow do sentimento
+    const journeyFlow = await prisma.journeyFlow.findFirst({
+      where: { mainSentimentId: sentimentId },
+      include: {
+        steps: {
+          include: {
+            options: {
+              include: {
+                movieSuggestions: {
+                  include: {
+                    movie: true
+                  }
+                }
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        }
+      }
+    });
+    
+    if (!journeyFlow) {
+      return res.status(404).json({ error: 'Journey flow não encontrado' });
+    }
+    
+    console.log(`✅ Journey flow encontrado: ${journeyFlow.steps.length} steps`);
+    
+    // Buscar informações da intenção
+    const intentions = await prisma.emotionalIntention.findMany({
+      where: { mainSentimentId: sentimentId }
+    });
+    
+    const selectedIntention = intentions.find((intention: any) => intention.id === intentionId);
+    
+    if (!selectedIntention) {
+      return res.status(404).json({ error: 'Intenção emocional não encontrada' });
+    }
+    
+    console.log(`✅ Intenção encontrada: ${selectedIntention.intentionType}`);
+    
+    // Retornar jornada personalizada no formato esperado pelo frontend
+    const response = {
+      id: journeyFlow.id,
+      mainSentimentId: sentimentId,
+      emotionalIntentionId: intentionId,
+      steps: journeyFlow.steps.map((step: any) => ({
+        id: step.id,
+        stepId: step.stepId,
+        order: step.order,
+        question: step.question,
+        options: step.options.map((option: any) => ({
+          id: option.id,
+          text: option.text,
+          nextStepId: option.nextStepId,
+          isEndState: option.isEndState,
+          movieSuggestions: option.isEndState ? option.movieSuggestions.map((suggestion: any) => ({
+            id: suggestion.id,
+            reason: suggestion.reason,
+            relevance: suggestion.relevance,
+            movie: suggestion.movie
+          })) : undefined
+        }))
+      }))
+    };
+    
+    console.log(`✅ Resposta final: ${response.steps.length} steps processados`);
+    
+    await prisma.$disconnect();
+    res.json(response);
+  } catch (error: any) {
+    console.error('Erro ao buscar jornada personalizada:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar jornada personalizada',
+      details: error.message 
+    });
+  }
+});
+
+// ENDPOINT ANTIGO V2 - REMOVIDO
 app.get('/api/personalized-journey-v2/:sentimentId/:intentionId', async (req, res) => {
   try {
     const sentimentId = parseInt(req.params.sentimentId);
