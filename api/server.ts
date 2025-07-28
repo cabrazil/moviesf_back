@@ -1,22 +1,51 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
 
 dotenv.config();
 
-// Criar Prisma client diretamente
-const prisma = new PrismaClient({
-  log: ['error'],
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL
-    }
-  }
-});
-
 const app = express();
 const port = Number(process.env.PORT) || 3000;
+
+// Dados estáticos dos sentimentos para teste
+const mockSentiments = [
+  {
+    id: 13,
+    name: "Feliz / Alegre",
+    description: "Em um momento de felicidade e alegria. Que tal um filme para amplificar, canalizar ou simplesmente saborear essa boa energia?",
+    shortDescription: "Que filme te ajuda a amplificar, canalizar ou saborear essa boa energia?"
+  },
+  {
+    id: 14,
+    name: "Triste",
+    description: "Passando por um momento de tristeza ou melancolia. O cinema pode ajudar a processar, explorar ou até mesmo transformar essa emoção.",
+    shortDescription: "O cinema te guia para processar, explorar ou transformar essa emoção."
+  },
+  {
+    id: 15,
+    name: "Calmo(a)",
+    description: "Em um momento de tranquilidade e paz. Que filme te ajuda a aprofundar, manter, explorar ou agitar essa serenidade?",
+    shortDescription: "Que filme te ajuda a aprofundar, manter, explorar ou agitar essa serenidade?"
+  },
+  {
+    id: 16,
+    name: "Ansioso(a)",
+    description: "Em um momento de ansiedade e nervosismo. Que tal um filme para te ajudar a processar, transformar ou focar essa inquietação?",
+    shortDescription: "Um filme pode te ajudar a processar, transformar ou focar essa inquietação."
+  },
+  {
+    id: 17,
+    name: "Animado(a)",
+    description: "Cheio de energia e entusiasmo. O cinema pode te ajudar a amplificar, direcionar ou surpreender com essa vibração.",
+    shortDescription: "Um filme pode amplificar, direcionar ou surpreender essa vibração."
+  },
+  {
+    id: 18,
+    name: "Cansado(a)",
+    description: "Sentindo-se cansado e sem motivação. Que filme pode te ajudar a recarregar as energias, descontrair ou explorar essa sensação?",
+    shortDescription: "Que filme pode te ajudar a recarregar, descontrair ou explorar essa sensação?"
+  }
+];
 
 // Configuração CORS simplificada para debug
 app.use(cors({
@@ -70,44 +99,14 @@ app.get('/main-sentiments/env-test', (req, res) => {
   });
 });
 
-// Test database connection
-app.get('/main-sentiments/db-test', async (req, res) => {
-  try {
-    const result = await prisma.$queryRaw`SELECT 1 as test`;
-    res.json({ 
-      message: 'Conexão com banco OK!',
-      result,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error: any) {
-    console.error('Erro na conexão com banco:', error);
-    res.status(500).json({ 
-      error: 'Erro na conexão com banco',
-      details: error.message
-    });
-  }
+// Main sentiments com dados estáticos (FUNCIONAL)
+app.get('/main-sentiments', (req, res) => {
+  res.json(mockSentiments);
 });
 
-// Test main sentiments
-app.get('/main-sentiments/summary', async (req, res) => {
-  try {
-    const sentiments = await prisma.mainSentiment.findMany({
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        shortDescription: true,
-      },
-      orderBy: { id: 'asc' },
-    });
-    res.json(sentiments);
-  } catch (error: any) {
-    console.error('Erro ao buscar sentimentos principais:', error);
-    res.status(500).json({ 
-      error: 'Erro ao buscar sentimentos principais',
-      details: error.message
-    });
-  }
+// Summary com dados estáticos (FUNCIONAL)
+app.get('/main-sentiments/summary', (req, res) => {
+  res.json(mockSentiments);
 });
 
 // Error Handling Middleware
