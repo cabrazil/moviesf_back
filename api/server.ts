@@ -12,31 +12,12 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT) || 3000;
 
-// Configuração CORS para produção
-const allowedOrigins = [
-  'https://www.emofilms.com',
-  'https://emofilms.com',
-  'http://localhost:5173', // Desenvolvimento local
-  'http://localhost:3000'   // Desenvolvimento local
-];
-
+// Configuração CORS simplificada para debug
 app.use(cors({
-  origin: function (origin, callback) {
-    // Permitir requisições sem origin (mobile apps, etc.)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Permitir todas as origens temporariamente
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
-  credentials: true,
-  maxAge: 86400 // 24 horas
+  credentials: true
 }));
 
 app.use(express.json());
