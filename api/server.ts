@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import directDb from '../src/utils/directDb';
+import routes from '../src/routes';
 
 dotenv.config();
 
@@ -23,6 +24,9 @@ app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} from ${req.ip}`);
   next();
 });
+
+// Usar todas as rotas
+app.use('/', routes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
