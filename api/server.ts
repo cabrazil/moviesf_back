@@ -120,6 +120,46 @@ app.get('/main-sentiments/:id/journey-flow', async (req, res) => {
   }
 });
 
+// Personalized journey (DADOS REAIS)
+app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) => {
+  try {
+    const sentimentId = parseInt(req.params.sentimentId);
+    const intentionId = parseInt(req.params.intentionId);
+    
+    // Buscar journey flow do sentimento
+    const journeyFlow = await directDb.getJourneyFlow(sentimentId);
+    
+    if (!journeyFlow) {
+      return res.status(404).json({ error: 'Journey flow não encontrado' });
+    }
+    
+    // Buscar informações da intenção
+    const intentions = await directDb.getEmotionalIntentions(sentimentId);
+    const selectedIntention = intentions.intentions.find((intention: any) => intention.id === intentionId);
+    
+    if (!selectedIntention) {
+      return res.status(404).json({ error: 'Intenção emocional não encontrada' });
+    }
+    
+    // Retornar jornada personalizada
+    res.json({
+      sentimentId: sentimentId,
+      sentimentName: intentions.sentimentName,
+      intentionId: intentionId,
+      intentionType: selectedIntention.type,
+      intentionDescription: selectedIntention.description,
+      journeyFlow: journeyFlow,
+      isComplete: true
+    });
+  } catch (error: any) {
+    console.error('Erro ao buscar jornada personalizada:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar jornada personalizada',
+      details: error.message 
+    });
+  }
+});
+
 // Test database connection
 app.get('/main-sentiments/db-test', async (req, res) => {
   try {
