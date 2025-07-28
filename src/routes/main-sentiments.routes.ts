@@ -3,6 +3,19 @@ import prisma from '../prisma';
 
 const router = Router();
 
+// ROTA SIMPLES PARA TESTE
+router.get('/test', async (req, res) => {
+  try {
+    res.json({ 
+      message: 'Main-sentiments route funcionando!',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Erro na rota de teste:', error);
+    res.status(500).json({ error: 'Erro na rota de teste' });
+  }
+});
+
 // ROTA DE SUMMARY PRIMEIRO!
 router.get('/summary', async (req, res) => {
   try {
