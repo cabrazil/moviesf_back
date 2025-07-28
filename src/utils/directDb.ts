@@ -121,9 +121,27 @@ export class DirectDatabase {
           ORDER BY jof.id ASC
         `, [step.id]);
 
+        // Processar opções com sugestões de filmes
+        const processedOptions = await Promise.all(optionsResult.rows.map(async (option: any) => {
+          let movieSuggestions = undefined;
+          
+          if (option.is_end_state) {
+            // Buscar sugestões reais de filmes para opções finais
+            movieSuggestions = await this.getMovieSuggestions(option.id);
+          }
+          
+          return {
+            id: option.id,
+            text: option.text,
+            nextStepId: option.next_step_id,
+            isEndState: option.is_end_state,
+            movieSuggestions: movieSuggestions
+          };
+        }));
+
         steps.push({
           ...step,
-          options: optionsResult.rows as any[]
+          options: processedOptions
         });
       }
 
@@ -136,6 +154,76 @@ export class DirectDatabase {
     } catch (error) {
       console.error('Erro ao buscar journey flow:', error);
       throw error;
+    }
+  }
+
+  async getMovieSuggestions(journeyOptionFlowId: number) {
+    try {
+      const result = await pool.query(`
+        SELECT 
+          msf.id,
+          msf."journeyOptionFlowId" as journey_option_flow_id,
+          msf."movieId" as movie_id,
+          msf.reason,
+          msf.relevance,
+          msf."createdAt" as created_at,
+          msf."updatedAt" as updated_at,
+          m.id as movie_id,
+          m.title,
+          m.year,
+          m.director,
+          m.genres,
+          m."streamingPlatforms" as streaming_platforms,
+          m.description,
+          m.thumbnail,
+          m."original_title" as original_title,
+          m."vote_average" as vote_average,
+          m."vote_count" as vote_count,
+          m.certification,
+          m.adult,
+          m.keywords,
+          m."genreIds" as genre_ids,
+          m.runtime,
+          m."tmdbId" as tmdb_id,
+          m."imdbRating" as imdb_rating,
+          m."rottenTomatoesRating" as rotten_tomatoes_rating,
+          m."metacriticRating" as metacritic_rating
+        FROM "MovieSuggestionFlow" msf
+        INNER JOIN "Movie" m ON msf."movieId" = m.id
+        WHERE msf."journeyOptionFlowId" = $1
+        ORDER BY msf.relevance DESC, msf."createdAt" DESC
+      `, [journeyOptionFlowId]);
+
+      return result.rows.map((row: any) => ({
+        id: row.id,
+        reason: row.reason,
+        relevance: row.relevance,
+        movie: {
+          id: row.movie_id,
+          title: row.title,
+          year: row.year,
+          director: row.director,
+          genres: row.genres || [],
+          streamingPlatforms: row.streaming_platforms || [],
+          description: row.description,
+          thumbnail: row.thumbnail,
+          original_title: row.original_title,
+          vote_average: row.vote_average,
+          vote_count: row.vote_count,
+          certification: row.certification,
+          adult: row.adult,
+          keywords: row.keywords || [],
+          genreIds: row.genre_ids || [],
+          runtime: row.runtime,
+          tmdbId: row.tmdb_id,
+          imdbRating: row.imdb_rating,
+          rottenTomatoesRating: row.rotten_tomatoes_rating,
+          metacriticRating: row.metacritic_rating
+        }
+      }));
+    } catch (error) {
+      console.error('Erro ao buscar sugestões de filmes:', error);
+      return [];
     }
   }
 

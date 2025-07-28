@@ -146,19 +146,28 @@ app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) 
       id: journeyFlow.id,
       mainSentimentId: sentimentId,
       emotionalIntentionId: intentionId,
-      steps: journeyFlow.steps.map((step: any) => ({
+      steps: await Promise.all(journeyFlow.steps.map(async (step: any) => ({
         id: step.id,
         stepId: step.step_id,
         order: step.order,
         question: step.question,
-        options: step.options.map((option: any) => ({
-          id: option.id,
-          text: option.text,
-          nextStepId: option.next_step_id,
-          isEndState: option.is_end_state,
-          movieSuggestions: [] // Placeholder para sugestões de filmes
+        options: await Promise.all(step.options.map(async (option: any) => {
+          let movieSuggestions = undefined;
+          
+          if (option.is_end_state) {
+            // Buscar sugestões reais de filmes para opções finais
+            movieSuggestions = await directDb.getMovieSuggestions(option.id);
+          }
+          
+          return {
+            id: option.id,
+            text: option.text,
+            nextStepId: option.next_step_id,
+            isEndState: option.is_end_state,
+            movieSuggestions: movieSuggestions
+          };
         }))
-      }))
+      })))
     });
   } catch (error: any) {
     console.error('Erro ao buscar jornada personalizada:', error);
