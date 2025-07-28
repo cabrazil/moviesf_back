@@ -1,8 +1,19 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { PrismaClient } from '@prisma/client';
 
 dotenv.config();
+
+// Criar Prisma client diretamente
+const prisma = new PrismaClient({
+  log: ['error'],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
+    }
+  }
+});
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -57,6 +68,46 @@ app.get('/main-sentiments/env-test', (req, res) => {
     nodeEnv: process.env.NODE_ENV,
     timestamp: new Date().toISOString()
   });
+});
+
+// Test database connection
+app.get('/main-sentiments/db-test', async (req, res) => {
+  try {
+    const result = await prisma.$queryRaw`SELECT 1 as test`;
+    res.json({ 
+      message: 'Conexão com banco OK!',
+      result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Erro na conexão com banco:', error);
+    res.status(500).json({ 
+      error: 'Erro na conexão com banco',
+      details: error.message
+    });
+  }
+});
+
+// Test main sentiments
+app.get('/main-sentiments/summary', async (req, res) => {
+  try {
+    const sentiments = await prisma.mainSentiment.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        shortDescription: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+    res.json(sentiments);
+  } catch (error: any) {
+    console.error('Erro ao buscar sentimentos principais:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar sentimentos principais',
+      details: error.message
+    });
+  }
 });
 
 // Error Handling Middleware
