@@ -141,15 +141,24 @@ app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) 
       return res.status(404).json({ error: 'Intenção emocional não encontrada' });
     }
     
-    // Retornar jornada personalizada
+    // Retornar jornada personalizada no formato esperado pelo frontend
     res.json({
-      sentimentId: sentimentId,
-      sentimentName: intentions.sentimentName,
-      intentionId: intentionId,
-      intentionType: selectedIntention.type,
-      intentionDescription: selectedIntention.description,
-      journeyFlow: journeyFlow,
-      isComplete: true
+      id: journeyFlow.id,
+      mainSentimentId: sentimentId,
+      emotionalIntentionId: intentionId,
+      steps: journeyFlow.steps.map((step: any) => ({
+        id: step.id,
+        stepId: step.step_id,
+        order: step.order,
+        question: step.question,
+        options: step.options.map((option: any) => ({
+          id: option.id,
+          text: option.text,
+          nextStepId: option.next_step_id,
+          isEndState: option.is_end_state,
+          movieSuggestions: [] // Placeholder para sugestões de filmes
+        }))
+      }))
     });
   } catch (error: any) {
     console.error('Erro ao buscar jornada personalizada:', error);
