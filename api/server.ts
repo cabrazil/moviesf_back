@@ -297,7 +297,7 @@ app.get('/debug/journey-flow/:sentimentId', async (req, res) => {
   }
 });
 
-// NOVO ENDPOINT FUNCIONANDO - BYPASSA CACHE VERCEL
+// NOVO ENDPOINT FUNCIONANDO - BYPASSA CACHE VERCEL - CORRIGIDO
 app.get('/api/personalized-flow/:sentimentId/:intentionId', async (req, res) => {
   try {
     const { PrismaClient } = require('@prisma/client');
@@ -308,30 +308,36 @@ app.get('/api/personalized-flow/:sentimentId/:intentionId', async (req, res) => 
     
     console.log(`🔍 Prisma: Buscando jornada para sentimentId: ${sentimentId}, intentionId: ${intentionId}`);
     
-    // Buscar journey flow do sentimento
-    const journeyFlow = await prisma.journeyFlow.findFirst({
-      where: { mainSentimentId: sentimentId },
+    // BUSCAR O JOURNEY STEP FLOW CORRETO PARA A COMBINAÇÃO SENTIMENTO + INTENÇÃO
+    const emotionalIntentionJourneyStep = await prisma.emotionalIntentionJourneyStep.findFirst({
+      where: { emotionalIntentionId: intentionId },
       include: {
-        steps: {
+        journeyStepFlow: {
           include: {
-            options: {
+            steps: {
               include: {
-                movieSuggestions: {
+                options: {
                   include: {
-                    movie: true
+                    movieSuggestions: {
+                      include: {
+                        movie: true
+                      }
+                    }
                   }
                 }
-              }
+              },
+              orderBy: { order: 'asc' }
             }
-          },
-          orderBy: { order: 'asc' }
+          }
         }
       }
     });
     
-    if (!journeyFlow) {
-      return res.status(404).json({ error: 'Journey flow não encontrado' });
+    if (!emotionalIntentionJourneyStep) {
+      return res.status(404).json({ error: 'Jornada não encontrada para essa combinação de sentimento e intenção' });
     }
+    
+    const journeyFlow = emotionalIntentionJourneyStep.journeyStepFlow;
     
     console.log(`✅ Journey flow encontrado: ${journeyFlow.steps.length} steps`);
     
