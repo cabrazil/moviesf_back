@@ -196,6 +196,29 @@ app.get('/main-sentiments/db-test', async (req, res) => {
   }
 });
 
+// Debug endpoint para testar sugestões de filmes
+app.get('/debug/movie-suggestions/:journeyOptionFlowId', async (req, res) => {
+  try {
+    const journeyOptionFlowId = parseInt(req.params.journeyOptionFlowId);
+    console.log(`🔍 Debug: Buscando sugestões para journeyOptionFlowId: ${journeyOptionFlowId}`);
+    
+    const suggestions = await directDb.getMovieSuggestions(journeyOptionFlowId);
+    
+    res.json({
+      journeyOptionFlowId,
+      suggestionsCount: suggestions.length,
+      suggestions: suggestions,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Erro ao buscar sugestões de filmes:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar sugestões de filmes',
+      details: error.message
+    });
+  }
+});
+
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
