@@ -47,6 +47,142 @@ const mockSentiments = [
   }
 ];
 
+// Dados estáticos das intenções emocionais
+const mockEmotionalIntentions = {
+  13: { // Feliz / Alegre
+    sentimentId: 13,
+    sentimentName: "Feliz / Alegre",
+    intentions: [
+      {
+        id: 1,
+        type: 'MAINTAIN',
+        description: 'Quero manter e amplificar essa boa energia.',
+        preferredGenres: ['Comedy', 'Animation', 'Family'],
+        avoidGenres: ['Horror', 'Thriller'],
+        emotionalTone: 'uplifting'
+      },
+      {
+        id: 2,
+        type: 'EXPLORE',
+        description: 'Quero explorar diferentes facetas da alegria.',
+        preferredGenres: ['Musical', 'Romance', 'Adventure'],
+        avoidGenres: ['Drama', 'War'],
+        emotionalTone: 'adventurous'
+      }
+    ]
+  },
+  14: { // Triste
+    sentimentId: 14,
+    sentimentName: "Triste",
+    intentions: [
+      {
+        id: 3,
+        type: 'PROCESS',
+        description: 'Quero processar e compreender essa tristeza.',
+        preferredGenres: ['Drama', 'Romance'],
+        avoidGenres: ['Comedy', 'Action'],
+        emotionalTone: 'contemplative'
+      },
+      {
+        id: 4,
+        type: 'TRANSFORM',
+        description: 'Quero transformar essa tristeza em algo positivo.',
+        preferredGenres: ['Biography', 'Drama'],
+        avoidGenres: ['Horror', 'Thriller'],
+        emotionalTone: 'hopeful'
+      }
+    ]
+  },
+  15: { // Calmo(a)
+    sentimentId: 15,
+    sentimentName: "Calmo(a)",
+    intentions: [
+      {
+        id: 5,
+        type: 'MAINTAIN',
+        description: 'Quero manter essa tranquilidade.',
+        preferredGenres: ['Documentary', 'Animation'],
+        avoidGenres: ['Action', 'Horror'],
+        emotionalTone: 'peaceful'
+      },
+      {
+        id: 6,
+        type: 'EXPLORE',
+        description: 'Quero explorar temas profundos com serenidade.',
+        preferredGenres: ['Drama', 'Biography'],
+        avoidGenres: ['Thriller', 'Action'],
+        emotionalTone: 'meditative'
+      }
+    ]
+  },
+  16: { // Ansioso(a)
+    sentimentId: 16,
+    sentimentName: "Ansioso(a)",
+    intentions: [
+      {
+        id: 7,
+        type: 'PROCESS',
+        description: 'Quero processar essa ansiedade.',
+        preferredGenres: ['Drama', 'Biography'],
+        avoidGenres: ['Thriller', 'Horror'],
+        emotionalTone: 'grounding'
+      },
+      {
+        id: 8,
+        type: 'TRANSFORM',
+        description: 'Quero canalizar essa energia de forma positiva.',
+        preferredGenres: ['Adventure', 'Comedy'],
+        avoidGenres: ['Horror', 'Thriller'],
+        emotionalTone: 'energizing'
+      }
+    ]
+  },
+  17: { // Animado(a)
+    sentimentId: 17,
+    sentimentName: "Animado(a)",
+    intentions: [
+      {
+        id: 9,
+        type: 'MAINTAIN',
+        description: 'Quero amplificar essa energia.',
+        preferredGenres: ['Action', 'Adventure', 'Comedy'],
+        avoidGenres: ['Drama', 'Documentary'],
+        emotionalTone: 'energetic'
+      },
+      {
+        id: 10,
+        type: 'EXPLORE',
+        description: 'Quero direcionar essa energia para algo novo.',
+        preferredGenres: ['Sci-Fi', 'Fantasy', 'Adventure'],
+        avoidGenres: ['Romance', 'Drama'],
+        emotionalTone: 'dynamic'
+      }
+    ]
+  },
+  18: { // Cansado(a)
+    sentimentId: 18,
+    sentimentName: "Cansado(a)",
+    intentions: [
+      {
+        id: 11,
+        type: 'PROCESS',
+        description: 'Quero entender e aceitar esse cansaço.',
+        preferredGenres: ['Drama', 'Documentary'],
+        avoidGenres: ['Action', 'Horror'],
+        emotionalTone: 'restful'
+      },
+      {
+        id: 12,
+        type: 'TRANSFORM',
+        description: 'Quero recarregar minhas energias.',
+        preferredGenres: ['Comedy', 'Animation', 'Family'],
+        avoidGenres: ['Thriller', 'War'],
+        emotionalTone: 'restorative'
+      }
+    ]
+  }
+};
+
 // Configuração CORS simplificada para debug
 app.use(cors({
   origin: true,
@@ -107,6 +243,18 @@ app.get('/main-sentiments', (req, res) => {
 // Summary com dados estáticos (FUNCIONAL)
 app.get('/main-sentiments/summary', (req, res) => {
   res.json(mockSentiments);
+});
+
+// Emotional intentions endpoint
+app.get('/api/emotional-intentions/:sentimentId', (req, res) => {
+  const sentimentId = parseInt(req.params.sentimentId);
+  const intentions = mockEmotionalIntentions[sentimentId as keyof typeof mockEmotionalIntentions];
+  
+  if (intentions) {
+    res.json(intentions);
+  } else {
+    res.status(404).json({ error: 'Intenções não encontradas para este sentimento' });
+  }
 });
 
 // Error Handling Middleware
