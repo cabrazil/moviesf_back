@@ -112,8 +112,8 @@ export class DirectDatabase {
         const optionsResult = await pool.query(`
           SELECT 
             jof.id,
+            jof."optionId" as option_id,
             jof.text,
-            jof.description,
             jof."nextStepId" as next_step_id,
             jof."isEndState" as is_end_state
           FROM "JourneyOptionFlow" jof
