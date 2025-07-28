@@ -120,7 +120,7 @@ app.get('/main-sentiments/:id/journey-flow', async (req, res) => {
   }
 });
 
-// Personalized journey (DADOS REAIS)
+// Personalized journey (DADOS REAIS) - VERSION 2.0
 app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) => {
   try {
     const sentimentId = parseInt(req.params.sentimentId);
