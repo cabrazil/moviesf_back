@@ -314,19 +314,14 @@ app.get('/api/personalized-flow/:sentimentId/:intentionId', async (req, res) => 
       include: {
         journeyStepFlow: {
           include: {
-            steps: {
+            options: {
               include: {
-                options: {
+                movieSuggestions: {
                   include: {
-                    movieSuggestions: {
-                      include: {
-                        movie: true
-                      }
-                    }
+                    movie: true
                   }
                 }
-              },
-              orderBy: { order: 'asc' }
+              }
             }
           }
         }
@@ -337,9 +332,9 @@ app.get('/api/personalized-flow/:sentimentId/:intentionId', async (req, res) => 
       return res.status(404).json({ error: 'Jornada não encontrada para essa combinação de sentimento e intenção' });
     }
     
-    const journeyFlow = emotionalIntentionJourneyStep.journeyStepFlow;
+    const journeyStepFlow = emotionalIntentionJourneyStep.journeyStepFlow;
     
-    console.log(`✅ Journey flow encontrado: ${journeyFlow.steps.length} steps`);
+    console.log(`✅ Journey step flow encontrado: ${journeyStepFlow.options?.length || 0} options`);
     
     // Buscar informações da intenção
     const intentions = await prisma.emotionalIntention.findMany({
@@ -356,15 +351,15 @@ app.get('/api/personalized-flow/:sentimentId/:intentionId', async (req, res) => 
     
     // Retornar jornada personalizada no formato esperado pelo frontend
     const response = {
-      id: journeyFlow.id,
+      id: journeyStepFlow.id,
       mainSentimentId: sentimentId,
       emotionalIntentionId: intentionId,
-      steps: journeyFlow.steps.map((step: any) => ({
-        id: step.id,
-        stepId: step.stepId,
-        order: step.order,
-        question: step.question,
-        options: step.options.map((option: any) => ({
+      steps: [{
+        id: journeyStepFlow.id,
+        stepId: journeyStepFlow.stepId,
+        order: journeyStepFlow.order,
+        question: journeyStepFlow.question,
+        options: journeyStepFlow.options.map((option: any) => ({
           id: option.id,
           text: option.text,
           nextStepId: option.nextStepId,
@@ -376,7 +371,7 @@ app.get('/api/personalized-flow/:sentimentId/:intentionId', async (req, res) => 
             movie: suggestion.movie
           })) : undefined
         }))
-      }))
+      }]
     };
     
     console.log(`✅ Resposta final: ${response.steps.length} steps processados`);
