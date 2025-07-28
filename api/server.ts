@@ -297,8 +297,8 @@ app.get('/debug/journey-flow/:sentimentId', async (req, res) => {
   }
 });
 
-// ENDPOINT PRINCIPAL COM PRISMA - REBUILT
-app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) => {
+// NOVO ENDPOINT FUNCIONANDO - BYPASSA CACHE VERCEL
+app.get('/api/personalized-flow/:sentimentId/:intentionId', async (req, res) => {
   try {
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
