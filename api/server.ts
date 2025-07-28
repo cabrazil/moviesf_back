@@ -276,8 +276,8 @@ app.get('/debug/journey-flow/:sentimentId', async (req, res) => {
           options: step.options?.map((option: any) => ({
             id: option.id,
             text: option.text,
-            isEndState: option.is_end_state,
-            nextStepId: option.next_step_id
+            isEndState: option.isEndState,
+            nextStepId: option.nextStepId
           })) || []
         }))
       },
