@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-// Singleton pattern para evitar múltiplas instâncias
+// Singleton pattern para serverless
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -11,9 +11,16 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
     db: {
       url: process.env.DATABASE_URL
     }
+  },
+  // Configurações para serverless
+  __internal: {
+    engine: {
+      enableEngineDebugMode: false
+    }
   }
 });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// Manter instância em produção também
+if (process.env.NODE_ENV !== 'development') globalForPrisma.prisma = prisma;
 
 export default prisma; 

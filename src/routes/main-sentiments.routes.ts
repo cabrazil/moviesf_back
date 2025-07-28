@@ -16,6 +16,25 @@ router.get('/test', async (req, res) => {
   }
 });
 
+// ROTA PARA TESTAR CONEXÃO COM BANCO
+router.get('/db-test', async (req, res) => {
+  try {
+    // Testar conexão simples
+    const result = await prisma.$queryRaw`SELECT 1 as test`;
+    res.json({ 
+      message: 'Conexão com banco OK!',
+      result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Erro na conexão com banco:', error);
+    res.status(500).json({ 
+      error: 'Erro na conexão com banco',
+      details: error.message
+    });
+  }
+});
+
 // ROTA DE SUMMARY PRIMEIRO!
 router.get('/summary', async (req, res) => {
   try {
