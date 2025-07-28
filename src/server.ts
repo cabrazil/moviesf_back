@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import routes from './routes';
 import mainSentimentsRoutes from './routes/main-sentiments.routes';
 import moviesRoutes from './routes/movies.routes';
+import personalizedJourneyRoutes from './routes/personalized-journey.routes';
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.get('/health', (req, res) => {
 app.use('/', routes);
 app.use('/main-sentiments', mainSentimentsRoutes);
 app.use('/movies', moviesRoutes);
+app.use('/api/personalized-journey', personalizedJourneyRoutes);
 
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
