@@ -235,6 +235,55 @@ app.get('/debug/movie-suggestions/:journeyOptionFlowId', async (req, res) => {
   }
 });
 
+// Debug endpoint para testar journey flow
+app.get('/debug/journey-flow/:sentimentId', async (req, res) => {
+  try {
+    const sentimentId = parseInt(req.params.sentimentId);
+    console.log(`🔍 Debug: Buscando journey flow para sentimentId: ${sentimentId}`);
+    
+    const journeyFlow = await directDb.getJourneyFlow(sentimentId);
+    
+    if (!journeyFlow) {
+      return res.status(404).json({ error: 'Journey flow não encontrado' });
+    }
+    
+    // Testar uma opção específica
+    const testOptionId = 25;
+    const movieSuggestions = await directDb.getMovieSuggestions(testOptionId);
+    
+    res.json({
+      sentimentId,
+      journeyFlow: {
+        id: journeyFlow.id,
+        stepsCount: journeyFlow.steps.length,
+        steps: journeyFlow.steps.map((step: any) => ({
+          id: step.id,
+          stepId: step.step_id,
+          optionsCount: step.options?.length || 0,
+          options: step.options?.map((option: any) => ({
+            id: option.id,
+            text: option.text,
+            isEndState: option.is_end_state,
+            nextStepId: option.next_step_id
+          })) || []
+        }))
+      },
+      testOption: {
+        id: testOptionId,
+        movieSuggestionsCount: movieSuggestions.length,
+        movieSuggestions: movieSuggestions
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Erro ao buscar journey flow:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar journey flow',
+      details: error.message
+    });
+  }
+});
+
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
