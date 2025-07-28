@@ -120,7 +120,7 @@ app.get('/main-sentiments/:id/journey-flow', async (req, res) => {
   }
 });
 
-// Personalized journey (DADOS REAIS) - VERSION 2.0
+// Personalized journey (DADOS REAIS) - VERSION 2.0 - CACHED
 app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) => {
   try {
     const sentimentId = parseInt(req.params.sentimentId);
@@ -293,6 +293,93 @@ app.get('/debug/journey-flow/:sentimentId', async (req, res) => {
     res.status(500).json({ 
       error: 'Erro ao buscar journey flow',
       details: error.message
+    });
+  }
+});
+
+// NOVO ENDPOINT ALTERNATIVO - SEM CACHE
+app.get('/api/personalized-journey-v2/:sentimentId/:intentionId', async (req, res) => {
+  try {
+    const sentimentId = parseInt(req.params.sentimentId);
+    const intentionId = parseInt(req.params.intentionId);
+    
+    console.log(`🆕 NOVO ENDPOINT: Buscando jornada para sentimentId: ${sentimentId}, intentionId: ${intentionId}`);
+    
+    // Buscar journey flow do sentimento
+    const journeyFlow = await directDb.getJourneyFlow(sentimentId);
+    
+    if (!journeyFlow) {
+      return res.status(404).json({ error: 'Journey flow não encontrado' });
+    }
+    
+    console.log(`✅ Journey flow encontrado: ${journeyFlow.steps.length} steps`);
+    
+    // Buscar informações da intenção
+    const intentions = await directDb.getEmotionalIntentions(sentimentId);
+    const selectedIntention = intentions.intentions.find((intention: any) => intention.id === intentionId);
+    
+    if (!selectedIntention) {
+      return res.status(404).json({ error: 'Intenção emocional não encontrada' });
+    }
+    
+    console.log(`✅ Intenção encontrada: ${selectedIntention.type}`);
+    
+    // Retornar jornada personalizada no formato esperado pelo frontend
+    const response = {
+      id: journeyFlow.id,
+      mainSentimentId: sentimentId,
+      emotionalIntentionId: intentionId,
+      steps: await Promise.all(journeyFlow.steps.map(async (step: any) => {
+        console.log(`🔍 Processando step: ${step.stepId} com ${step.options?.length || 0} opções`);
+        
+        return {
+          id: step.id,
+          stepId: step.step_id,
+          order: step.order,
+          question: step.question,
+          options: await Promise.all(step.options.map(async (option: any) => {
+            console.log(`🔍 Processando opção ${option.id}: isEndState=${option.isEndState}, nextStepId=${option.nextStepId}`);
+            
+            let movieSuggestions = undefined;
+            
+            if (option.isEndState) {
+              console.log(`🎬 Buscando sugestões para opção ${option.id}`);
+              movieSuggestions = await directDb.getMovieSuggestions(option.id);
+              console.log(`✅ Encontradas ${movieSuggestions.length} sugestões para opção ${option.id}`);
+            }
+            
+            return {
+              id: option.id,
+              text: option.text,
+              nextStepId: option.nextStepId,
+              isEndState: option.isEndState,
+              movieSuggestions: movieSuggestions
+            };
+          }))
+        };
+      }))
+    };
+    
+    console.log(`✅ Resposta final: ${response.steps.length} steps processados`);
+    
+    // Log detalhado da primeira opção para debug
+    if (response.steps.length > 0 && response.steps[0].options.length > 0) {
+      const firstOption = response.steps[0].options[0];
+      console.log(`🔍 DEBUG - Primeira opção:`, {
+        id: firstOption.id,
+        text: firstOption.text,
+        nextStepId: firstOption.nextStepId,
+        isEndState: firstOption.isEndState,
+        movieSuggestionsCount: firstOption.movieSuggestions?.length || 0
+      });
+    }
+    
+    res.json(response);
+  } catch (error: any) {
+    console.error('Erro ao buscar jornada personalizada:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar jornada personalizada',
+      details: error.message 
     });
   }
 });
