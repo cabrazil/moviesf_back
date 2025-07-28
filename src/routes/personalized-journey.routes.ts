@@ -38,6 +38,7 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
     }
     
     console.log(`✅ Journey flow encontrado: ${journeyFlow.steps.length} steps`);
+    console.log(`🔍 DEBUG - Primeiro step:`, JSON.stringify(journeyFlow.steps[0], null, 2));
     
     // Buscar informações da intenção
     const intentions = await prisma.emotionalIntention.findMany({
