@@ -126,12 +126,16 @@ app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) 
     const sentimentId = parseInt(req.params.sentimentId);
     const intentionId = parseInt(req.params.intentionId);
     
+    console.log(`🔍 Debug: Buscando jornada para sentimentId: ${sentimentId}, intentionId: ${intentionId}`);
+    
     // Buscar journey flow do sentimento
     const journeyFlow = await directDb.getJourneyFlow(sentimentId);
     
     if (!journeyFlow) {
       return res.status(404).json({ error: 'Journey flow não encontrado' });
     }
+    
+    console.log(`✅ Journey flow encontrado: ${journeyFlow.steps.length} steps`);
     
     // Buscar informações da intenção
     const intentions = await directDb.getEmotionalIntentions(sentimentId);
@@ -141,34 +145,46 @@ app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) 
       return res.status(404).json({ error: 'Intenção emocional não encontrada' });
     }
     
+    console.log(`✅ Intenção encontrada: ${selectedIntention.type}`);
+    
     // Retornar jornada personalizada no formato esperado pelo frontend
-    res.json({
+    const response = {
       id: journeyFlow.id,
       mainSentimentId: sentimentId,
       emotionalIntentionId: intentionId,
-      steps: await Promise.all(journeyFlow.steps.map(async (step: any) => ({
-        id: step.id,
-        stepId: step.step_id,
-        order: step.order,
-        question: step.question,
-        options: await Promise.all(step.options.map(async (option: any) => {
-          let movieSuggestions = undefined;
-          
-          if (option.is_end_state) {
-            // Buscar sugestões reais de filmes para opções finais
-            movieSuggestions = await directDb.getMovieSuggestions(option.id);
-          }
-          
-          return {
-            id: option.id,
-            text: option.text,
-            nextStepId: option.next_step_id,
-            isEndState: option.is_end_state,
-            movieSuggestions: movieSuggestions
-          };
-        }))
-      })))
-    });
+      steps: await Promise.all(journeyFlow.steps.map(async (step: any) => {
+        console.log(`🔍 Processando step: ${step.stepId} com ${step.options?.length || 0} opções`);
+        
+        return {
+          id: step.id,
+          stepId: step.step_id,
+          order: step.order,
+          question: step.question,
+          options: await Promise.all(step.options.map(async (option: any) => {
+            console.log(`🔍 Processando opção ${option.id}: is_end_state=${option.is_end_state}, next_step_id=${option.next_step_id}`);
+            
+            let movieSuggestions = undefined;
+            
+            if (option.is_end_state) {
+              console.log(`🎬 Buscando sugestões para opção ${option.id}`);
+              movieSuggestions = await directDb.getMovieSuggestions(option.id);
+              console.log(`✅ Encontradas ${movieSuggestions.length} sugestões para opção ${option.id}`);
+            }
+            
+            return {
+              id: option.id,
+              text: option.text,
+              nextStepId: option.next_step_id,
+              isEndState: option.is_end_state,
+              movieSuggestions: movieSuggestions
+            };
+          }))
+        };
+      }))
+    };
+    
+    console.log(`✅ Resposta final: ${response.steps.length} steps processados`);
+    res.json(response);
   } catch (error: any) {
     console.error('Erro ao buscar jornada personalizada:', error);
     res.status(500).json({ 
