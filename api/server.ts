@@ -284,6 +284,60 @@ app.get('/debug/journey-flow/:sentimentId', async (req, res) => {
   }
 });
 
+// Debug endpoint para verificar estrutura da tabela
+app.get('/debug/table-structure/:optionId', async (req, res) => {
+  try {
+    const optionId = parseInt(req.params.optionId);
+    console.log(`🔍 Debug: Verificando estrutura da tabela para optionId: ${optionId}`);
+    
+    // Usar directDb para fazer a query
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
+    
+    const result = await pool.query(`
+      SELECT 
+        jof.id,
+        jof."optionId" as option_id,
+        jof.text,
+        jof."nextStepId" as next_step_id,
+        jof."isEndState" as is_end_state
+      FROM "JourneyOptionFlow" jof
+      WHERE jof.id = $1
+    `, [optionId]);
+    
+    await pool.end();
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Opção não encontrada' });
+    }
+    
+    const option = result.rows[0];
+    
+    res.json({
+      optionId,
+      rawData: option,
+      parsedData: {
+        id: option.id,
+        text: option.text,
+        nextStepId: option.next_step_id,
+        isEndState: option.is_end_state
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Erro ao verificar estrutura da tabela:', error);
+    res.status(500).json({ 
+      error: 'Erro ao verificar estrutura da tabela',
+      details: error.message
+    });
+  }
+});
+
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
