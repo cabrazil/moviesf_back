@@ -1,10 +1,41 @@
 import { Router } from 'express';
 import prisma from '../prisma';
+import memoryCache from '../utils/memoryCache';
 
 const router = Router();
 
+// Middleware de cache em memória
+const cacheMiddleware = (ttl: number = 5 * 60 * 1000) => {
+  return async (req: any, res: any, next: any) => {
+    const key = `api:${req.originalUrl}`;
+
+    try {
+      const cachedData = await memoryCache.get(key);
+      if (cachedData) {
+        console.log(`📦 Cache hit: ${key}`);
+        return res.json(cachedData);
+      }
+
+      console.log(`🔄 Cache miss: ${key}`);
+
+      // Interceptar resposta para cachear
+      const originalJson = res.json;
+      res.json = function(data: any) {
+        memoryCache.set(key, data, ttl);
+        console.log(`💾 Cache saved: ${key}`);
+        return originalJson.call(this, data);
+      };
+
+      next();
+    } catch (error) {
+      console.warn('Cache middleware error:', error);
+      next();
+    }
+  };
+};
+
 // ROTA DE SUMMARY PRIMEIRO!
-router.get('/summary', async (req, res) => {
+router.get('/summary', cacheMiddleware(10 * 60 * 1000), async (req, res) => {
   try {
     const sentiments = await prisma.mainSentiment.findMany({
       select: {
@@ -23,7 +54,7 @@ router.get('/summary', async (req, res) => {
 });
 
 // Listar todos os sentimentos principais
-router.get('/', async (req, res) => {
+router.get('/', cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
     const mainSentiments = await prisma.mainSentiment.findMany({
       include: {

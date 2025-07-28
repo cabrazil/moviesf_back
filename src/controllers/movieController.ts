@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import asyncHandler from 'express-async-handler';
+import memoryCache from '../utils/memoryCache';
 
 const prisma = new PrismaClient();
 
@@ -9,8 +10,21 @@ const prisma = new PrismaClient();
 // @access  Public
 export const getMovieSuggestions = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { sentimentId, intentionId } = req.query;
-
+  
+  // Chave de cache baseada nos parâmetros
+  const cacheKey = `suggestions:${sentimentId}:${intentionId}`;
+  
   try {
+    // Tentar buscar do cache primeiro
+    const cachedData = await memoryCache.get(cacheKey);
+    if (cachedData) {
+      console.log(`📦 Cache hit: ${cacheKey}`);
+      res.json(cachedData);
+      return;
+    }
+
+    console.log(`🔄 Cache miss: ${cacheKey}`);
+
     let whereClause: any = {};
 
     if (sentimentId) {
@@ -79,6 +93,10 @@ export const getMovieSuggestions = asyncHandler(async (req: Request, res: Respon
       }
     });
 
+    // Salvar no cache por 5 minutos
+    await memoryCache.set(cacheKey, suggestions, 5 * 60 * 1000);
+    console.log(`💾 Cache saved: ${cacheKey}`);
+    
     res.json(suggestions);
   } catch (error) {
     console.error('Erro ao buscar sugestões:', error);
