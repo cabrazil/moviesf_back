@@ -101,9 +101,7 @@ export class DirectDatabase {
           jsf.id,
           jsf."stepId" as step_id,
           jsf."order",
-          jsf.question,
-          jsf."contextualHint" as contextual_hint,
-          jsf."isRequired" as is_required
+          jsf.question
         FROM "JourneyStepFlow" jsf
         WHERE jsf."journeyFlowId" = $1
         ORDER BY jsf."order" ASC, jsf."stepId" ASC
