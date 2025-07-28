@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import mainSentimentsRoutes from '../src/routes/main-sentiments.routes';
 
 dotenv.config();
 
@@ -41,8 +40,24 @@ app.get('/test', (req, res) => {
   });
 });
 
-// Adicionar apenas main-sentiments
-app.use('/main-sentiments', mainSentimentsRoutes);
+// Test main-sentiments diretamente
+app.get('/main-sentiments/test', (req, res) => {
+  res.json({ 
+    message: 'Main-sentiments direto funcionando!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Test environment variables
+app.get('/main-sentiments/env-test', (req, res) => {
+  res.json({ 
+    message: 'Environment variables test',
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    hasDirectUrl: !!process.env.DIRECT_URL,
+    nodeEnv: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -16,6 +16,22 @@ router.get('/test', async (req, res) => {
   }
 });
 
+// ROTA PARA TESTAR ENVIRONMENT VARIABLES
+router.get('/env-test', async (req, res) => {
+  try {
+    res.json({ 
+      message: 'Environment variables test',
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      hasDirectUrl: !!process.env.DIRECT_URL,
+      nodeEnv: process.env.NODE_ENV,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Erro no env test:', error);
+    res.status(500).json({ error: 'Erro no env test' });
+  }
+});
+
 // ROTA PARA TESTAR CONEXÃO COM BANCO
 router.get('/db-test', async (req, res) => {
   try {
