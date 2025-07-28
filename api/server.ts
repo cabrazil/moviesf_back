@@ -1,11 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import routes from '../src/routes';
-import mainSentimentsRoutes from '../src/routes/main-sentiments.routes';
-import movieRoutes from '../src/routes/movies.routes';
-import adminRoutes from '../src/routes/admin.routes';
-import emotionalRecommendationRoutes from '../src/routes/emotionalRecommendation.routes';
 
 dotenv.config();
 
@@ -14,7 +9,7 @@ const port = Number(process.env.PORT) || 3000;
 
 // Configuração CORS simplificada para debug
 app.use(cors({
-  origin: true, // Permitir todas as origens temporariamente
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With'],
   credentials: true
@@ -37,12 +32,13 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Routes
-app.use('/', routes);
-app.use('/main-sentiments', mainSentimentsRoutes);
-app.use('/movies', movieRoutes);
-app.use('/admin', adminRoutes);
-app.use('/emotional-recommendation', emotionalRecommendationRoutes);
+// Test endpoint simples
+app.get('/test', (req, res) => {
+  res.json({ 
+    message: 'API funcionando!',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
