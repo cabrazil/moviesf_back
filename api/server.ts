@@ -184,6 +184,19 @@ app.get('/api/personalized-journey/:sentimentId/:intentionId', async (req, res) 
     };
     
     console.log(`✅ Resposta final: ${response.steps.length} steps processados`);
+    
+    // Log detalhado da primeira opção para debug
+    if (response.steps.length > 0 && response.steps[0].options.length > 0) {
+      const firstOption = response.steps[0].options[0];
+      console.log(`🔍 DEBUG - Primeira opção:`, {
+        id: firstOption.id,
+        text: firstOption.text,
+        nextStepId: firstOption.nextStepId,
+        isEndState: firstOption.isEndState,
+        movieSuggestionsCount: firstOption.movieSuggestions?.length || 0
+      });
+    }
+    
     res.json(response);
   } catch (error: any) {
     console.error('Erro ao buscar jornada personalizada:', error);
