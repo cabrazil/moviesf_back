@@ -50,7 +50,7 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
       return res.status(404).json({ error: 'Intenção emocional não encontrada' });
     }
     
-    console.log(`✅ Intenção encontrada: ${selectedIntention.type}`);
+    console.log(`✅ Intenção encontrada: ${selectedIntention.intentionType}`);
     
     // Retornar jornada personalizada no formato esperado pelo frontend
     const response = {
