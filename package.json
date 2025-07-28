@@ -45,14 +45,15 @@
     "jsdom": "^26.1.0",
     "natural": "^8.1.0",
     "node-cache": "^5.1.2",
-    "postgres": "^3.4.5",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "postgres": "^3.4.5"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.17.32",
+    "@types/pg": "^8.15.4",
     "@types/supertest": "^6.0.3",
     "jest": "^29.7.0",
     "prisma": "^6.7.0",

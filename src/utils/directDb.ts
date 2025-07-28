@@ -49,7 +49,7 @@ export class DirectDatabase {
       return {
         sentimentId: sentimentId,
         sentimentName: await this.getSentimentName(sentimentId),
-        intentions: result.rows.map(row => ({
+        intentions: result.rows.map((row: any) => ({
           id: row.id,
           type: row.type,
           description: row.description,
@@ -112,7 +112,7 @@ export class DirectDatabase {
       `, [flow.id]);
 
       const steps = [];
-      for (const step of stepsResult.rows) {
+      for (const step of stepsResult.rows as any[]) {
         const optionsResult = await pool.query(`
           SELECT 
             jof.id,
@@ -127,7 +127,7 @@ export class DirectDatabase {
 
         steps.push({
           ...step,
-          options: optionsResult.rows
+          options: optionsResult.rows as any[]
         });
       }
 
