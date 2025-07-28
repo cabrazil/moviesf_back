@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import mainSentimentsRoutes from '../src/routes/main-sentiments.routes';
 
 dotenv.config();
 
@@ -39,6 +40,9 @@ app.get('/test', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Adicionar apenas main-sentiments
+app.use('/main-sentiments', mainSentimentsRoutes);
 
 // Error Handling Middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
