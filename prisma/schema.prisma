@@ -34,6 +34,8 @@ model Movie {
   metacriticRating     Int?
   movieSentiments      MovieSentiment[]
   movieSuggestionFlows MovieSuggestionFlow[]
+  // NOVA RELAÇÃO: Streaming platforms (mantendo campo antigo para migração segura)
+  platforms            MovieStreamingPlatform[]
 
   @@index([title])
 }
@@ -203,4 +205,55 @@ enum IntentionType {
   TRANSFORM
   MAINTAIN
   EXPLORE
+}
+
+// ===============================================
+// NOVAS ESTRUTURAS PARA STREAMING PLATFORMS
+// ===============================================
+
+// Enum para os tipos de serviço de acesso a um filme em uma plataforma
+enum AccessType {
+  INCLUDED_WITH_SUBSCRIPTION // Incluído na assinatura (ex: Netflix, Prime Video com Prime)
+  RENTAL                    // Apenas para aluguel
+  PURCHASE                  // Apenas para compra
+  FREE_WITH_ADS             // Gratuito com anúncios (ex: YouTube, Pluto TV)
+  HYBRID_OR_UNKNOWN         // Quando não sabemos o tipo exato ou plataforma oferece múltiplos tipos
+  OTHER                     // Outros modelos de acesso
+}
+
+// Enum para a categoria principal da plataforma (para filtros de alto nível na UI)
+enum PlatformCategory {
+  SUBSCRIPTION_PRIMARY      // Plataformas primariamente de assinatura (Netflix, HBO Max)
+  RENTAL_PURCHASE_PRIMARY   // Plataformas primariamente de aluguel/compra (Google Play Filmes, Apple TV Loja)
+  FREE_PRIMARY              // Plataformas primariamente gratuitas (Pluto TV, YouTube Free)
+  HYBRID                    // Plataformas que oferecem múltiplos modelos como principal (Amazon Prime Video)
+}
+
+// Nova Model para Plataformas de Streaming (a plataforma em si)
+model StreamingPlatform {
+  id        Int              @id @default(autoincrement())
+  name      String           @unique @db.VarChar(255) // Ex: "Netflix", "Amazon Prime Video", "Apple TV (Loja)", "Apple TV+"
+  category  PlatformCategory // Categoria principal da plataforma (para filtros de alto nível)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  // Relação muitos-para-muitos com filmes, através da tabela de junção
+  movies    MovieStreamingPlatform[]
+}
+
+// Tabela de Junção para a relação muitos-para-muitos entre Movie e StreamingPlatform
+// Crucial: Agora inclui o tipo de acesso para aquele filme específico naquela plataforma
+model MovieStreamingPlatform {
+  movieId             String           @db.Uuid
+  streamingPlatformId Int
+  accessType          AccessType       // O TIPO DE ACESSO para ESTE filme NESTA plataforma
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  movie               Movie            @relation(fields: [movieId], references: [id])
+  streamingPlatform   StreamingPlatform @relation(fields: [streamingPlatformId], references: [id])
+
+  // Chave composta para permitir que o mesmo filme esteja na mesma plataforma com diferentes tipos de acesso
+  @@id([movieId, streamingPlatformId, accessType])
+  @@index([movieId])
+  @@index([streamingPlatformId])
+  @@index([accessType])
 }
