@@ -162,6 +162,9 @@ interface TMDBWatchProvidersResponse {
       buy?: Array<{
         provider_name: string;
       }>;
+      free?: Array<{
+        provider_name: string;
+      }>;
     };
   };
 }
@@ -210,30 +213,69 @@ const genreReflections: { [key: string]: string } = {
   // ... remover todo o objeto ...
 };
 
-// Mapeamento de plataformas do TMDB para nosso padrão
-const platformMapping: { [key: string]: string } = {
-  'Netflix': 'Netflix',
-  'Prime Video': 'Prime Video',
-  'Amazon Prime Video': 'Prime Video',
-  'Amazon Video': 'Prime Video',
-  'Disney Plus': 'Disney+',
-  'Disney+': 'Disney+',
-  'HBO Max': 'Max',
-  'Max': 'Max',
-  'Max Amazon Channel': 'Max',
-  'Apple TV Plus': 'Apple TV+',
-  'Apple TV+': 'Apple TV+',
-  'Paramount Plus': 'Paramount+',
-  'Paramount+': 'Paramount+',
-  'Peacock': 'Peacock',
-  'Hulu': 'Hulu',
-  'YouTube': 'YouTube',
-  'Google Play Movies': 'Google Play',
-  'Google Play': 'Google Play',
-  'Apple iTunes': 'Apple iTunes',
-  'Vudu': 'Vudu',
-  'Microsoft Store': 'Microsoft Store'
+// Mapeamento de plataformas do TMDB para nosso padrão (nova estrutura)
+const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string }> = {
+  'Netflix': { name: 'Netflix', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Netflix Standard with Ads': { name: 'Netflix', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Amazon Prime Video': { name: 'Prime Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Amazon Prime Video with Ads': { name: 'Prime Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Amazon Video': { name: 'Prime Video' }, // accessType removido - usar fallback
+  'Disney Plus': { name: 'Disney+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'HBO Max': { name: 'HBO Max', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'HBO Max Amazon Channel': { name: 'HBO Max', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Paramount Plus': { name: 'Paramount+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Paramount+ Amazon Channel': { name: 'Paramount+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Paramount Plus Premium': { name: 'Paramount+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Apple TV Plus': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Apple TV': { name: 'Apple TV (Loja)' }, // accessType removido - usar fallback
+  'Google Play Movies': { name: 'Google Play' }, // accessType removido - usar fallback
+  'Microsoft Store': { name: 'Microsoft Store' }, // accessType removido - usar fallback
+  'YouTube': { name: 'YouTube (Gratuito)', accessType: 'FREE_WITH_ADS' },
+  'Pluto TV': { name: 'Pluto TV', accessType: 'FREE_WITH_ADS' },
+  'Globoplay': { name: 'Globoplay', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Telecine': { name: 'Telecine', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Telecine Amazon Channel': { name: 'Telecine', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Looke': { name: 'Looke', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Looke Amazon Channel': { name: 'Looke', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Mubi': { name: 'Mubi', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'MUBI Amazon Channel': { name: 'Mubi', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Oldflix': { name: 'Oldflix', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Crunchyroll': { name: 'Crunchyroll', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Claro tv+': { name: 'Claro Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Claro video': { name: 'Claro Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Reserva Imovision Amazon Channel': { name: 'Reserva Imovision', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'MGM+ Apple TV Channel': { name: 'MGM+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'MGM Plus Amazon Channel': { name: 'MGM+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'FilmBox+': { name: 'FilmBox+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  
+  // Novos providers encontrados
+  'Sony One Amazon Channel': { name: 'Sony One', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Filmelier Plus Amazon Channel': { name: 'Filmelier+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Apple TV Plus Amazon Channel': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Plex': { name: 'Plex', accessType: 'FREE_WITH_ADS' },
+  'Plex Channel': { name: 'Plex', accessType: 'FREE_WITH_ADS' },
+  'Univer Video': { name: 'Univer Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Belas Artes à La Carte': { name: 'Belas Artes à La Carte', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'GOSPEL PLAY': { name: 'GOSPEL PLAY', accessType: 'INCLUDED_WITH_SUBSCRIPTION' }
 };
+
+// Determinar AccessType baseado no tipo de provider do TMDB
+function getAccessTypeFromTMDB(providerType: 'flatrate' | 'buy' | 'rent' | 'free', providerName: string): string {
+  // Primeiro, verificar mapeamento específico
+  const mapped = TMDB_PROVIDER_MAPPING[providerName];
+  if (mapped && mapped.accessType) {
+    return mapped.accessType; // Usar accessType explícito se definido
+  }
+
+  // Fallback baseado no tipo
+  switch (providerType) {
+    case 'flatrate': return 'INCLUDED_WITH_SUBSCRIPTION';
+    case 'buy': return 'PURCHASE';
+    case 'rent': return 'RENTAL';
+    case 'free': return 'FREE_WITH_ADS';
+    default: return 'HYBRID_OR_UNKNOWN';
+  }
+}
 
 // Adicionar mais keywords ao mapeamento
 const commonKeywordsMapping: { [key: string]: string } = {
@@ -260,7 +302,7 @@ const commonKeywordsMapping: { [key: string]: string } = {
   'japan': 'japão'
 };
 
-async function getMovieStreamingInfo(movieId: number): Promise<string[]> {
+async function getMovieStreamingInfo(movieId: number): Promise<{ platforms: string[]; streamingData: Array<{ platform: string; accessType: string }> }> {
   try {
     const response = await axios.get<TMDBWatchProvidersResponse>(`${TMDB_API_URL}/movie/${movieId}/watch/providers`, {
       params: {
@@ -271,26 +313,43 @@ async function getMovieStreamingInfo(movieId: number): Promise<string[]> {
     // Log para debug
     // console.log('Provedores TMDB:', JSON.stringify(response.data.results?.BR, null, 2));
 
-    // Pegar todos os tipos de provedores (flatrate, rent, buy)
-    const allProviders = [
-      ...(response.data.results?.BR?.flatrate || []),
-      ...(response.data.results?.BR?.rent || [])
+    const streamingData: Array<{ platform: string; accessType: string }> = [];
+    const platforms: string[] = [];
+
+    // Processar todos os tipos de providers
+    const providerTypes = [
+      { type: 'flatrate', providers: response.data.results?.BR?.flatrate || [] },
+      { type: 'buy', providers: response.data.results?.BR?.buy || [] },
+      { type: 'rent', providers: response.data.results?.BR?.rent || [] },
+      { type: 'free', providers: response.data.results?.BR?.free || [] }
     ];
 
-    // Mapear e filtrar provedores únicos
-    const mappedProviders = allProviders
-      .map(provider => {
-        // Log para debug
-        console.log(`Mapeando provedor: ${provider.provider_name}`);
-        return platformMapping[provider.provider_name];
-      })
-      .filter(Boolean);
+    for (const { type, providers } of providerTypes) {
+      for (const provider of providers) {
+        const mapped = TMDB_PROVIDER_MAPPING[provider.provider_name];
+        if (mapped) {
+          const accessType = getAccessTypeFromTMDB(type as 'flatrate' | 'buy' | 'rent' | 'free', provider.provider_name);
+          
+          streamingData.push({
+            platform: mapped.name,
+            accessType
+          });
+          
+          if (!platforms.includes(mapped.name)) {
+            platforms.push(mapped.name);
+          }
+          
+          console.log(`Mapeando provedor: ${provider.provider_name} → ${mapped.name} (${accessType})`);
+        } else {
+          console.log(`⚠️ Provedor não mapeado: ${provider.provider_name}`);
+        }
+      }
+    }
 
-    // Remover duplicatas
-    return [...new Set(mappedProviders)];
+    return { platforms, streamingData };
   } catch (error) {
     console.error(`Erro ao buscar informações de streaming: ${error}`);
-    return [];
+    return { platforms: [], streamingData: [] };
   }
 }
 
@@ -491,7 +550,7 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
   }
 }
 
-export async function searchMovie(title?: string, year?: number, tmdbId?: number): Promise<{ movie: TMDBMovie; platforms: string[]; director: string | null; certification: string | null; keywords: string[] } | null> {
+export async function searchMovie(title?: string, year?: number, tmdbId?: number): Promise<{ movie: TMDBMovie; platforms: string[]; streamingData: Array<{ platform: string; accessType: string }>; director: string | null; certification: string | null; keywords: string[] } | null> {
   try {
     if (tmdbId) {
       console.log(`Buscando filme no TMDB pelo ID: ${tmdbId}`);
@@ -506,28 +565,29 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
 
       const directors = await getMovieDirectors(tmdbId);
       const keywords = await getMovieKeywords(tmdbId);
-      const platforms = await getMovieStreamingInfo(tmdbId);
+      const { platforms, streamingData } = await getMovieStreamingInfo(tmdbId);
       const certification = await getBrazilianCertification(tmdbId);
 
-      return {
-        movie: {
-          id: movieDetails.id.toString(),
-          title: movieDetails.title,
-          original_title: movieDetails.original_title,
-          release_date: movieDetails.release_date,
-          vote_average: movieDetails.vote_average,
-          vote_count: movieDetails.vote_count,
-          adult: movieDetails.adult,
-          poster_path: movieDetails.poster_path,
-          overview: movieDetails.overview,
-          genres: movieDetails.genres,
-          runtime: movieDetails.runtime,
-        },
-        platforms,
-        director: directors || null,
-        certification,
-        keywords
-      };
+              return {
+          movie: {
+            id: movieDetails.id.toString(),
+            title: movieDetails.title,
+            original_title: movieDetails.original_title,
+            release_date: movieDetails.release_date,
+            vote_average: movieDetails.vote_average,
+            vote_count: movieDetails.vote_count,
+            adult: movieDetails.adult,
+            poster_path: movieDetails.poster_path,
+            overview: movieDetails.overview,
+            genres: movieDetails.genres,
+            runtime: movieDetails.runtime,
+          },
+          platforms,
+          streamingData,
+          director: directors || null,
+          certification,
+          keywords
+        };
     }
 
     if (!title) {
@@ -676,7 +736,7 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     console.log(`Palavras-chave encontradas: ${keywords.join(', ')}`);
     
     // Buscar informações de streaming
-    const platforms = await getMovieStreamingInfo(parseInt(movie.id));
+          const { platforms, streamingData } = await getMovieStreamingInfo(parseInt(movie.id));
     
     // Buscar certificação brasileira
     const certification = await getBrazilianCertification(parseInt(movie.id));
@@ -687,6 +747,7 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     return {
       movie: { ...movie, id: movie.id.toString(), genres: details.data.genres, runtime: details.data.runtime },
       platforms,
+      streamingData,
       director: directors || null,
       certification,
       keywords
@@ -704,7 +765,7 @@ async function processSingleMovie(title: string, year?: number) {
     const movieResult = await searchMovie(title, year);
 
     if (movieResult) {
-      const { movie, platforms, director, certification, keywords } = movieResult;
+      const { movie, platforms, streamingData, director, certification, keywords } = movieResult;
       console.log(`Filme encontrado no TMDB: ${movie.title} (${movie.release_date})`);
       console.log(`Título original: ${movie.original_title}`);
       console.log(`Diretores: ${director || 'Não encontrado'}`);
@@ -758,14 +819,13 @@ async function processSingleMovie(title: string, year?: number) {
           console.log('IMDb ID não encontrado. Pulando busca de ratings.');
         }
 
-        // Criar o filme com os gêneros
+        // Criar o filme com os gêneros (sem streamingPlatforms)
         const createdMovie = await prisma.movie.create({
           data: {
             title: movie.title,
             year: new Date(movie.release_date).getFullYear(),
             director: director || undefined,
             genres: movie.genres.map(g => g.name),
-            streamingPlatforms: platforms,
             description: movie.overview,
             thumbnail: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : undefined,
             original_title: movie.original_title,
@@ -780,6 +840,48 @@ async function processSingleMovie(title: string, year?: number) {
             ...omdbRatings
           }
         });
+
+        // Inserir dados de streaming na nova estrutura
+        if (streamingData.length > 0) {
+          console.log(`📺 Inserindo ${streamingData.length} relações de streaming...`);
+          
+          for (const streamingItem of streamingData) {
+            try {
+              // Buscar a plataforma no banco
+              const platform = await prisma.streamingPlatform.findFirst({
+                where: { name: streamingItem.platform }
+              });
+
+              if (platform) {
+                // Usar upsert para evitar duplicatas
+                await prisma.movieStreamingPlatform.upsert({
+                  where: {
+                    movieId_streamingPlatformId_accessType: {
+                      movieId: createdMovie.id,
+                      streamingPlatformId: platform.id,
+                      accessType: streamingItem.accessType as any
+                    }
+                  },
+                  update: {
+                    updatedAt: new Date()
+                  },
+                  create: {
+                    movieId: createdMovie.id,
+                    streamingPlatformId: platform.id,
+                    accessType: streamingItem.accessType as any
+                  }
+                });
+                console.log(`✅ ${streamingItem.platform} (${streamingItem.accessType})`);
+              } else {
+                console.log(`⚠️ Plataforma não encontrada: ${streamingItem.platform}`);
+              }
+            } catch (error) {
+              console.log(`❌ Erro ao inserir ${streamingItem.platform}: ${error}`);
+            }
+          }
+        } else {
+          console.log(`📺 Nenhuma plataforma de streaming encontrada`);
+        }
         console.log(`✅ Filme criado: ${createdMovie.title}`);
         console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
         console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
