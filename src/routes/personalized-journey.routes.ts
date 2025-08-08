@@ -12,7 +12,7 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
     
     console.log(`🔍 Prisma: Buscando jornada para sentimentId: ${sentimentId}, intentionId: ${intentionId}`);
     
-    // Buscar journey flow do sentimento
+    // Buscar journey flow do sentimento - OTIMIZADO
     const journeyFlow = await prisma.journeyFlow.findFirst({
       where: { mainSentimentId: sentimentId },
       include: {
@@ -23,12 +23,19 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
                 movieSuggestions: {
                   include: {
                     movie: {
-                      include: {
-                        platforms: {
-                          include: {
-                            streamingPlatform: true
-                          }
-                        }
+                      select: {
+                        id: true,
+                        title: true,
+                        year: true,
+                        description: true,
+                        director: true,
+                        runtime: true,
+                        certification: true,
+                        imdbRating: true,
+                        vote_average: true,
+                        thumbnail: true,
+                        genres: true
+                        // Removido 'platforms' para otimização
                       }
                     }
                   }

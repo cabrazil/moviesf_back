@@ -70,38 +70,21 @@ router.get('/summary', async (req, res) => {
   }
 });
 
-// Listar todos os sentimentos principais
+// Listar todos os sentimentos principais - OTIMIZADO
 router.get('/', async (req, res) => {
   try {
     const mainSentiments = await prisma.mainSentiment.findMany({
-      include: {
-        journeyFlow: {
-          include: {
-            steps: {
-              include: {
-                options: {
-                  include: {
-                    movieSuggestions: {
-                      include: {
-                        movie: true
-                      }
-                    }
-                  },
-                  orderBy: {
-                    id: 'asc'
-                  }
-                }
-              },
-              orderBy: [
-                { order: 'asc' },
-                { stepId: 'asc' }
-              ]
-            }
-          }
-        }
-      }
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        shortDescription: true,
+        keywords: true
+        // Removido todos os includes desnecessários para o carregamento inicial
+      },
+      orderBy: { id: 'asc' }
     });
-    console.log('MainSentiments encontrados:', JSON.stringify(mainSentiments, null, 2));
+    console.log(`✅ MainSentiments otimizado: ${mainSentiments.length} sentimentos carregados`);
     res.json(mainSentiments);
   } catch (error) {
     console.error('Erro ao buscar sentimentos principais:', error);
