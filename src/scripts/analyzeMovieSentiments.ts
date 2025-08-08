@@ -327,8 +327,8 @@ async function main() {
     }
 
     // --- Nova verificação de imdbRating ---
-    if (movie.imdbRating === null || movie.imdbRating.toNumber() < 6.0) {
-      console.log(`❌ Filme "${movie.title}" (IMDb Rating: ${movie.imdbRating || 'N/A'}) não atende ao requisito de rating mínimo (6.0). Processo interrompido.`);
+    if (movie.imdbRating === null || movie.imdbRating.toNumber() < 5.9) {
+      console.log(`❌ Filme "${movie.title}" (IMDb Rating: ${movie.imdbRating || 'N/A'}) não atende ao requisito de rating mínimo (5.9). Processo interrompido.`);
       return;
     }
     // --- Fim da nova verificação ---
