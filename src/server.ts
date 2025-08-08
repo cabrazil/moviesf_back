@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import directDb from './utils/directDb';
 import routes from './routes';
 import mainSentimentsRoutes from './routes/main-sentiments.routes';
 import moviesRoutes from './routes/movies.routes';
@@ -43,6 +44,41 @@ app.use('/', routes);
 app.use('/main-sentiments', mainSentimentsRoutes);
 app.use('/movies', moviesRoutes);
 app.use('/api/personalized-journey', personalizedJourneyRoutes);
+
+// Emotional intentions (DADOS REAIS)
+app.get('/api/emotional-intentions/:sentimentId', async (req, res) => {
+  try {
+    const sentimentId = parseInt(req.params.sentimentId);
+    const intentions = await directDb.getEmotionalIntentions(sentimentId);
+    res.json(intentions);
+  } catch (error: any) {
+    console.error('Erro ao buscar intenções emocionais:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar intenções emocionais',
+      details: error.message 
+    });
+  }
+});
+
+// Journey flow (DADOS REAIS)
+app.get('/main-sentiments/:id/journey-flow', async (req, res) => {
+  try {
+    const sentimentId = parseInt(req.params.id);
+    const journeyFlow = await directDb.getJourneyFlow(sentimentId);
+    
+    if (!journeyFlow) {
+      return res.status(404).json({ error: 'Journey flow não encontrado' });
+    }
+    
+    res.json(journeyFlow);
+  } catch (error: any) {
+    console.error('Erro ao buscar journey flow:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar journey flow',
+      details: error.message 
+    });
+  }
+});
 
 // Movie details endpoint
 app.get('/api/movie/:id/details', async (req, res) => {
