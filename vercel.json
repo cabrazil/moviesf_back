@@ -1,14 +1,14 @@
 {
   "version": 2,
   "functions": {
-    "api/server.ts": {
+    "src/server.ts": {
       "maxDuration": 30
     }
   },
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "api/server.ts"
+      "dest": "src/server.ts"
     }
   ],
   "env": {
