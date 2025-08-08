@@ -163,7 +163,15 @@ export class EmotionalRecommendationController {
                 include: {
                   movieSuggestions: {
                     include: {
-                      movie: true
+                      movie: {
+                        include: {
+                          platforms: {
+                            include: {
+                              streamingPlatform: true
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }

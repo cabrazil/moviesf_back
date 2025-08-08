@@ -98,6 +98,8 @@ async function getOmdbRatings(imdbId: string): Promise<Record<string, number>> {
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_API_URL = process.env.TMDB_API_URL || 'https://api.themoviedb.org/3';
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+const YOUTUBE_BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
 interface TMDBMovie {
   id: string;
@@ -237,8 +239,8 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'Telecine Amazon Channel': { name: 'Telecine', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Looke': { name: 'Looke', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Looke Amazon Channel': { name: 'Looke', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
-  'Mubi': { name: 'Mubi', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
-  'MUBI Amazon Channel': { name: 'Mubi', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+      'MUBI': { name: 'MUBI', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+    'MUBI Amazon Channel': { name: 'MUBI', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Oldflix': { name: 'Oldflix', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Crunchyroll': { name: 'Crunchyroll', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Claro tv+': { name: 'Claro Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
@@ -302,7 +304,7 @@ const commonKeywordsMapping: { [key: string]: string } = {
   'japan': 'japão'
 };
 
-async function getMovieStreamingInfo(movieId: number): Promise<{ platforms: string[]; streamingData: Array<{ platform: string; accessType: string }> }> {
+async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movieYear?: number): Promise<{ platforms: string[]; streamingData: Array<{ platform: string; accessType: string }> }> {
   try {
     const response = await axios.get<TMDBWatchProvidersResponse>(`${TMDB_API_URL}/movie/${movieId}/watch/providers`, {
       params: {
@@ -342,6 +344,28 @@ async function getMovieStreamingInfo(movieId: number): Promise<{ platforms: stri
           console.log(`Mapeando provedor: ${provider.provider_name} → ${mapped.name} (${accessType})`);
         } else {
           console.log(`⚠️ Provedor não mapeado: ${provider.provider_name}`);
+        }
+      }
+    }
+
+    // Verificar disponibilidade no YouTube se título e ano foram fornecidos
+    if (movieTitle && movieYear) {
+      const youtubeAvailability = await checkYouTubeAvailability(movieTitle, movieYear);
+      if (youtubeAvailability.available) {
+        // Determinar qual plataforma YouTube usar baseado no ano
+        const isOldMovie = movieYear < 1970;
+        const youtubePlatform = isOldMovie ? 'YouTube (Gratuito)' : 'YouTube Premium';
+        
+        // Adicionar todos os tipos de acesso retornados pelo YouTube
+        youtubeAvailability.accessTypes.forEach(accessType => {
+          streamingData.push({
+            platform: youtubePlatform,
+            accessType
+          });
+        });
+        
+        if (!platforms.includes(youtubePlatform)) {
+          platforms.push(youtubePlatform);
         }
       }
     }
@@ -550,6 +574,48 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
   }
 }
 
+/**
+ * Verifica se um filme está disponível no YouTube
+ */
+async function checkYouTubeAvailability(movieTitle: string, year?: number): Promise<{ available: boolean; accessTypes: string[] }> {
+  if (!YOUTUBE_API_KEY) {
+    console.log('YouTube API key não configurada, pulando verificação do YouTube');
+    return { available: false, accessTypes: [] };
+  }
+
+  try {
+    // Buscar por filmes completos no YouTube
+    const searchQuery = `${movieTitle} ${year || ''} full movie`;
+    const searchUrl = `${YOUTUBE_BASE_URL}/search?part=snippet&q=${encodeURIComponent(searchQuery)}&type=video&videoDuration=long&maxResults=5&key=${YOUTUBE_API_KEY}`;
+    
+    const response = await axios.get(searchUrl);
+    const data = response.data as any;
+
+    if (data.items && data.items.length > 0) {
+      // Verificar se há resultados do YouTube Movies ou canais oficiais
+      const hasYouTubeMovies = data.items.some((item: any) => 
+        item.snippet.channelTitle.includes('YouTube Movies') ||
+        item.snippet.channelTitle.includes('Movies') ||
+        item.snippet.title.toLowerCase().includes('full movie')
+      );
+
+      if (hasYouTubeMovies) {
+        // Para filmes antigos, assumir FREE_WITH_ADS, para recentes PURCHASE + RENTAL
+        const isOldMovie = year && year < 1970;
+        const accessTypes = isOldMovie ? ['FREE_WITH_ADS'] : ['PURCHASE', 'RENTAL'];
+        
+        console.log(`✅ YouTube: ${movieTitle} disponível (${accessTypes.join(', ')})`);
+        return { available: true, accessTypes };
+      }
+    }
+
+    return { available: false, accessTypes: [] };
+  } catch (error) {
+    console.error(`Erro ao verificar YouTube para ${movieTitle}:`, error);
+    return { available: false, accessTypes: [] };
+  }
+}
+
 export async function searchMovie(title?: string, year?: number, tmdbId?: number): Promise<{ movie: TMDBMovie; platforms: string[]; streamingData: Array<{ platform: string; accessType: string }>; director: string | null; certification: string | null; keywords: string[] } | null> {
   try {
     if (tmdbId) {
@@ -565,7 +631,7 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
 
       const directors = await getMovieDirectors(tmdbId);
       const keywords = await getMovieKeywords(tmdbId);
-      const { platforms, streamingData } = await getMovieStreamingInfo(tmdbId);
+      const { platforms, streamingData } = await getMovieStreamingInfo(tmdbId, movieDetails.title, parseInt(movieDetails.release_date.split('-')[0]));
       const certification = await getBrazilianCertification(tmdbId);
 
               return {
@@ -736,7 +802,7 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     console.log(`Palavras-chave encontradas: ${keywords.join(', ')}`);
     
     // Buscar informações de streaming
-          const { platforms, streamingData } = await getMovieStreamingInfo(parseInt(movie.id));
+          const { platforms, streamingData } = await getMovieStreamingInfo(parseInt(movie.id), movie.title, new Date(movie.release_date).getFullYear());
     
     // Buscar certificação brasileira
     const certification = await getBrazilianCertification(parseInt(movie.id));

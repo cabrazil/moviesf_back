@@ -318,7 +318,15 @@ app.get('/api/personalized-flow/:sentimentId/:intentionId', async (req, res) => 
               include: {
                 movieSuggestions: {
                   include: {
-                    movie: true
+                    movie: {
+                      include: {
+                        platforms: {
+                          include: {
+                            streamingPlatform: true
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
