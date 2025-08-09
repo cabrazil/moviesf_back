@@ -4,7 +4,7 @@
   "description": "Backend para aplicação de busca de filmes por sentimento",
   "main": "src/server.ts",
   "engines": {
-    "node": ">=22.0.0"
+    "node": "20.x"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
