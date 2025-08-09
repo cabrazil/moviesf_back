@@ -1,18 +1,13 @@
 {
-  "version": 2,
   "functions": {
     "api/server.ts": {
-      "maxDuration": 30,
-      "runtime": "nodejs20.x"
+      "maxDuration": 30
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "api/server.ts"
+      "source": "/(.*)",
+      "destination": "/api/server.ts"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
