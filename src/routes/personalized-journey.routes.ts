@@ -4,19 +4,37 @@ import { PrismaClient } from '@prisma/client';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Personalized journey com Prisma - REBUILT
+// Personalized journey usando EmotionalIntentionJourneyStep - CORRETO
 router.get('/:sentimentId/:intentionId', async (req, res) => {
   try {
     const sentimentId = parseInt(req.params.sentimentId);
     const intentionId = parseInt(req.params.intentionId);
     
-    console.log(`🔍 Prisma: Buscando jornada para sentimentId: ${sentimentId}, intentionId: ${intentionId}`);
+    console.log(`🔍 Buscando jornada para sentimentId: ${sentimentId}, intentionId: ${intentionId}`);
     
-    // Buscar journey flow do sentimento - OTIMIZADO
-    const journeyFlow = await prisma.journeyFlow.findFirst({
-      where: { mainSentimentId: sentimentId },
+    // Buscar a intenção emocional para validar
+    const emotionalIntention = await prisma.emotionalIntention.findUnique({
+      where: { id: intentionId },
+      include: { mainSentiment: true }
+    });
+
+    if (!emotionalIntention) {
+      return res.status(404).json({
+        error: 'Intenção emocional não encontrada'
+      });
+    }
+
+    if (emotionalIntention.mainSentimentId !== sentimentId) {
+      return res.status(400).json({
+        error: 'Intenção emocional não pertence ao sentimento especificado'
+      });
+    }
+    
+    // Buscar steps da jornada usando EmotionalIntentionJourneyStep
+    const journeySteps = await prisma.emotionalIntentionJourneyStep.findMany({
+      where: { emotionalIntentionId: intentionId },
       include: {
-        steps: {
+        journeyStepFlow: {
           include: {
             options: {
               include: {
@@ -34,51 +52,45 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
                         imdbRating: true,
                         vote_average: true,
                         thumbnail: true,
-                        genres: true
-                        // Removido 'platforms' para otimização
+                        genres: true,
+                        platforms: {
+                          select: {
+                            accessType: true,
+                            streamingPlatform: {
+                              select: {
+                                name: true,
+                                category: true
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
                 }
               }
             }
-          },
-          orderBy: { order: 'asc' }
+          }
         }
       }
     });
     
-    if (!journeyFlow) {
-      return res.status(404).json({ error: 'Journey flow não encontrado' });
+    if (journeySteps.length === 0) {
+      return res.status(404).json({ error: 'Nenhum passo da jornada encontrado' });
     }
     
-    console.log(`✅ Journey flow encontrado: ${journeyFlow.steps.length} steps`);
-    console.log(`🔍 DEBUG - Primeiro step:`, JSON.stringify(journeyFlow.steps[0], null, 2));
-    
-    // Buscar informações da intenção
-    const intentions = await prisma.emotionalIntention.findMany({
-      where: { mainSentimentId: sentimentId }
-    });
-    
-    const selectedIntention = intentions.find((intention: any) => intention.id === intentionId);
-    
-    if (!selectedIntention) {
-      return res.status(404).json({ error: 'Intenção emocional não encontrada' });
-    }
-    
-    console.log(`✅ Intenção encontrada: ${selectedIntention.intentionType}`);
+    console.log(`✅ Encontrados ${journeySteps.length} passos da jornada`);
     
     // Retornar jornada personalizada no formato esperado pelo frontend
     const response = {
-      id: journeyFlow.id,
+      id: `${sentimentId}-${intentionId}`,
       mainSentimentId: sentimentId,
       emotionalIntentionId: intentionId,
-      steps: journeyFlow.steps.map((step: any) => ({
-        id: step.id,
-        stepId: step.stepId,
-        order: step.order,
-        question: step.question,
-        options: step.options.map((option: any) => ({
+      steps: journeySteps.map((step: any) => ({
+        id: step.journeyStepFlow.id,
+        stepId: step.journeyStepFlow.stepId,
+        question: step.journeyStepFlow.question,
+        options: step.journeyStepFlow.options.map((option: any) => ({
           id: option.id,
           text: option.text,
           nextStepId: option.nextStepId,
@@ -94,18 +106,6 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
     };
     
     console.log(`✅ Resposta final: ${response.steps.length} steps processados`);
-    
-    // Log detalhado da primeira opção para debug
-    if (response.steps.length > 0 && response.steps[0].options.length > 0) {
-      const firstOption = response.steps[0].options[0];
-      console.log(`🔍 DEBUG - Primeira opção:`, {
-        id: firstOption.id,
-        text: firstOption.text,
-        nextStepId: firstOption.nextStepId,
-        isEndState: firstOption.isEndState,
-        movieSuggestionsCount: firstOption.movieSuggestions?.length || 0
-      });
-    }
     
     res.json(response);
   } catch (error: any) {

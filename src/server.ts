@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { PrismaClient } from '@prisma/client';
 import directDb from './utils/directDb';
 import routes from './routes';
 import mainSentimentsRoutes from './routes/main-sentiments.routes';
@@ -11,6 +12,7 @@ dotenv.config();
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
+const prisma = new PrismaClient();
 
 // Configuração CORS mais permissiva para desenvolvimento
 app.use(cors({
@@ -45,12 +47,38 @@ app.use('/main-sentiments', mainSentimentsRoutes);
 app.use('/movies', moviesRoutes);
 app.use('/api/personalized-journey', personalizedJourneyRoutes);
 
-// Emotional intentions (DADOS REAIS)
+// Emotional intentions usando Prisma
 app.get('/api/emotional-intentions/:sentimentId', async (req, res) => {
   try {
     const sentimentId = parseInt(req.params.sentimentId);
-    const intentions = await directDb.getEmotionalIntentions(sentimentId);
-    res.json(intentions);
+    const intentions = await prisma.emotionalIntention.findMany({
+      where: { mainSentimentId: sentimentId },
+      select: {
+        id: true,
+        intentionType: true,
+        description: true,
+        mainSentimentId: true
+      }
+    });
+
+    // Buscar o nome do sentimento para compatibilidade com frontend
+    const sentiment = await prisma.mainSentiment.findUnique({
+      where: { id: sentimentId },
+      select: { name: true }
+    });
+
+    // Retornar no formato esperado pelo frontend
+    const response = {
+      sentimentId: sentimentId,
+      sentimentName: sentiment?.name || 'Desconhecido',
+      intentions: intentions.map(intention => ({
+        id: intention.id,
+        type: intention.intentionType,
+        description: intention.description
+      }))
+    };
+
+    res.json(response);
   } catch (error: any) {
     console.error('Erro ao buscar intenções emocionais:', error);
     res.status(500).json({ 

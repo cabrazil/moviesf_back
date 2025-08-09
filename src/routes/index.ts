@@ -15,6 +15,6 @@ if (process.env.TMDB_API_KEY || process.env.TMDB_ACCESS_TOKEN) {
 router.use('/movies', movieRoutes);
 router.use('/admin', adminRoutes);
 router.use('/main-sentiments', mainSentimentsRoutes);
-router.use('/api', emotionalRecommendationRoutes);
+// router.use('/api', emotionalRecommendationRoutes); // COMENTADO - conflita com personalized-journey.routes.ts
 
 export default router; 

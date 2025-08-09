@@ -15,7 +15,6 @@ model Movie {
   year                 Int?
   director             String?               @db.VarChar(255)
   genres               String[]
-  streamingPlatforms   String[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   description          String?
