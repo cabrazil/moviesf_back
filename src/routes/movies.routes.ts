@@ -30,7 +30,7 @@ router.get('/:id', async (req, res) => {
         genres: true,
         runtime: true,
         description: true,
-        streamingPlatforms: true,
+        // streamingPlatforms: true,
         movieSentiments: {
           select: {
             mainSentiment: {

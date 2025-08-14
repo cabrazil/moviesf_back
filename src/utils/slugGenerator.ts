@@ -27,7 +27,19 @@ export async function generateUniqueSlug(title: string): Promise<string> {
   let slug = generateSlug(title);
   let counter = 1;
   
-  while (await prisma.movie.findUnique({ where: { slug } })) {
+  // Verificar se o slug existe usando Prisma (sem o campo slug por enquanto)
+  while (true) {
+    const existingMovie = await prisma.movie.findFirst({
+      where: { 
+        title: {
+          contains: slug.replace(/-/g, ' '),
+          mode: 'insensitive'
+        }
+      }
+    });
+    if (!existingMovie) {
+      break;
+    }
     slug = `${generateSlug(title)}-${counter}`;
     counter++;
   }

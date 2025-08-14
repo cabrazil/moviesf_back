@@ -49,7 +49,7 @@ export const getMovieSuggestions = asyncHandler(async (req: Request, res: Respon
             description: true,
             thumbnail: true,
             genres: true,
-            streamingPlatforms: true,
+            // streamingPlatforms: true,
             vote_average: true,
             imdbRating: true,
             rottenTomatoesRating: true,

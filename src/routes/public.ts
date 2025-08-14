@@ -78,36 +78,19 @@ router.get('/filme/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
 
-    // Buscar filme diretamente pelo slug (mais eficiente)
-    const movie = await prisma.movie.findUnique({
-      where: { slug },
+    // Buscar filme por slug usando Prisma (sem o campo slug por enquanto)
+    const movie = await prisma.movie.findFirst({
+      where: { 
+        title: {
+          contains: slug.replace(/-/g, ' '),
+          mode: 'insensitive'
+        }
+      },
       include: {
-        platforms: {
-          include: {
-            streamingPlatform: true
-          }
-        },
         movieSentiments: {
           include: {
             mainSentiment: true,
             subSentiment: true
-          }
-        },
-        movieSuggestionFlows: {
-          include: {
-            journeyOptionFlow: {
-              include: {
-                journeyStepFlow: {
-                  include: {
-                    journeyFlow: {
-                      include: {
-                        mainSentiment: true
-                      }
-                    }
-                  }
-                }
-              }
-            }
           }
         }
       }
@@ -123,7 +106,7 @@ router.get('/filme/:slug', async (req, res) => {
         movieSentiments: {
           some: {
             mainSentimentId: {
-              in: movie.movieSentiments.map(ms => ms.mainSentimentId)
+              in: movie.movieSentiments.map((ms: any) => ms.mainSentimentId)
             }
           }
         },
@@ -131,11 +114,6 @@ router.get('/filme/:slug', async (req, res) => {
       },
       take: 6,
       include: {
-        platforms: {
-          include: {
-            streamingPlatform: true
-          }
-        },
         movieSentiments: {
           include: {
             mainSentiment: true

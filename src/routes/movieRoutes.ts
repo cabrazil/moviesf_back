@@ -54,7 +54,7 @@ router.get('/:id', async (req, res) => {
         genres: true,
         runtime: true,
         description: true,
-        streamingPlatforms: true,
+        // streamingPlatforms: true,
         movieSentiments: {
           select: {
             mainSentiment: {
@@ -104,7 +104,7 @@ router.put('/:id', async (req, res) => {
       director, 
       genres, 
       thumbnail,
-      streamingPlatforms,
+      // streamingPlatforms,
       movieSentiments,
       movieSuggestions,
       movieSuggestionFlows
@@ -120,7 +120,7 @@ router.put('/:id', async (req, res) => {
         director,
         genres,
         thumbnail,
-        streamingPlatforms,
+        // streamingPlatforms,
       },
     });
 
