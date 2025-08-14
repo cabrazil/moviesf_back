@@ -101,7 +101,7 @@ class AIProviderManager {
     systemPrompt: string
   ): Promise<AIResponse> {
     try {
-      const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      const response = await axios.post<OpenAIResponse>('https://api.openai.com/v1/chat/completions', {
         model: 'gpt-4-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -207,14 +207,14 @@ Responda SEMPRE com um JSON válido no formato exato:
       console.error('Erro na API Gemini:', error);
       
       // Verificar se é erro 503 (Service Unavailable)
-      if (axios.isAxiosError(error) && error.response?.status === 503) {
+      if (error && typeof error === 'object' && 'response' in error && (error as any).response?.status === 503) {
         console.log('🔄 Erro 503 detectado - Tentando fallback para OpenAI...');
         
         // Fallback para OpenAI se disponível
         if (process.env.OPENAI_API_KEY) {
           try {
             console.log('🔄 Usando OpenAI como fallback...');
-            const openaiResult = await this.generateContentWithOpenAI(userPrompt, enhancedSystemPrompt);
+            const openaiResult = await this.generateContentWithOpenAI(userPrompt, systemPrompt);
             if (openaiResult.success) {
               console.log('✅ Fallback para OpenAI bem-sucedido');
               return openaiResult;
