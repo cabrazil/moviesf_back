@@ -164,7 +164,7 @@ app.get('/api/movie/:id/details', async (req, res) => {
   }
 });
 
-// Error Handling Middleware
+// Error Handling Middleware and logging
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
   res.status(500).json({
