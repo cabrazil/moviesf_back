@@ -12,6 +12,7 @@ datasource db {
 model Movie {
   id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title                String                @unique @db.VarChar(255)
+  slug                  String?               @unique @db.VarChar(255)  // NOVO CAMPO
   year                 Int?
   director             String?               @db.VarChar(255)
   genres               String[]
@@ -132,6 +133,7 @@ model MovieSuggestionFlow {
   movieId             String            @db.Uuid
   reason              String
   relevance           Int               @default(1)
+  relevanceScore      Decimal?          @db.Decimal(5, 3) // Score de relevância baseado na soma dos subsentimentos
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   journeyOptionFlow   JourneyOptionFlow @relation(fields: [journeyOptionFlowId], references: [id])
@@ -233,6 +235,7 @@ model StreamingPlatform {
   id        Int              @id @default(autoincrement())
   name      String           @unique @db.VarChar(255) // Ex: "Netflix", "Amazon Prime Video", "Apple TV (Loja)", "Apple TV+"
   category  PlatformCategory // Categoria principal da plataforma (para filtros de alto nível)
+  logoUrl   String?          @db.VarChar(500) // URL da imagem da plataforma (local ou externa)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
   // Relação muitos-para-muitos com filmes, através da tabela de junção

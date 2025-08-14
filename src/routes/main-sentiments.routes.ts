@@ -117,7 +117,6 @@ router.get('/:id/journey-flow', async (req, res) => {
                             year: true,
                             director: true,
                             genres: true,
-                            streamingPlatforms: true,
                             thumbnail: true,
                             original_title: true
                           }

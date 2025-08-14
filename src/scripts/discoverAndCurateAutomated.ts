@@ -373,6 +373,9 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
       return false;
     }
 
+    // Calcular relevanceScore baseado nos matches de subsentimentos
+    const relevanceScore = await calculateRelevanceScore(movieId, optionId);
+
     // Gerar reflexão
     const reflection = await generateReflectionForMovie(movie);
 
@@ -388,15 +391,90 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
       }
     });
 
+    // Atualizar o relevanceScore após a criação (quando o campo estiver disponível)
+    if (relevanceScore !== null) {
+      try {
+        await prisma.$executeRaw`
+          UPDATE "MovieSuggestionFlow" 
+          SET "relevanceScore" = ${relevanceScore}
+          WHERE id = ${suggestion.id}
+        `;
+        console.log(`📊 Relevance Score atualizado: ${relevanceScore.toFixed(3)}`);
+      } catch (error) {
+        console.log(`⚠️ Campo relevanceScore ainda não disponível no banco: ${error}`);
+      }
+    }
+
     console.log(`✅ Sugestão criada (ID: ${suggestion.id})`);
     console.log(`📝 Opção: ${option.text}`);
     console.log(`🎬 Filme: ${movie.title} (${movie.year})`);
+    console.log(`📊 Relevance Score: ${relevanceScore?.toFixed(3) || 'N/A'}`);
     
     return true;
 
   } catch (error) {
     console.error('Erro ao popular sugestão:', error);
     return false;
+  }
+}
+
+// Função para calcular o relevanceScore baseado nos matches de subsentimentos
+async function calculateRelevanceScore(movieId: string, journeyOptionFlowId: number): Promise<number | null> {
+  try {
+    // Buscar os subsentimentos associados à opção da jornada
+    const optionSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
+      where: { journeyOptionFlowId: journeyOptionFlowId }
+    });
+
+    // Buscar os subsentimentos do filme
+    const movieSubSentiments = await prisma.movieSentiment.findMany({
+      where: { movieId: movieId }
+    });
+
+    // Buscar detalhes dos subsentimentos separadamente
+    const subSentimentIds = [...new Set([
+      ...optionSubSentiments.map(oss => oss.subSentimentId),
+      ...movieSubSentiments.map(mss => mss.subSentimentId)
+    ])];
+
+    const subSentiments = await prisma.subSentiment.findMany({
+      where: { id: { in: subSentimentIds } }
+    });
+
+    let totalRelevanceScore = 0;
+    let matchCount = 0;
+
+    // Para cada subsentimento da opção, verificar se há match no filme
+    for (const optionSub of optionSubSentiments) {
+      const movieMatch = movieSubSentiments.find(movieSub => 
+        movieSub.subSentimentId === optionSub.subSentimentId
+      );
+
+      if (movieMatch) {
+        // Se há match, somar a relevância (weight) do subsentimento da opção
+        totalRelevanceScore += optionSub.weight.toNumber();
+        matchCount++;
+        
+        // Buscar o nome do subsentimento
+        const subSentiment = subSentiments.find(ss => ss.id === optionSub.subSentimentId);
+        const subSentimentName = subSentiment?.name || `ID ${optionSub.subSentimentId}`;
+        
+        console.log(`🎯 Match encontrado: ${subSentimentName} (Relevância: ${optionSub.weight.toNumber()})`);
+      }
+    }
+
+    // Retornar o score total se houver pelo menos um match
+    if (matchCount > 0) {
+      console.log(`📊 Relevance Score calculado: ${totalRelevanceScore.toFixed(3)} (${matchCount} matches)`);
+      return totalRelevanceScore;
+    }
+
+    console.log(`⚠️ Nenhum match de subsentimento encontrado para o filme`);
+    return null;
+
+  } catch (error) {
+    console.error('Erro ao calcular relevance score:', error);
+    return null;
   }
 }
 

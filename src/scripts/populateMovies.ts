@@ -4,6 +4,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
+import { generateUniqueSlug } from '../utils/slugGenerator';
 
 // Configurar o Prisma Client da forma mais simples possível
 const prisma = new PrismaClient();
@@ -885,10 +886,15 @@ async function processSingleMovie(title: string, year?: number) {
           console.log('IMDb ID não encontrado. Pulando busca de ratings.');
         }
 
+        // Gerar slug único para o filme
+        const slug = await generateUniqueSlug(movie.title);
+        console.log(`🔗 Slug gerado: ${slug}`);
+
         // Criar o filme com os gêneros (sem streamingPlatforms)
         const createdMovie = await prisma.movie.create({
           data: {
             title: movie.title,
+            slug: slug,
             year: new Date(movie.release_date).getFullYear(),
             director: director || undefined,
             genres: movie.genres.map(g => g.name),

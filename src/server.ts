@@ -7,6 +7,7 @@ import routes from './routes';
 import mainSentimentsRoutes from './routes/main-sentiments.routes';
 import moviesRoutes from './routes/movies.routes';
 import personalizedJourneyRoutes from './routes/personalized-journey.routes';
+import publicRoutes from './routes/public';
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.use('/', routes);
 app.use('/main-sentiments', mainSentimentsRoutes);
 app.use('/movies', moviesRoutes);
 app.use('/api/personalized-journey', personalizedJourneyRoutes);
+app.use('/api/public', publicRoutes);
 
 // Emotional intentions usando Prisma
 app.get('/api/emotional-intentions/:sentimentId', async (req, res) => {
@@ -108,10 +110,18 @@ app.get('/main-sentiments/:id/journey-flow', async (req, res) => {
   }
 });
 
-// Movie details endpoint
+// Movie details endpoint (por UUID - aplicação principal)
 app.get('/api/movie/:id/details', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Verificar se é um UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+    
+    console.log(`🔍 Buscando filme por UUID: ${id}`);
     
     // Usar directDb para buscar o filme
     const { Pool } = require('pg');
@@ -122,7 +132,7 @@ app.get('/api/movie/:id/details', async (req, res) => {
       }
     });
 
-    // Buscar filme com plataformas
+    // Buscar filme por UUID
     const movieResult = await pool.query(`
       SELECT 
         m.id,
@@ -146,6 +156,7 @@ app.get('/api/movie/:id/details', async (req, res) => {
     }
 
     const movie = movieResult.rows[0];
+    console.log(`✅ Filme encontrado: ${movie.title}`);
 
     // Buscar plataformas de streaming
     const platformsResult = await pool.query(`
@@ -158,7 +169,7 @@ app.get('/api/movie/:id/details', async (req, res) => {
       JOIN "StreamingPlatform" sp ON msp."streamingPlatformId" = sp.id
       WHERE msp."movieId" = $1
       AND (sp.category = 'SUBSCRIPTION_PRIMARY' OR sp.category = 'HYBRID')
-    `, [id]);
+    `, [movie.id]);
 
     await pool.end();
 
@@ -188,6 +199,108 @@ app.get('/api/movie/:id/details', async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao buscar detalhes do filme:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Movie hero endpoint (por slug - landing page)
+app.get('/api/movie/:slug/hero', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    console.log(`🎬 Buscando filme hero por slug: ${slug}`);
+    
+    // Usar directDb para buscar o filme por slug
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
+
+    // Buscar filme por slug
+    const movieResult = await pool.query(`
+      SELECT 
+        m.id,
+        m.title,
+        m.year,
+        m.description,
+        m.director,
+        m.runtime,
+        m.certification,
+        m."imdbRating",
+        m."vote_average",
+        m."rottenTomatoesRating",
+        m."metacriticRating",
+        m.thumbnail,
+        m.genres
+      FROM "Movie" m
+      WHERE m.slug = $1
+    `, [slug]);
+
+    if (movieResult.rows.length === 0) {
+      await pool.end();
+      return res.status(404).json({ error: 'Filme não encontrado' });
+    }
+
+    const movie = movieResult.rows[0];
+    console.log(`✅ Filme hero encontrado: ${movie.title}`);
+
+    // Buscar plataformas de streaming
+    const platformsResult = await pool.query(`
+      SELECT 
+        sp.id,
+        sp.name,
+        sp.category,
+        msp."accessType"
+      FROM "MovieStreamingPlatform" msp
+      JOIN "StreamingPlatform" sp ON msp."streamingPlatformId" = sp.id
+      WHERE msp."movieId" = $1
+      AND (sp.category = 'SUBSCRIPTION_PRIMARY' OR sp.category = 'HYBRID')
+    `, [movie.id]);
+
+    // Buscar motivo para assistir (MovieSuggestionFlow.reason)
+    const reasonResult = await pool.query(`
+      SELECT msf.reason
+      FROM "MovieSuggestionFlow" msf
+      WHERE msf."movieId" = $1
+      LIMIT 1
+    `, [movie.id]);
+
+    await pool.end();
+
+    const subscriptionPlatforms = platformsResult.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      accessType: row.accessType
+    }));
+
+    const reason = reasonResult.rows.length > 0 ? reasonResult.rows[0].reason : null;
+
+    res.json({
+      movie: {
+        id: movie.id,
+        title: movie.title,
+        year: movie.year,
+        description: movie.description,
+        director: movie.director,
+        runtime: movie.runtime,
+        certification: movie.certification,
+        imdbRating: movie.imdbRating,
+        vote_average: movie.vote_average,
+        rottenTomatoesRating: movie.rottenTomatoesRating,
+        metacriticRating: movie.metacriticRating,
+        thumbnail: movie.thumbnail,
+        genres: movie.genres
+      },
+      subscriptionPlatforms,
+      reason
+    });
+
+  } catch (error) {
+    console.error('Erro ao buscar filme hero:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
