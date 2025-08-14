@@ -96,6 +96,38 @@ class AIProviderManager {
     }
   }
 
+  private async generateContentWithOpenAI(
+    userPrompt: string,
+    systemPrompt: string
+  ): Promise<AIResponse> {
+    try {
+      const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+        model: 'gpt-4-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.2,
+        max_tokens: 1500
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const content = response.data.choices[0].message.content;
+      return { content, success: true };
+    } catch (error) {
+      console.error('Erro no fallback OpenAI:', error);
+      return {
+        content: '',
+        success: false,
+        error: `Erro OpenAI Fallback: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+  }
+
   private async generateGeminiResponse(
     systemPrompt: string,
     userPrompt: string,
@@ -173,6 +205,26 @@ Responda SEMPRE com um JSON válido no formato exato:
       };
     } catch (error) {
       console.error('Erro na API Gemini:', error);
+      
+      // Verificar se é erro 503 (Service Unavailable)
+      if (axios.isAxiosError(error) && error.response?.status === 503) {
+        console.log('🔄 Erro 503 detectado - Tentando fallback para OpenAI...');
+        
+        // Fallback para OpenAI se disponível
+        if (process.env.OPENAI_API_KEY) {
+          try {
+            console.log('🔄 Usando OpenAI como fallback...');
+            const openaiResult = await this.generateContentWithOpenAI(userPrompt, enhancedSystemPrompt);
+            if (openaiResult.success) {
+              console.log('✅ Fallback para OpenAI bem-sucedido');
+              return openaiResult;
+            }
+          } catch (fallbackError) {
+            console.error('❌ Fallback para OpenAI também falhou:', fallbackError);
+          }
+        }
+      }
+      
       return {
         content: '',
         success: false,
