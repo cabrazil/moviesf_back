@@ -66,6 +66,7 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
       SELECT 
         m.id,
         m.title,
+        m."original_title",
         m.year,
         m.description,
         m.director,
@@ -89,7 +90,7 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
     const movie = movieResult.rows[0];
     console.log(`✅ Filme hero encontrado: ${movie.title}`);
 
-    // Buscar plataformas de streaming
+    // Buscar todas as plataformas de streaming
     const platformsResult = await pool.query(`
       SELECT 
         sp.id,
@@ -99,7 +100,14 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
       FROM "MovieStreamingPlatform" msp
       JOIN "StreamingPlatform" sp ON msp."streamingPlatformId" = sp.id
       WHERE msp."movieId" = $1
-      AND (sp.category = 'SUBSCRIPTION_PRIMARY' OR sp.category = 'HYBRID')
+      ORDER BY 
+        CASE msp."accessType"
+          WHEN 'INCLUDED_WITH_SUBSCRIPTION' THEN 1
+          WHEN 'RENTAL' THEN 2
+          WHEN 'PURCHASE' THEN 3
+          ELSE 4
+        END,
+        sp.name
     `, [movie.id]);
 
     // Buscar motivo para assistir (MovieSuggestionFlow.reason)
@@ -112,12 +120,17 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
 
     await pool.end();
 
-    const subscriptionPlatforms = platformsResult.rows.map((row: any) => ({
+    // Organizar plataformas por tipo de acesso
+    const allPlatforms = platformsResult.rows.map((row: any) => ({
       id: row.id,
       name: row.name,
       category: row.category,
+      logoUrl: row.logoUrl,
       accessType: row.accessType
     }));
+
+    const subscriptionPlatforms = allPlatforms.filter((p: any) => p.accessType === 'INCLUDED_WITH_SUBSCRIPTION');
+    const rentalPurchasePlatforms = allPlatforms.filter((p: any) => p.accessType === 'RENTAL' || p.accessType === 'PURCHASE');
 
     const reason = reasonResult.rows.length > 0 ? reasonResult.rows[0].reason : null;
 
@@ -125,6 +138,7 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
       movie: {
         id: movie.id,
         title: movie.title,
+        original_title: movie.original_title,
         year: movie.year,
         description: movie.description,
         director: movie.director,
@@ -138,6 +152,7 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
         genres: movie.genres
       },
       subscriptionPlatforms,
+      rentalPurchasePlatforms,
       reason
     });
 
@@ -262,6 +277,55 @@ app.get('/api/movie/:id/details', async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao buscar detalhes do filme:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Buscar todas as plataformas de streaming
+app.get('/api/streaming-platforms', async (req, res) => {
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+
+    const platformsResult = await pool.query(`
+      SELECT 
+        id,
+        name,
+        category,
+        "logoPath",
+        "baseUrl",
+        "hasFreeTrial",
+        "freeTrialDuration"
+      FROM "StreamingPlatform"
+      ORDER BY 
+        CASE category
+          WHEN 'SUBSCRIPTION_PRIMARY' THEN 1
+          WHEN 'HYBRID' THEN 2
+          WHEN 'RENTAL_PURCHASE_PRIMARY' THEN 3
+          WHEN 'FREE_PRIMARY' THEN 4
+          ELSE 5
+        END,
+        name
+    `);
+
+    await pool.end();
+
+    const platforms = platformsResult.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      logoPath: row.logoPath,
+      baseUrl: row.baseUrl,
+      hasFreeTrial: row.hasFreeTrial,
+      freeTrialDuration: row.freeTrialDuration
+    }));
+
+    res.json(platforms);
+
+  } catch (error) {
+    console.error('Erro ao buscar plataformas de streaming:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

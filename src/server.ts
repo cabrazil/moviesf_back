@@ -49,6 +49,58 @@ app.use('/movies', moviesRoutes);
 app.use('/api/personalized-journey', personalizedJourneyRoutes);
 app.use('/api/public', publicRoutes);
 
+// Buscar todas as plataformas de streaming
+app.get('/api/streaming-platforms', async (req, res) => {
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
+
+    const platformsResult = await pool.query(`
+      SELECT 
+        id,
+        name,
+        category,
+        "logoPath",
+        "baseUrl",
+        "hasFreeTrial",
+        "freeTrialDuration"
+      FROM "StreamingPlatform"
+      ORDER BY 
+        CASE category
+          WHEN 'SUBSCRIPTION_PRIMARY' THEN 1
+          WHEN 'HYBRID' THEN 2
+          WHEN 'RENTAL_PURCHASE_PRIMARY' THEN 3
+          WHEN 'FREE_PRIMARY' THEN 4
+          ELSE 5
+        END,
+        name
+    `);
+
+    await pool.end();
+
+    const platforms = platformsResult.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      logoPath: row.logoPath,
+      baseUrl: row.baseUrl,
+      hasFreeTrial: row.hasFreeTrial,
+      freeTrialDuration: row.freeTrialDuration
+    }));
+
+    res.json(platforms);
+
+  } catch (error) {
+    console.error('Erro ao buscar plataformas de streaming:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // Movie hero endpoint (por slug - landing page) - DEVE VIR ANTES DA ROTA DE DETALHES
 app.get('/api/movie/:slug/hero', async (req, res) => {
   try {
@@ -70,6 +122,7 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
       SELECT 
         m.id,
         m.title,
+        m."original_title",
         m.year,
         m.description,
         m.director,
@@ -129,6 +182,7 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
       movie: {
         id: movie.id,
         title: movie.title,
+        original_title: movie.original_title,
         year: movie.year,
         description: movie.description,
         director: movie.director,

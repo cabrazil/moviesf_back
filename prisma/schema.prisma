@@ -235,9 +235,14 @@ model StreamingPlatform {
   id        Int              @id @default(autoincrement())
   name      String           @unique @db.VarChar(255) // Ex: "Netflix", "Amazon Prime Video", "Apple TV (Loja)", "Apple TV+"
   category  PlatformCategory // Categoria principal da plataforma (para filtros de alto nível)
-  logoUrl   String?          @db.VarChar(500) // URL da imagem da plataforma (local ou externa)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+  baseUrl   String?          @db.VarChar(500) // URL base da plataforma para redirecionamento
+  hasFreeTrial Boolean       @default(false) // Se a plataforma oferece teste grátis
+  freeTrialDuration String?  @db.VarChar(100) // Duração do teste grátis (ex: '7 dias', '30 dias', '1 mês')
+  logoPath   String?          @db.VarChar(500) // URL da imagem da plataforma (local ou externa)
+  
+  
   // Relação muitos-para-muitos com filmes, através da tabela de junção
   movies    MovieStreamingPlatform[]
 }
