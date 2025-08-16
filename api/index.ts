@@ -254,6 +254,99 @@ app.get('/main-sentiments/:id/journey-flow', async (req, res) => {
   }
 });
 
+// Movie details endpoint (por UUID - aplicação principal)
+app.get('/api/movie/:id/details', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verificar se é um UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+    
+    console.log(`🔍 Buscando filme por UUID: ${id}`);
+    
+    // Usar directDb para buscar o filme
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
+
+    // Buscar filme por UUID
+    const movieResult = await pool.query(`
+      SELECT 
+        m.id,
+        m.title,
+        m.year,
+        m.description,
+        m.director,
+        m.runtime,
+        m.certification,
+        m."imdbRating",
+        m."vote_average",
+        m.thumbnail,
+        m.genres
+      FROM "Movie" m
+      WHERE m.id = $1
+    `, [id]);
+
+    if (movieResult.rows.length === 0) {
+      await pool.end();
+      return res.status(404).json({ error: 'Filme não encontrado' });
+    }
+
+    const movie = movieResult.rows[0];
+    console.log(`✅ Filme encontrado: ${movie.title}`);
+
+    // Buscar plataformas de streaming
+    const platformsResult = await pool.query(`
+      SELECT 
+        sp.id,
+        sp.name,
+        sp.category,
+        msp."accessType"
+      FROM "MovieStreamingPlatform" msp
+      JOIN "StreamingPlatform" sp ON msp."streamingPlatformId" = sp.id
+      WHERE msp."movieId" = $1
+      AND (sp.category = 'SUBSCRIPTION_PRIMARY' OR sp.category = 'HYBRID')
+    `, [movie.id]);
+
+    await pool.end();
+
+    const subscriptionPlatforms = platformsResult.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      accessType: row.accessType
+    }));
+
+    res.json({
+      movie: {
+        id: movie.id,
+        title: movie.title,
+        year: movie.year,
+        description: movie.description,
+        director: movie.director,
+        runtime: movie.runtime,
+        certification: movie.certification,
+        imdbRating: movie.imdbRating,
+        vote_average: movie.vote_average,
+        thumbnail: movie.thumbnail,
+        genres: movie.genres
+      },
+      subscriptionPlatforms
+    });
+
+  } catch (error) {
+    console.error('Erro ao buscar detalhes do filme:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // Error Handling Middleware and logging
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Erro não tratado:', error);
