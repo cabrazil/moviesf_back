@@ -146,13 +146,16 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
     const movie = movieResult.rows[0];
     console.log(`✅ Filme hero encontrado: ${movie.title}`);
 
-    // Buscar plataformas de streaming
+    // Buscar plataformas de streaming com informações de teste grátis
     const platformsResult = await pool.query(`
       SELECT 
         sp.id,
         sp.name,
         sp.category,
         sp."logoPath",
+        sp."hasFreeTrial",
+        sp."freeTrialDuration",
+        sp."baseUrl",
         msp."accessType"
       FROM "MovieStreamingPlatform" msp
       JOIN "StreamingPlatform" sp ON msp."streamingPlatformId" = sp.id
@@ -183,6 +186,9 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
       name: row.name,
       category: row.category,
       logoPath: row.logoPath,
+      hasFreeTrial: row.hasFreeTrial,
+      freeTrialDuration: row.freeTrialDuration,
+      baseUrl: row.baseUrl,
       accessType: row.accessType
     }));
 

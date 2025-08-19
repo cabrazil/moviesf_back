@@ -349,7 +349,54 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
     });
 
     if (existingSuggestion) {
-      console.log(`✅ Sugestão já existe (ID: ${existingSuggestion.id})`);
+      console.log(`✅ Sugestão já existe (ID: ${existingSuggestion.id}) - Atualizando reflexão...`);
+      
+      // Buscar informações do filme
+      const movie = await prisma.movie.findUnique({
+        where: { id: movieId }
+      });
+
+      if (!movie) {
+        console.log(`❌ Filme não encontrado: ${movieId}`);
+        return false;
+      }
+
+      // Buscar opção da jornada
+      console.log(`🔍 Buscando opção da jornada ID: ${optionId}`);
+      const option = await prisma.journeyOptionFlow.findUnique({
+        where: { id: optionId }
+      });
+      console.log(`📝 Opção encontrada: "${option?.text}"`);
+
+      if (!option) {
+        console.log(`❌ Opção não encontrada: ${optionId}`);
+        return false;
+      }
+
+      // Calcular relevanceScore baseado nos matches de subsentimentos
+      const relevanceScore = await calculateRelevanceScore(movieId, optionId);
+
+      // Gerar nova reflexão
+      console.log(`🎯 Iniciando geração de reflexão para: ${movie.title}`);
+      const reflection = await generateReflectionForMovie(movie, option);
+      console.log(`✅ Reflexão gerada: "${reflection}"`);
+
+      // Atualizar a sugestão existente
+      await prisma.movieSuggestionFlow.update({
+        where: { id: existingSuggestion.id },
+        data: { 
+          reason: reflection,
+          relevanceScore: relevanceScore,
+          updatedAt: new Date()
+        }
+      });
+
+      console.log(`📊 Relevance Score atualizado: ${relevanceScore?.toFixed(3) || 'N/A'}`);
+
+      console.log(`✅ Sugestão atualizada (ID: ${existingSuggestion.id})`);
+      console.log(`📝 Opção: ${option.text}`);
+      console.log(`🎬 Filme: ${movie.title} (${movie.year})`);
+      
       return true;
     }
 
@@ -364,9 +411,11 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
     }
 
     // Buscar opção da jornada
+    console.log(`🔍 Buscando opção da jornada ID: ${optionId}`);
     const option = await prisma.journeyOptionFlow.findUnique({
       where: { id: optionId }
     });
+    console.log(`📝 Opção encontrada: "${option?.text}"`);
 
     if (!option) {
       console.log(`❌ Opção não encontrada: ${optionId}`);
@@ -377,33 +426,24 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
     const relevanceScore = await calculateRelevanceScore(movieId, optionId);
 
     // Gerar reflexão
-    const reflection = await generateReflectionForMovie(movie);
+    console.log(`🎯 Iniciando geração de reflexão para: ${movie.title}`);
+    const reflection = await generateReflectionForMovie(movie, option);
+    console.log(`✅ Reflexão gerada: "${reflection}"`);
 
-    // Criar sugestão
+    // Criar sugestão com relevanceScore incluído
     const suggestion = await prisma.movieSuggestionFlow.create({
       data: {
         movieId,
         journeyOptionFlowId: optionId,
         reason: reflection,
         relevance: 5,
+        relevanceScore: relevanceScore,
         createdAt: new Date(),
         updatedAt: new Date()
       }
     });
 
-    // Atualizar o relevanceScore após a criação (quando o campo estiver disponível)
-    if (relevanceScore !== null) {
-      try {
-        await prisma.$executeRaw`
-          UPDATE "MovieSuggestionFlow" 
-          SET "relevanceScore" = ${relevanceScore}
-          WHERE id = ${suggestion.id}
-        `;
-        console.log(`📊 Relevance Score atualizado: ${relevanceScore.toFixed(3)}`);
-      } catch (error) {
-        console.log(`⚠️ Campo relevanceScore ainda não disponível no banco: ${error}`);
-      }
-    }
+    console.log(`📊 Relevance Score definido: ${relevanceScore?.toFixed(3) || 'N/A'}`);
 
     console.log(`✅ Sugestão criada (ID: ${suggestion.id})`);
     console.log(`📝 Opção: ${option.text}`);
@@ -478,7 +518,7 @@ async function calculateRelevanceScore(movieId: string, journeyOptionFlowId: num
   }
 }
 
-async function generateReflectionForMovie(movie: any): Promise<string> {
+async function generateReflectionForMovie(movie: any, option: any): Promise<string> {
   // Buscar informações do filme no banco para obter keywords dos sentimentos
   const movieWithSentiments = await prisma.movie.findUnique({
     where: { id: movie.id },
@@ -503,29 +543,32 @@ async function generateReflectionForMovie(movie: any): Promise<string> {
     return `Uma reflexão inspiradora sobre ${movie.title} que explora temas profundos da experiência humana.`;
   }
 
-  return await generateReflectionWithAI(movieData, keywords);
+  return await generateReflectionWithAI(movieData, keywords, option);
 }
 
-async function generateReflectionWithAI(movie: any, keywords: string[]): Promise<string> {
+async function generateReflectionWithAI(movie: any, keywords: string[], option: any): Promise<string> {
+  console.log(`🔍 Gerando reflexão para: ${movie.title}`);
+  console.log(`📝 Opção de jornada: "${option.text}"`);
   const prompt = `
-Filme: ${movie.title} (${movie.year || 'Ano não especificado'})
-Sinopse: ${movie.overview}
-Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
-Palavras-chave emocionais: ${keywords.join(', ')}
+Dado o filme '${movie.title}' (${movie.year || 'Ano não especificado'}), com gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}, palavras-chave principais: ${keywords.slice(0, 10).join(', ') || 'N/A'}, e sinopse: ${movie.overview || 'N/A'}.
 
-Escreva uma reflexão curta e inspiradora sobre este filme, capturando sua essência emocional e os temas principais da história.
+E a **opção de jornada emocional específica escolhida pelo usuário**: '${option.text}'.
+
+Crie uma frase concisa (máximo 20 palavras) que explique **EXCLUSIVAMENTE** como este filme atende à necessidade específica expressa na opção de jornada. A frase deve se encaixar após 'o filme ${movie.title} oferece...' e fazer sentido na frase completa: "Para quem está [sentimento] e quer [opção], [filme] oferece [sua resposta aqui]."
 
 REGRAS IMPORTANTES:
-- Escreva APENAS o texto da reflexão, sem formatação JSON
-- Use entre 20-35 palavras
-- Seja inspiradora e envolvente
-- Capture o tom e tema específico do filme
-- Termine com um ponto final
+- Escreva APENAS o texto da justificativa, sem formatação JSON
+- Use MÁXIMO 25 palavras
+- Foque EXCLUSIVAMENTE na opção de jornada fornecida
+- Explique como o filme atende à necessidade específica do usuário
 - Não repita o nome do filme
-- Conecte os temas principais com o impacto emocional
-- Seja específico para este filme, não genérico
+- Conecte diretamente os elementos do filme com a opção de jornada
+- Seja direto e objetivo
+- A frase deve fazer sentido quando inserida na estrutura completa
 
-RESPONDA APENAS COM O TEXTO DA REFLEXÃO, SEM JSON OU FORMATAÇÃO ESPECIAL.
+EXEMPLO: Se a opção for "mergulhe na experiência psicológica da ansiedade", a resposta deve explicar como o filme oferece essa experiência psicológica específica.
+
+RESPONDA APENAS COM O TEXTO DA JUSTIFICATIVA, SEM JSON OU FORMATAÇÃO ESPECIAL.
 `;
 
   try {
@@ -533,22 +576,22 @@ RESPONDA APENAS COM O TEXTO DA REFLEXÃO, SEM JSON OU FORMATAÇÃO ESPECIAL.
     const config = getDefaultConfig(provider);
     const aiProvider = createAIProvider(config);
     
-    const systemPrompt = 'Você é um crítico de cinema especializado em análise emocional de filmes. Escreva reflexões concisas e inspiradoras que capturem a essência emocional única de cada filme. IMPORTANTE: Responda APENAS com o texto da reflexão, sem formatação JSON ou markdown.';
+    const systemPrompt = 'Você é um especialista em recomendação de filmes baseada em jornadas emocionais. Escreva justificativas concisas e específicas que expliquem como um filme atende à necessidade emocional específica do usuário. IMPORTANTE: Responda APENAS com o texto da justificativa, sem formatação JSON ou markdown.';
     
     const response = await aiProvider.generateResponse(systemPrompt, prompt, {
-      temperature: 0.8,
-      maxTokens: 120
+      temperature: 0.6,
+      maxTokens: 100
     });
 
     if (!response.success) {
       console.error(`Erro na API ${provider}:`, response.error);
-      return `Uma jornada cinematográfica que explora a complexidade das emoções humanas com profundidade e sensibilidade.`;
+      return `uma experiência que atende perfeitamente à sua busca emocional atual.`;
     }
 
     return response.content.trim();
   } catch (error) {
-    console.error(`Erro ao gerar reflexão com ${getAIProvider()}:`, error);
-    return `Uma jornada cinematográfica que explora a complexidade das emoções humanas com profundidade e sensibilidade.`;
+    console.error(`Erro ao gerar justificativa com ${getAIProvider()}:`, error);
+    return `uma experiência que atende perfeitamente à sua busca emocional atual.`;
   }
 }
 

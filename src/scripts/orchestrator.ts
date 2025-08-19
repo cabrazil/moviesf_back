@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { spawn } from 'child_process';
 import path from 'path';
 import { writeFileSync } from 'fs';
-import { selectOptimalAIProvider } from '../utils/aiProvider';
+import { selectOptimalAIProvider, createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 
 const prisma = new PrismaClient();
 
@@ -75,7 +75,7 @@ class MovieCurationOrchestrator {
             genres: movieData.genres || [],
             keywords: movieData.keywords || [],
             analysisLens: movie.analysisLens,
-            isComplexDrama: movieData.genres?.some((g: any) => g.toLowerCase().includes('drama')) || false
+            isComplexDrama: movieData.genres?.some((g: string) => g.toLowerCase().includes('drama')) || false
           };
 
           finalAiProvider = selectOptimalAIProvider(context);
@@ -107,7 +107,7 @@ class MovieCurationOrchestrator {
       }
 
       // Etapa 2.5: Verificação de Aprovação do Curador
-      const approvalLine = analysisResult.output.split('\n').find(line => line.startsWith('CURATOR_APPROVAL_NEEDED'));
+      const approvalLine = analysisResult.output.split('\n').find((line: string) => line.startsWith('CURATOR_APPROVAL_NEEDED'));
       if (approvalLine) {
         if (!approveNewSubSentiments) {
             const jsonString = approvalLine.replace('CURATOR_APPROVAL_NEEDED: ', '');
@@ -116,7 +116,7 @@ class MovieCurationOrchestrator {
             console.log('\n--------------------------------------------------');
             console.log('⚠️ APROVAÇÃO DO CURADOR NECESSÁRIA ⚠️');
             console.log('A IA sugeriu a criação dos seguintes SubSentimentos:');
-            suggestions.forEach((sug: any) => {
+            suggestions.forEach((sug: { name: string; explanation: string }) => {
                 console.log(`\n  - Nome: "${sug.name}"`);
                 console.log(`    Explicação: ${sug.explanation}`);
             });
@@ -154,19 +154,43 @@ class MovieCurationOrchestrator {
         return { success: false, error: `Falha na curadoria: ${curateResult.error}` };
       }
 
+      // Etapa 5: Gerar landingPageHook
+      console.log(`🎣 Etapa 5: Gerando landingPageHook...`);
+      const hookResult = await this.generateLandingPageHook(tmdbId, finalAiProvider);
+      if (!hookResult.success) {
+        console.log(`⚠️ Aviso: Falha ao gerar landingPageHook: ${hookResult.error}`);
+      } else {
+        console.log(`🎣 LandingPageHook gerado: "${hookResult.hook}"`);
+      }
+
+      // Etapa 6: Gerar contentWarnings
+      console.log(`⚠️ Etapa 6: Gerando contentWarnings...`);
+      const warningsResult = await this.generateContentWarnings(tmdbId, finalAiProvider);
+      if (!warningsResult.success) {
+        console.log(`⚠️ Aviso: Falha ao gerar contentWarnings: ${warningsResult.error}`);
+      } else {
+        console.log(`⚠️ ContentWarning gerado: "${warningsResult.warning}"`);
+      }
+
       const createdMovie = await prisma.movie.findFirst({ 
         where: { title: movie.title, year: movie.year },
-        include: { movieSuggestionFlows: true }
+        include: { 
+          movieSuggestionFlows: {
+            where: { journeyOptionFlowId: movie.journeyOptionFlowId },
+            orderBy: { updatedAt: 'desc' },
+            take: 1
+          }
+        }
       });
       if (!createdMovie) {
         return { success: false, error: 'Filme não encontrado no banco de dados após o processo.' };
       }
 
       console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
-      // Log da reflexão sobre o filme (reason) do MovieSuggestionFlow mais recente
+      // Log da reflexão sobre o filme (reason) da sugestão específica atualizada
       if (createdMovie.movieSuggestionFlows.length > 0) {
-        const latestSuggestion = createdMovie.movieSuggestionFlows[createdMovie.movieSuggestionFlows.length - 1];
-        console.log(`💭 Reflexão sobre o filme: ${latestSuggestion.reason}`);
+        const updatedSuggestion = createdMovie.movieSuggestionFlows[0];
+        console.log(`💭 Reflexão sobre o filme: ${updatedSuggestion.reason}`);
       }
       return { 
         success: true, 
@@ -181,6 +205,227 @@ class MovieCurationOrchestrator {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`❌ Erro ao processar ${movie.title}:`, errorMessage);
       return { success: false, error: `Erro inesperado: ${errorMessage}` };
+    }
+  }
+
+  private async generateLandingPageHook(tmdbId: number, aiProvider?: string): Promise<{ success: boolean; hook?: string; error?: string }> {
+    try {
+      // Buscar dados do filme com sentimentos e explicações
+      const movie = await prisma.movie.findUnique({
+        where: { tmdbId: tmdbId },
+        select: {
+          title: true,
+          year: true,
+          genres: true,
+          keywords: true,
+          description: true,
+          movieSentiments: {
+            select: {
+              relevance: true,
+              explanation: true,
+              subSentiment: {
+                select: {
+                  name: true
+                }
+              }
+            },
+            orderBy: {
+              relevance: 'desc'
+            },
+            take: 3 // Pegar os 3 mais relevantes
+          }
+        }
+      });
+
+      if (!movie) {
+        return { success: false, error: 'Filme não encontrado no banco de dados' };
+      }
+
+      // Construir o prompt com explicações dos sentimentos
+      let sentimentContext = '';
+      if (movie.movieSentiments && movie.movieSentiments.length > 0) {
+        sentimentContext = '\n\nAnálise emocional do filme:\n';
+        movie.movieSentiments.forEach((sentiment, index) => {
+          sentimentContext += `${index + 1}. ${sentiment.subSentiment.name} (Relevância: ${sentiment.relevance}): ${sentiment.explanation}\n`;
+        });
+      }
+
+      const prompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nAnalise os sentimentos emocionais do filme e crie uma estrutura JSON com os subsentimentos mais relevantes, seguida de uma frase de gancho cativante.\n\nFORMATO DE RESPOSTA OBRIGATÓRIO (SEM BLOCO DE CÓDIGO):\n{\n  "suggestedSubSentiments": [\n    {\n      "name": "Nome do SubSentimento",\n      "relevance": 0.95,\n      "explanation": "Explicação detalhada de como este subsentimento se manifesta no filme",\n      "isNew": false\n    }\n  ]\n}\n\nPrepare-se para [emoção/experiência]: ' + movie.title + ' [descrição cativante do apelo principal].\n\nIMPORTANTE: Responda SEM usar blocos de código. Use apenas o JSON puro seguido do texto do hook. Use as análises emocionais fornecidas para identificar os 3 subsentimentos mais relevantes e criar um gancho impactante.';
+
+      // Configurar IA Provider
+      const provider = aiProvider as AIProvider || 'openai';
+      const config = getDefaultConfig(provider);
+      const ai = createAIProvider(config);
+
+      // Gerar texto com IA
+      const systemPrompt = "Você é um especialista em marketing cinematográfico que cria ganchos cativantes para landing pages de filmes.";
+      const response = await ai.generateResponse(systemPrompt, prompt, {
+        maxTokens: 800,
+        temperature: 0.7
+      });
+
+      if (!response.success) {
+        return { success: false, error: `Falha na geração: ${response.error}` };
+      }
+
+      // Extrair o texto gerado
+      const generatedText = response.content.trim();
+      
+      // Validar se o texto foi gerado
+      if (!generatedText || generatedText.length < 10) {
+        return { success: false, error: 'Texto gerado muito curto ou vazio' };
+      }
+
+      // Salvar a estrutura JSON completa (com suggestedSubSentiments + texto do hook)
+      const completeStructure = generatedText.trim();
+
+      // Atualizar o filme no banco de dados
+      await prisma.movie.update({
+        where: { tmdbId: tmdbId },
+        data: { landingPageHook: completeStructure }
+      });
+
+      return { success: true, hook: completeStructure };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: `Erro ao gerar landingPageHook: ${errorMessage}` };
+    }
+  }
+
+  private async generateContentWarnings(tmdbId: number, aiProvider?: string): Promise<{ success: boolean; warning?: string; error?: string }> {
+    try {
+      // Buscar dados do filme com sentimentos e explicações
+      const movie = await prisma.movie.findUnique({
+        where: { tmdbId: tmdbId },
+        select: {
+          title: true,
+          year: true,
+          genres: true,
+          keywords: true,
+          description: true,
+          movieSentiments: {
+            select: {
+              relevance: true,
+              explanation: true,
+              subSentiment: {
+                select: {
+                  name: true
+                }
+              }
+            },
+            orderBy: {
+              relevance: 'desc'
+            },
+            take: 1 // Pegar apenas o mais relevante para contexto
+          }
+        }
+      });
+
+      if (!movie) {
+        return { success: false, error: 'Filme não encontrado no banco de dados' };
+      }
+
+      // Construir o contexto emocional se disponível
+      let sentimentContext = '';
+      if (movie.movieSentiments && movie.movieSentiments.length > 0) {
+        const topSentiment = movie.movieSentiments[0];
+        sentimentContext = `\n\nContexto emocional principal: ${topSentiment.subSentiment.name} (Relevância: ${topSentiment.relevance}): ${topSentiment.explanation}`;
+      }
+
+      const prompt = `Com base no filme '${movie.title}' (${movie.year}), gêneros: ${movie.genres?.join(', ') || 'N/A'}, palavras-chave principais: ${movie.keywords?.slice(0, 15).join(', ') || 'N/A'}, e sinopse: ${movie.description || 'N/A'}.${sentimentContext}
+
+Sintetize os principais alertas de tonalidade ou conteúdo para o espectador em UMA ÚNICA FRASE concisa e objetiva, começando com 'Atenção:'. **Não inclua numeração, marcadores de lista, ou quebras de linha. O resultado deve ser apenas a frase sintetizada.**
+
+Considere as seguintes categorias de alerta para identificar:
+- Violência (física, psicológica, explícita)
+- Temas adultos (nudez, sexualidade explícita, uso de drogas, linguagem forte/ofensiva)
+- Intensidade emocional (cenas que podem ser perturbadoras, muito tristes ou angustiantes)
+- Temas de preconceito/discriminação (racial, de gênero, por orientação sexual, por identidade de gênero, por deficiência, etc.)
+- Representação LGBTQIA+ (se a representação em si ou os desafios dos personagens forem um ponto de atenção para o conteúdo)
+- Humor ácido/controverso
+- Outros elementos que possam causar impacto (flashbacks intensos, barulhos altos, edição caótica, temas de abuso/assédio)
+
+Exemplo de saída esperada (sem numeração ou quebras de linha):
+"Atenção: contém cenas intensas de violência, temas adultos e pode ser emocionalmente perturbador."
+"Atenção: explora preconceito racial e contém linguagem forte."
+"Atenção: aborda temas LGBTQIA+ com foco em desafios sociais."
+"Atenção: possui humor ácido e situações controversas."
+
+Se não houver alertas significativos, responda apenas com:
+"Atenção: nenhum alerta de conteúdo significativo."`;
+
+      // Configurar IA Provider
+      const provider = aiProvider as AIProvider || 'openai';
+      const config = getDefaultConfig(provider);
+      const ai = createAIProvider(config);
+
+      // Gerar texto com IA
+      const systemPrompt = "Você é um especialista em análise de conteúdo cinematográfico que identifica alertas importantes para espectadores.";
+      const response = await ai.generateResponse(systemPrompt, prompt, {
+        maxTokens: 300,
+        temperature: 0.3
+      });
+
+      if (!response.success) {
+        return { success: false, error: `Falha na geração: ${response.error}` };
+      }
+
+      // Extrair o texto gerado
+      const generatedText = response.content.trim();
+      
+      // Validar se o texto foi gerado
+      if (!generatedText || generatedText.length < 10) {
+        return { success: false, error: 'Texto gerado muito curto ou vazio' };
+      }
+
+      // Remover quaisquer blocos de código (ex.: ```json ... ```)
+      const withoutCodeBlocks = generatedText.replace(/```[\s\S]*?```/g, '').trim();
+
+      // Tentar extrair explicitamente a última linha que contenha "Atenção:"
+      const attentionLines = withoutCodeBlocks
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => /(^|\s)Atenção:/i.test(l));
+
+      let warning = '';
+      if (attentionLines.length > 0) {
+        // Pegar a última ocorrência
+        warning = attentionLines[attentionLines.length - 1];
+      } else {
+        // Se não houver linha específica, usar o texto inteiro sem blocos de código
+        warning = withoutCodeBlocks;
+      }
+
+      // Normalizar: manter somente a frase começando em "Atenção:" até o final
+      const match = warning.match(/Atenção:\s*(.*)$/i);
+      if (match && match[1]) {
+        warning = `Atenção: ${match[1].trim()}`;
+      }
+
+      // Remover aspas iniciais/finais, se existirem
+      warning = warning.replace(/^\s*["']|["']\s*$/g, '').trim();
+
+      // Garantias finais
+      if (!warning || warning.length < 10) {
+        if (generatedText.toLowerCase().includes('nenhum alerta') || generatedText.toLowerCase().includes('sem alertas')) {
+          warning = 'Atenção: nenhum alerta de conteúdo significativo.';
+        } else {
+          warning = 'Atenção: conteúdo pode conter temas adultos.';
+        }
+      }
+
+      // Atualizar o filme no banco de dados
+      await prisma.movie.update({
+        where: { tmdbId: tmdbId },
+        data: { contentWarnings: warning }
+      });
+
+      return { success: true, warning };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: `Erro ao gerar contentWarnings: ${errorMessage}` };
     }
   }
 
@@ -220,7 +465,7 @@ class MovieCurationOrchestrator {
 }
 
 function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
-  const parsed: any = {};
+  const parsed: Partial<MovieToProcess> = {};
   for (const arg of args) {
     if (arg.startsWith('--title=')) parsed.title = arg.split('=')[1];
     else if (arg.startsWith('--year=')) parsed.year = parseInt(arg.split('=')[1]);

@@ -417,10 +417,11 @@ async function main() {
       // Gerar inserts para subsentimentos existentes
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
         if (dbMatch) {
+          const explanation = suggestion.explanation.replace(/'/g, "''"); // Escapar aspas simples
           sqlInserts.push(
             `-- Match: IA "${suggestion.name}" -> BD "${dbMatch.name}"`,
-            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt") VALUES ('${movie.id}', ${mainSentimentId}, ${dbMatch.id}, NOW(), NOW());`,
-            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt") VALUES (${journeyOptionFlowId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(2)}, NOW(), NOW());`
+            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt") VALUES ('${movie.id}', ${mainSentimentId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW()) ON CONFLICT ("movieId", "mainSentimentId", "subSentimentId") DO UPDATE SET "relevance" = EXCLUDED."relevance", "explanation" = EXCLUDED."explanation", "updatedAt" = NOW();`,
+            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt") VALUES (${journeyOptionFlowId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(2)}, NOW(), NOW()) ON CONFLICT ("journeyOptionFlowId", "subSentimentId") DO UPDATE SET "weight" = EXCLUDED."weight", "updatedAt" = NOW();`
           );
         }
       });
@@ -429,6 +430,7 @@ async function main() {
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
         if (!dbMatch) {
           const subSentimentName = suggestion.name.replace(/'/g, "''"); // Escapar aspas simples
+          const explanation = suggestion.explanation.replace(/'/g, "''"); // Escapar aspas simples
           sqlInserts.push(
             `-- Novo SubSentiment: "${suggestion.name}"`,
             `WITH new_sub AS (`,
@@ -436,8 +438,8 @@ async function main() {
             `  VALUES ('${subSentimentName}', ${mainSentimentId}, ARRAY['${subSentimentName.toLowerCase()}'], NOW(), NOW())`,
             `  RETURNING id`,
             `)`,
-            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "createdAt", "updatedAt")`,
-            `SELECT '${movie.id}', ${mainSentimentId}, id, NOW(), NOW() FROM new_sub;`,
+            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt")`,
+            `SELECT '${movie.id}', ${mainSentimentId}, id, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW() FROM new_sub;`,
             ``,
             `WITH new_sub AS (`,
             `  SELECT id FROM "SubSentiment" WHERE name = '${subSentimentName}' AND "mainSentimentId" = ${mainSentimentId} LIMIT 1`,

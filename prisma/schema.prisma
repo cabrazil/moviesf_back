@@ -9,6 +9,7 @@ datasource db {
   relationMode = "prisma"
 }
 
+
 model Movie {
   id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title                String                @unique @db.VarChar(255)
@@ -32,6 +33,8 @@ model Movie {
   imdbRating           Decimal? @db.Decimal(3, 1)
   rottenTomatoesRating Int?
   metacriticRating     Int?
+  landingPageHook      String?
+  contentWarnings      String?
   movieSentiments      MovieSentiment[]
   movieSuggestionFlows MovieSuggestionFlow[]
   // NOVA RELAÇÃO: Streaming platforms (mantendo campo antigo para migração segura)
@@ -77,6 +80,8 @@ model MovieSentiment {
   movieId         String        @db.Uuid
   mainSentimentId Int
   subSentimentId  Int
+  relevance       Decimal?      @db.Decimal(5, 3)
+  explanation     String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   mainSentiment   MainSentiment @relation(fields: [mainSentimentId], references: [id])
