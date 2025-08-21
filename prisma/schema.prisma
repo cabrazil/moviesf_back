@@ -35,10 +35,15 @@ model Movie {
   metacriticRating     Int?
   landingPageHook      String?
   contentWarnings      String?
+  targetAudienceForLP  String?
   movieSentiments      MovieSentiment[]
   movieSuggestionFlows MovieSuggestionFlow[]
   // NOVA RELAÇÃO: Streaming platforms (mantendo campo antigo para migração segura)
   platforms            MovieStreamingPlatform[]
+  // NOVA RELAÇÃO: Elenco do filme
+  cast                 MovieCast[]
+  // NOVA RELAÇÃO: Trailers do filme
+  trailers             MovieTrailer[]
 
   @@index([title])
 }
@@ -268,4 +273,67 @@ model MovieStreamingPlatform {
   @@index([movieId])
   @@index([streamingPlatformId])
   @@index([accessType])
+}
+
+// ===============================================
+// ESTRUTURAS PARA ELENCO (CAST)
+// ===============================================
+
+// Tabela para armazenar informações dos atores
+model Actor {
+  id           String      @id @default(uuid()) @db.Uuid // ID interno do seu sistema
+  tmdbId       Int         @unique // ID do ator no TMDB (para referência externa)
+  name         String      // Nome completo do ator
+  profilePath  String?     // Caminho para a imagem do perfil do ator no TMDB (ex: /path/to/image.jpg)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relação com a tabela MovieCast (para os filmes em que atuou)
+  movies       MovieCast[]
+
+  @@map("Actor") // Nome da tabela no banco
+}
+
+// Tabela de associação entre Filmes e Atores (Elenco)
+model MovieCast {
+  id           String    @id @default(uuid()) @db.Uuid // ID interno
+  movieId      String    @db.Uuid // ID do filme
+  actorId      String    @db.Uuid // ID do ator
+  characterName String?   // Nome do personagem que o ator interpretou
+  order        Int       // Ordem de aparição no elenco (para pegar os principais)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relações
+  movie        Movie     @relation(fields: [movieId], references: [id])
+  actor        Actor     @relation(fields: [actorId], references: [id])
+
+  @@unique([movieId, actorId]) // Um ator só atua uma vez em um filme (para um mesmo personagem)
+  @@map("MovieCast") // Nome da tabela no banco
+}
+
+// ===============================================
+// ESTRUTURAS PARA TRAILERS
+// ===============================================
+
+// Tabela para armazenar informações dos trailers de filmes
+model MovieTrailer {
+  id          String    @id @default(uuid()) @db.Uuid // ID interno do seu sistema
+  movieId     String    @db.Uuid // ID do filme ao qual o trailer pertence
+  tmdbId      String?   // ID do vídeo no TMDB (se for relevante para referência)
+  key         String    // A chave do vídeo (ex: ID do YouTube)
+  name        String?   // Nome/título do trailer (ex: "Official Trailer", "Teaser")
+  site        String    // Plataforma de hospedagem (ex: "YouTube")
+  type        String    // Tipo do vídeo (ex: "Trailer", "Teaser", "Clip")
+  language    String?   // Idioma do trailer (ex: "en", "pt") - Este campo é CRUCIAL
+  isMain      Boolean   @default(false) // Flag para indicar se é o trailer principal a ser exibido
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relação com a tabela Movie
+  movie       Movie     @relation(fields: [movieId], references: [id])
+
+  @@unique([movieId, key]) // Um trailer só pode ser associado uma vez a um filme
+  @@index([movieId]) // Índice principal para buscar trailers de um filme
+  @@map("MovieTrailer") // Nome da tabela no banco
 }

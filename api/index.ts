@@ -133,7 +133,10 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
         m."rottenTomatoesRating",
         m."metacriticRating",
         m.thumbnail,
-        m.genres
+        m.genres,
+        m."landingPageHook",
+        m."contentWarnings",
+        m."targetAudienceForLP"
       FROM "Movie" m
       WHERE m.slug = $1
     `, [slug]);
@@ -147,38 +150,130 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
     console.log(`✅ Filme hero encontrado: ${movie.title}`);
 
     // Buscar plataformas de streaming com informações de teste grátis
-    const platformsResult = await pool.query(`
-      SELECT 
-        sp.id,
-        sp.name,
-        sp.category,
-        sp."logoPath",
-        sp."hasFreeTrial",
-        sp."freeTrialDuration",
-        sp."baseUrl",
-        msp."accessType"
-      FROM "MovieStreamingPlatform" msp
-      JOIN "StreamingPlatform" sp ON msp."streamingPlatformId" = sp.id
-      WHERE msp."movieId" = $1
-      ORDER BY 
-        CASE msp."accessType"
-          WHEN 'INCLUDED_WITH_SUBSCRIPTION' THEN 1
-          WHEN 'RENTAL' THEN 2
-          WHEN 'PURCHASE' THEN 3
-          ELSE 4
-        END,
-        sp.name
-    `, [movie.id]);
+    let platformsResult;
+    try {
+      platformsResult = await pool.query(`
+        SELECT 
+          sp.id,
+          sp.name,
+          sp.category,
+          sp."logoPath",
+          sp."hasFreeTrial",
+          sp."freeTrialDuration",
+          sp."baseUrl",
+          msp."accessType"
+        FROM "MovieStreamingPlatform" msp
+        JOIN "StreamingPlatform" sp ON msp."streamingPlatformId" = sp.id
+        WHERE msp."movieId" = $1
+        ORDER BY 
+          CASE msp."accessType"
+            WHEN 'INCLUDED_WITH_SUBSCRIPTION' THEN 1
+            WHEN 'RENTAL' THEN 2
+            WHEN 'PURCHASE' THEN 3
+            ELSE 4
+          END,
+          sp.name
+      `, [movie.id]);
+      console.log(`✅ Plataformas encontradas: ${platformsResult.rows.length}`);
+    } catch (platformsError) {
+      console.error('❌ Erro ao buscar plataformas:', platformsError);
+      platformsResult = { rows: [] };
+    }
 
     // Buscar motivo para assistir (MovieSuggestionFlow.reason)
-    const reasonResult = await pool.query(`
-      SELECT msf.reason
-      FROM "MovieSuggestionFlow" msf
-      WHERE msf."movieId" = $1
-      LIMIT 1
-    `, [movie.id]);
+    let reasonResult;
+    try {
+      reasonResult = await pool.query(`
+        SELECT msf.reason
+        FROM "MovieSuggestionFlow" msf
+        WHERE msf."movieId" = $1
+        LIMIT 1
+      `, [movie.id]);
+      console.log(`✅ Reason encontrado: ${reasonResult.rows.length > 0 ? 'Sim' : 'Não'}`);
+    } catch (reasonError) {
+      console.error('❌ Erro ao buscar reason:', reasonError);
+      reasonResult = { rows: [] };
+    }
 
-    await pool.end();
+    // Buscar subsentimentos do filme para as tags emocionais
+    let sentimentsResult;
+    try {
+      sentimentsResult = await pool.query(`
+        SELECT 
+          ms."subSentimentId",
+          ss.name as "subSentimentName"
+        FROM "MovieSentiment" ms
+        JOIN "SubSentiment" ss ON ms."subSentimentId" = ss.id
+        WHERE ms."movieId" = $1
+        ORDER BY ms.relevance DESC
+      `, [movie.id]);
+      console.log(`✅ Subsentimentos encontrados: ${sentimentsResult.rows.length}`);
+    } catch (sentimentsError) {
+      console.error('❌ Erro ao buscar subsentimentos:', sentimentsError);
+      sentimentsResult = { rows: [] };
+    }
+
+    // Buscar elenco principal (5 atores com order <= 5)
+    let castResult;
+    try {
+      castResult = await pool.query(`
+        SELECT 
+          a.name as "actorName",
+          mc."characterName",
+          mc."order"
+        FROM "MovieCast" mc
+        JOIN "Actor" a ON mc."actorId" = a.id
+        WHERE mc."movieId" = $1
+          AND mc."order" <= 5
+        ORDER BY mc."order" ASC
+        LIMIT 5
+      `, [movie.id]);
+      console.log(`✅ Elenco principal encontrado: ${castResult.rows.length} atores`);
+    } catch (castError) {
+      console.error('❌ Erro ao buscar elenco:', castError);
+      castResult = { rows: [] };
+    }
+
+    // Buscar elenco completo para a aba "Mais do Elenco"
+    let fullCastResult;
+    try {
+      fullCastResult = await pool.query(`
+        SELECT 
+          a.name as "actorName",
+          mc."characterName",
+          mc."order"
+        FROM "MovieCast" mc
+        JOIN "Actor" a ON mc."actorId" = a.id
+        WHERE mc."movieId" = $1
+        ORDER BY mc."order" ASC
+      `, [movie.id]);
+      console.log(`✅ Elenco completo encontrado: ${fullCastResult.rows.length} atores`);
+    } catch (fullCastError) {
+      console.error('❌ Erro ao buscar elenco completo:', fullCastError);
+      fullCastResult = { rows: [] };
+    }
+
+    // Buscar trailer principal para a aba "Trailer"
+    let mainTrailerResult;
+    try {
+      mainTrailerResult = await pool.query(`
+        SELECT 
+          mt.key,
+          mt.name,
+          mt.site,
+          mt.type,
+          mt.language,
+          mt."isMain"
+        FROM "MovieTrailer" mt
+        WHERE mt."movieId" = $1
+          AND mt."isMain" = true
+        LIMIT 1
+      `, [movie.id]);
+      console.log(`✅ Trailer principal encontrado: ${mainTrailerResult.rows.length > 0 ? 'Sim' : 'Não'}`);
+    } catch (trailerError) {
+      console.error('❌ Erro ao buscar trailer principal:', trailerError);
+      mainTrailerResult = { rows: [] };
+    }
 
     // Organizar plataformas por tipo de acesso
     const allPlatforms = platformsResult.rows.map((row: any) => ({
@@ -197,6 +292,85 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
 
     const reason = reasonResult.rows.length > 0 ? reasonResult.rows[0].reason : null;
 
+    // Extrair nomes dos subsentimentos para as tags emocionais
+    const emotionalTags = sentimentsResult.rows.map((row: any) => row.subSentimentName);
+
+    // Extrair elenco principal
+    const mainCast = castResult.rows.map((row: any) => ({
+      actorName: row.actorName,
+      characterName: row.characterName,
+      order: row.order
+    }));
+
+    // Extrair elenco completo
+    const fullCast = fullCastResult.rows.map((row: any) => ({
+      actorName: row.actorName,
+      characterName: row.characterName,
+      order: row.order
+    }));
+
+    // Extrair trailer principal
+    const mainTrailer = mainTrailerResult.rows.length > 0 ? {
+      key: mainTrailerResult.rows[0].key,
+      name: mainTrailerResult.rows[0].name,
+      site: mainTrailerResult.rows[0].site,
+      type: mainTrailerResult.rows[0].type,
+      language: mainTrailerResult.rows[0].language,
+      isMain: mainTrailerResult.rows[0].isMain
+    } : null;
+
+    // Buscar filmes similares baseado no journeyOptionFlowId
+    let similarMoviesResult;
+    try {
+      similarMoviesResult = await pool.query(`
+        WITH current_movie_flow AS (
+          SELECT msf."journeyOptionFlowId"
+          FROM "MovieSuggestionFlow" msf
+          WHERE msf."movieId" = $1
+          LIMIT 1
+        )
+        SELECT DISTINCT
+          m.id,
+          m.title,
+          m.year,
+          m.thumbnail,
+          m.slug,
+          RANDOM() as random_order
+        FROM "MovieSuggestionFlow" msf
+        JOIN "Movie" m ON msf."movieId" = m.id
+        CROSS JOIN current_movie_flow cmf
+        WHERE msf."journeyOptionFlowId" = cmf."journeyOptionFlowId"
+          AND msf."movieId" != $1
+        ORDER BY random_order
+        LIMIT 6
+      `, [movie.id]);
+      console.log(`✅ Filmes similares encontrados: ${similarMoviesResult.rows.length}`);
+    } catch (similarError) {
+      console.error('❌ Erro ao buscar filmes similares:', similarError);
+      // Se falhar, usar array vazio
+      similarMoviesResult = { rows: [] };
+    }
+
+    await pool.end();
+
+    // Extrair filmes similares
+    const similarMovies = similarMoviesResult.rows.map((row: any) => {
+      const originalThumbnail = row.thumbnail;
+      const newThumbnail = row.thumbnail ? row.thumbnail.replace('/w500/', '/w185/') : null;
+      
+      if (originalThumbnail && newThumbnail !== originalThumbnail) {
+        console.log(`🖼️ Thumbnail convertido: ${originalThumbnail} → ${newThumbnail}`);
+      }
+      
+      return {
+        id: row.id,
+        title: row.title,
+        year: row.year,
+        thumbnail: newThumbnail,
+        slug: row.slug
+      };
+    });
+
     res.json({
       movie: {
         id: movie.id,
@@ -212,10 +386,18 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
         rottenTomatoesRating: movie.rottenTomatoesRating,
         metacriticRating: movie.metacriticRating,
         thumbnail: movie.thumbnail,
-        genres: movie.genres
+        genres: movie.genres,
+        landingPageHook: movie.landingPageHook,
+        contentWarnings: movie.contentWarnings,
+        targetAudienceForLP: movie.targetAudienceForLP,
+        emotionalTags: emotionalTags,
+        mainCast: mainCast,
+        fullCast: fullCast,
+        mainTrailer: mainTrailer
       },
       subscriptionPlatforms,
       rentalPurchasePlatforms,
+      similarMovies,
       reason
     });
 

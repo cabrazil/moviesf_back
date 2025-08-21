@@ -55,7 +55,7 @@ interface ScriptArgs {
 
 async function duplicateMovieSuggestion(args: ScriptArgs) {
   try {
-    console.log('🎬 Iniciando duplicação de sugestão de filme...');
+    console.log('🎬 Iniciando duplicação/atualização de sugestão de filme...');
     console.log('📋 Parâmetros:', args);
 
     // 1. Localizar o filme na tabela Movie
@@ -102,6 +102,33 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
     if (existingWithNewFlow) {
       console.log(`⚠️ Já existe uma sugestão para este filme com journeyOptionFlowId ${args.journeyOptionFlowId}`);
       console.log(`📊 Sugestão existente ID: ${existingWithNewFlow.id}`);
+      
+      // 3.1. Calcular o relevanceScore correto para o journeyOptionFlowId existente
+      console.log('🧮 Calculando relevanceScore para o journeyOptionFlowId existente...');
+      const relevanceScore = await calculateRelevanceScore(movie.id, args.journeyOptionFlowId);
+      
+      // 3.2. Atualizar os campos reason, relevance e relevanceScore
+      console.log('📝 Atualizando sugestão existente...');
+      const updatedSuggestion = await prisma.movieSuggestionFlow.update({
+        where: {
+          id: existingWithNewFlow.id
+        },
+        data: {
+          reason: existingSuggestion.reason,
+          relevance: existingSuggestion.relevance,
+          relevanceScore: relevanceScore
+        }
+      });
+      
+      console.log('🎉 Sugestão atualizada com sucesso!');
+      console.log('📊 Resumo da atualização:');
+      console.log(`   Filme: ${movie.title} (${movie.year})`);
+      console.log(`   ID do filme: ${movie.id}`);
+      console.log(`   Sugestão atualizada: ${updatedSuggestion.id}`);
+      console.log(`   JourneyOptionFlowId: ${args.journeyOptionFlowId}`);
+      console.log(`   Reason: ${updatedSuggestion.reason}`);
+      console.log(`   Relevance: ${updatedSuggestion.relevance}`);
+      console.log(`   RelevanceScore: ${updatedSuggestion.relevanceScore || 'N/A'}`);
       return;
     }
 
@@ -160,7 +187,10 @@ function parseArgs(): ScriptArgs {
     console.log('📋 Parâmetros obrigatórios:');
     console.log('   --title: Título do filme');
     console.log('   --year: Ano do filme');
-    console.log('   --journeyOptionFlowId: ID do novo journeyOptionFlow');
+    console.log('   --journeyOptionFlowId: ID do journeyOptionFlow (cria nova sugestão ou atualiza existente)');
+    console.log('📝 Comportamento:');
+    console.log('   - Se não existir sugestão com o journeyOptionFlowId: cria nova sugestão');
+    console.log('   - Se já existir sugestão com o journeyOptionFlowId: atualiza reason, relevance e relevanceScore');
     process.exit(1);
   }
 

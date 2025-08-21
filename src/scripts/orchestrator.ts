@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { PrismaClient } from '@prisma/client';
 import { spawn } from 'child_process';
 import path from 'path';
@@ -154,12 +155,13 @@ class MovieCurationOrchestrator {
         return { success: false, error: `Falha na curadoria: ${curateResult.error}` };
       }
 
-      // Etapa 5: Gerar landingPageHook
-      console.log(`🎣 Etapa 5: Gerando landingPageHook...`);
+      // Etapa 5: Gerar landingPageHook e targetAudienceForLP
+      console.log(`🎣 Etapa 5: Gerando landingPageHook e targetAudienceForLP...`);
       const hookResult = await this.generateLandingPageHook(tmdbId, finalAiProvider);
       if (!hookResult.success) {
         console.log(`⚠️ Aviso: Falha ao gerar landingPageHook: ${hookResult.error}`);
       } else {
+        console.log(`🎯 TargetAudienceForLP gerado: "${hookResult.targetAudience}"`);
         console.log(`🎣 LandingPageHook gerado: "${hookResult.hook}"`);
       }
 
@@ -208,7 +210,7 @@ class MovieCurationOrchestrator {
     }
   }
 
-  private async generateLandingPageHook(tmdbId: number, aiProvider?: string): Promise<{ success: boolean; hook?: string; error?: string }> {
+  private async generateLandingPageHook(tmdbId: number, aiProvider?: string): Promise<{ success: boolean; hook?: string; targetAudience?: string; error?: string }> {
     try {
       // Buscar dados do filme com sentimentos e explicações
       const movie = await prisma.movie.findUnique({
@@ -241,7 +243,7 @@ class MovieCurationOrchestrator {
         return { success: false, error: 'Filme não encontrado no banco de dados' };
       }
 
-      // Construir o prompt com explicações dos sentimentos
+      // Construir o contexto emocional
       let sentimentContext = '';
       if (movie.movieSentiments && movie.movieSentiments.length > 0) {
         sentimentContext = '\n\nAnálise emocional do filme:\n';
@@ -250,42 +252,66 @@ class MovieCurationOrchestrator {
         });
       }
 
-      const prompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nAnalise os sentimentos emocionais do filme e crie uma estrutura JSON com os subsentimentos mais relevantes, seguida de uma frase de gancho cativante.\n\nFORMATO DE RESPOSTA OBRIGATÓRIO (SEM BLOCO DE CÓDIGO):\n{\n  "suggestedSubSentiments": [\n    {\n      "name": "Nome do SubSentimento",\n      "relevance": 0.95,\n      "explanation": "Explicação detalhada de como este subsentimento se manifesta no filme",\n      "isNew": false\n    }\n  ]\n}\n\nPrepare-se para [emoção/experiência]: ' + movie.title + ' [descrição cativante do apelo principal].\n\nIMPORTANTE: Responda SEM usar blocos de código. Use apenas o JSON puro seguido do texto do hook. Use as análises emocionais fornecidas para identificar os 3 subsentimentos mais relevantes e criar um gancho impactante.';
-
       // Configurar IA Provider
       const provider = aiProvider as AIProvider || 'openai';
       const config = getDefaultConfig(provider);
       const ai = createAIProvider(config);
 
-      // Gerar texto com IA
-      const systemPrompt = "Você é um especialista em marketing cinematográfico que cria ganchos cativantes para landing pages de filmes.";
-      const response = await ai.generateResponse(systemPrompt, prompt, {
-        maxTokens: 800,
-        temperature: 0.7
-      });
+      // PROMPT 1: Gerar targetAudienceForLP
+      const targetAudiencePrompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nFormule uma única frase concisa (máximo 25 palavras) que descreva o principal **benefício emocional ou experiência** que este filme oferece ao espectador, com base nos subsentimentos identificados. Esta frase deve se encaixar perfeitamente após \'Este filme é ideal para quem busca...\'. Foque no **impacto emocional e na síntese das qualidades**, evitando listar termos separados com barras. Não inclua JSON, formatação de lista ou quebras de linha adicionais. O resultado deve sintetizar as características emocionais em uma frase fluída.\n\nExemplo de saída esperada para \'Os Descendentes\':\n\'uma profunda reflexão sobre o crescimento pessoal e aceitação do destino, em meio a paisagens deslumbrantes e desafios familiares.\'';
 
-      if (!response.success) {
-        return { success: false, error: `Falha na geração: ${response.error}` };
+      const targetAudienceResponse = await ai.generateResponse(
+        "Você é um especialista em marketing cinematográfico que cria descrições precisas do público-alvo de filmes.",
+        targetAudiencePrompt,
+        {
+          maxTokens: 200,
+          temperature: 0.7
+        }
+      );
+
+      if (!targetAudienceResponse.success) {
+        return { success: false, error: `Falha na geração do targetAudience: ${targetAudienceResponse.error}` };
       }
 
-      // Extrair o texto gerado
-      const generatedText = response.content.trim();
-      
-      // Validar se o texto foi gerado
-      if (!generatedText || generatedText.length < 10) {
-        return { success: false, error: 'Texto gerado muito curto ou vazio' };
+      const targetAudience = targetAudienceResponse.content.trim();
+
+      // PROMPT 2: Gerar landingPageHook (gancho emocional)
+      const hookPrompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nCrie uma única frase de gancho cativante e instigante (máximo 35 palavras) para uma landing page. **OBRIGATORIAMENTE comece com "Prepare-se para..."** seguido de uma chamada impactante que convide à imersão. Ela deve destacar o principal apelo emocional ou temático do filme, usando a análise de subsentimentos para torná-la mais precisa e atraente para o público. Não inclua JSON, formatação de lista ou quebras de linha adicionais. O resultado deve ser apenas a frase sintetizada.\n\nExemplo de saída esperada para \'Os Descendentes\':\n\'Prepare-se para uma viagem emocional: Os Descendentes te leva às belas praias do Havaí, onde um pai deve navegar pelas turbulentas águas da traição e tragédia, redescobrindo o valor da família e do perdão.\'';
+
+      const hookResponse = await ai.generateResponse(
+        "Você é um especialista em marketing cinematográfico que cria ganchos cativantes para landing pages de filmes.",
+        hookPrompt,
+        {
+          maxTokens: 300,
+          temperature: 0.7
+        }
+      );
+
+      if (!hookResponse.success) {
+        return { success: false, error: `Falha na geração do hook: ${hookResponse.error}` };
       }
 
-      // Salvar a estrutura JSON completa (com suggestedSubSentiments + texto do hook)
-      const completeStructure = generatedText.trim();
+      const hook = hookResponse.content.trim();
 
-      // Atualizar o filme no banco de dados
+      // Validar se os textos foram gerados
+      if (!targetAudience || targetAudience.length < 10) {
+        return { success: false, error: 'TargetAudience gerado muito curto ou vazio' };
+      }
+
+      if (!hook || hook.length < 10) {
+        return { success: false, error: 'Hook gerado muito curto ou vazio' };
+      }
+
+      // Atualizar o filme no banco de dados com os dois campos separados
       await prisma.movie.update({
         where: { tmdbId: tmdbId },
-        data: { landingPageHook: completeStructure }
+        data: { 
+          landingPageHook: hook,
+          targetAudienceForLP: targetAudience
+        }
       });
 
-      return { success: true, hook: completeStructure };
+      return { success: true, hook: hook, targetAudience: targetAudience };
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -339,7 +365,7 @@ Sintetize os principais alertas de tonalidade ou conteúdo para o espectador em 
 
 Considere as seguintes categorias de alerta para identificar:
 - Violência (física, psicológica, explícita)
-- Temas adultos (nudez, sexualidade explícita, uso de drogas, linguagem forte/ofensiva)
+- **Temas adultos** (nudez, **sugestão sexual, insinuações, sexualidade explícita**, uso de drogas, **uso de álcool**, linguagem forte/ofensiva)
 - Intensidade emocional (cenas que podem ser perturbadoras, muito tristes ou angustiantes)
 - Temas de preconceito/discriminação (racial, de gênero, por orientação sexual, por identidade de gênero, por deficiência, etc.)
 - Representação LGBTQIA+ (se a representação em si ou os desafios dos personagens forem um ponto de atenção para o conteúdo)

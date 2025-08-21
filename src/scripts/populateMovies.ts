@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
@@ -5,6 +6,9 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 import { generateUniqueSlug } from '../utils/slugGenerator';
+
+// Importar função de trailers do script updateMovieTrailers
+import { getMovieTrailers } from './updateMovieTrailers';
 
 // Configurar o Prisma Client da forma mais simples possível
 const prisma = new PrismaClient();
@@ -185,6 +189,19 @@ interface TMDBMovieCredits {
     name: string;
     job: string;
   }>;
+  cast: Array<{
+    id: number;
+    name: string;
+    character: string;
+    order: number;
+    profile_path: string | null;
+  }>;
+}
+
+interface TMDBActorResponse {
+  id: number;
+  name: string;
+  profile_path: string | null;
 }
 
 interface GoogleTranslateResponse {
@@ -405,6 +422,93 @@ async function getMovieDirectors(movieId: number): Promise<string | null> {
   }
 }
 
+function getCharacterType(name: string): string {
+  if (/[\u0590-\u05FF]/.test(name)) return 'hebraico';
+  if (/[\u0600-\u06FF]/.test(name)) return 'árabe';
+  if (/[\uAC00-\uD7AF]/.test(name)) return 'coreano';
+  if (/[\u0750-\u077F]/.test(name)) return 'árabe estendido';
+  if (/[\u08A0-\u08FF]/.test(name)) return 'árabe suplementar';
+  if (/[\uFB50-\uFDFF]/.test(name)) return 'formas de apresentação árabe';
+  if (/[\uFE70-\uFEFF]/.test(name)) return 'formas especiais árabes';
+  return 'desconhecido';
+}
+
+async function getActorNameInEnglish(tmdbId: number): Promise<string | null> {
+  try {
+    const response = await axios.get<TMDBActorResponse>(`https://api.themoviedb.org/3/person/${tmdbId}`, {
+      params: {
+        api_key: TMDB_API_KEY,
+        language: 'en-US'
+      }
+    });
+    return response.data.name;
+  } catch (error) {
+    console.error(`Erro ao buscar nome em inglês para ator ${tmdbId}:`, error);
+    return null;
+  }
+}
+
+async function getMovieCast(movieId: number): Promise<Array<{
+  tmdbId: number;
+  name: string;
+  character: string;
+  order: number;
+  profilePath: string | null;
+}>> {
+  try {
+    const response = await axios.get<TMDBMovieCredits>(`${TMDB_API_URL}/movie/${movieId}/credits`, {
+      params: {
+        api_key: TMDB_API_KEY,
+        language: 'pt-BR'
+      }
+    });
+
+    // Filtrar apenas atores principais (order <= 8 + character não vazio)
+    let mainCast = response.data.cast
+      .filter(actor => actor.order <= 8 && actor.character && actor.character.trim() !== '')
+      .map(actor => ({
+        tmdbId: actor.id,
+        name: actor.name,
+        character: actor.character,
+        order: actor.order,
+        profilePath: actor.profile_path
+      }))
+      .sort((a, b) => a.order - b.order); // Ordenar por ordem de aparição
+
+    // Debug: Mostrar dados brutos para atores com nomes em caracteres especiais
+    const specialActors = response.data.cast.filter(actor => 
+      /[\u0590-\u05FF\u0600-\u06FF\uAC00-\uD7AF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(actor.name) && actor.order <= 15
+    );
+    if (specialActors.length > 0) {
+      console.log(`🔍 Debug - Atores com nomes especiais encontrados:`);
+      specialActors.forEach(actor => {
+        const charType = getCharacterType(actor.name);
+        console.log(`  - Order ${actor.order}: "${actor.name}" (${charType}) como "${actor.character}"`);
+      });
+    }
+
+    // Corrigir nomes em caracteres especiais para inglês
+    for (let i = 0; i < mainCast.length; i++) {
+      const actor = mainCast[i];
+      if (/[\u0590-\u05FF\u0600-\u06FF\uAC00-\uD7AF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(actor.name)) {
+        const charType = getCharacterType(actor.name);
+        console.log(`🔄 Corrigindo nome ${charType}: "${actor.name}"`);
+        const englishName = await getActorNameInEnglish(actor.tmdbId);
+        if (englishName) {
+          console.log(`✅ Nome corrigido: "${actor.name}" → "${englishName}"`);
+          mainCast[i] = { ...actor, name: englishName };
+        }
+      }
+    }
+
+    console.log(`🎭 Encontrados ${mainCast.length} atores principais para o filme ${movieId}`);
+    return mainCast;
+  } catch (error) {
+    console.error(`Erro ao buscar elenco para o filme ${movieId}:`, error);
+    return [];
+  }
+}
+
 async function getBrazilianCertification(movieId: number): Promise<string | null> {
   try {
     console.log(`Buscando certificação para o filme ID ${movieId}...`);
@@ -617,7 +721,7 @@ async function checkYouTubeAvailability(movieTitle: string, year?: number): Prom
   }
 }
 
-export async function searchMovie(title?: string, year?: number, tmdbId?: number): Promise<{ movie: TMDBMovie; platforms: string[]; streamingData: Array<{ platform: string; accessType: string }>; director: string | null; certification: string | null; keywords: string[] } | null> {
+export async function searchMovie(title?: string, year?: number, tmdbId?: number): Promise<{ movie: TMDBMovie; platforms: string[]; streamingData: Array<{ platform: string; accessType: string }>; director: string | null; certification: string | null; keywords: string[]; cast: Array<{ tmdbId: number; name: string; character: string; order: number; profilePath: string | null }> } | null> {
   try {
     if (tmdbId) {
       console.log(`Buscando filme no TMDB pelo ID: ${tmdbId}`);
@@ -634,6 +738,7 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
       const keywords = await getMovieKeywords(tmdbId);
       const { platforms, streamingData } = await getMovieStreamingInfo(tmdbId, movieDetails.title, parseInt(movieDetails.release_date.split('-')[0]));
       const certification = await getBrazilianCertification(tmdbId);
+      const cast = await getMovieCast(tmdbId);
 
               return {
           movie: {
@@ -653,7 +758,8 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
           streamingData,
           director: directors || null,
           certification,
-          keywords
+          keywords,
+          cast
         };
     }
 
@@ -808,6 +914,9 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     // Buscar certificação brasileira
     const certification = await getBrazilianCertification(parseInt(movie.id));
 
+    // Buscar elenco do filme
+    const cast = await getMovieCast(parseInt(movie.id));
+
     // Log da duração do filme
     console.log(`Duração: ${details.data.runtime} minutos`);
 
@@ -817,7 +926,8 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
       streamingData,
       director: directors || null,
       certification,
-      keywords
+      keywords,
+      cast
     };
   } catch (error) {
     console.error(`Erro ao buscar filme ${title}:`, error);
@@ -825,14 +935,17 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
   }
 }
 
-async function processSingleMovie(title: string, year?: number) {
+async function processSingleMovie(title: string, year?: number, dryRun: boolean = false) {
   console.log(`\n=== Processando filme: ${title}${year ? ` (${year})` : ''} ===`);
+  if (dryRun) {
+    console.log(`🔍 MODO DRY-RUN: Apenas logs, sem salvar no banco`);
+  }
 
   try {
     const movieResult = await searchMovie(title, year);
 
     if (movieResult) {
-      const { movie, platforms, streamingData, director, certification, keywords } = movieResult;
+      const { movie, platforms, streamingData, director, certification, keywords, cast } = movieResult;
       console.log(`Filme encontrado no TMDB: ${movie.title} (${movie.release_date})`);
       console.log(`Título original: ${movie.original_title}`);
       console.log(`Diretores: ${director || 'Não encontrado'}`);
@@ -842,14 +955,18 @@ async function processSingleMovie(title: string, year?: number) {
       console.log(`Média de votos: ${movie.vote_average}`);
       console.log(`Total de votos: ${movie.vote_count}`);
       console.log(`Adulto: ${movie.adult}`);
+      console.log(`🎭 Elenco principal: ${cast.length} atores encontrados`);
 
-      // Verificar se o filme já existe
-      const existingMovie = await prisma.movie.findFirst({
-        where: {
-          title: movie.title,
-          year: new Date(movie.release_date).getFullYear()
-        }
-      });
+      // Verificar se o filme já existe (pular em dry-run)
+      let existingMovie: any = null;
+      if (!dryRun) {
+        existingMovie = await prisma.movie.findFirst({
+          where: {
+            title: movie.title,
+            year: new Date(movie.release_date).getFullYear()
+          }
+        });
+      }
 
       if (existingMovie) {
         console.log(`⚠️ Filme já existe no banco: ${movie.title}`);
@@ -891,7 +1008,9 @@ async function processSingleMovie(title: string, year?: number) {
         console.log(`🔗 Slug gerado: ${slug}`);
 
         // Criar o filme com os gêneros (sem streamingPlatforms)
-        const createdMovie = await prisma.movie.create({
+        let createdMovie: any = null;
+        if (!dryRun) {
+          createdMovie = await prisma.movie.create({
           data: {
             title: movie.title,
             slug: slug,
@@ -912,53 +1031,170 @@ async function processSingleMovie(title: string, year?: number) {
             ...omdbRatings
           }
         });
+        } else {
+          console.log(`🔍 DRY-RUN: Filme seria criado com slug: ${slug}`);
+        }
 
         // Inserir dados de streaming na nova estrutura
         if (streamingData.length > 0) {
-          console.log(`📺 Inserindo ${streamingData.length} relações de streaming...`);
+          if (!dryRun) {
+            console.log(`📺 Inserindo ${streamingData.length} relações de streaming...`);
+          } else {
+            console.log(`🔍 DRY-RUN: ${streamingData.length} relações de streaming seriam inseridas`);
+          }
           
           for (const streamingItem of streamingData) {
-            try {
-              // Buscar a plataforma no banco
-              const platform = await prisma.streamingPlatform.findFirst({
-                where: { name: streamingItem.platform }
-              });
+            if (!dryRun) {
+              try {
+                // Buscar a plataforma no banco
+                const platform = await prisma.streamingPlatform.findFirst({
+                  where: { name: streamingItem.platform }
+                });
 
-              if (platform) {
-                // Usar upsert para evitar duplicatas
-                await prisma.movieStreamingPlatform.upsert({
-                  where: {
-                    movieId_streamingPlatformId_accessType: {
+                if (platform) {
+                  // Usar upsert para evitar duplicatas
+                  await prisma.movieStreamingPlatform.upsert({
+                    where: {
+                      movieId_streamingPlatformId_accessType: {
+                        movieId: createdMovie.id,
+                        streamingPlatformId: platform.id,
+                        accessType: streamingItem.accessType as any
+                      }
+                    },
+                    update: {
+                      updatedAt: new Date()
+                    },
+                    create: {
                       movieId: createdMovie.id,
                       streamingPlatformId: platform.id,
                       accessType: streamingItem.accessType as any
                     }
-                  },
-                  update: {
-                    updatedAt: new Date()
-                  },
-                  create: {
-                    movieId: createdMovie.id,
-                    streamingPlatformId: platform.id,
-                    accessType: streamingItem.accessType as any
-                  }
-                });
-                console.log(`✅ ${streamingItem.platform} (${streamingItem.accessType})`);
-              } else {
-                console.log(`⚠️ Plataforma não encontrada: ${streamingItem.platform}`);
+                  });
+                  console.log(`✅ ${streamingItem.platform} (${streamingItem.accessType})`);
+                } else {
+                  console.log(`⚠️ Plataforma não encontrada: ${streamingItem.platform}`);
+                }
+              } catch (error) {
+                console.log(`❌ Erro ao inserir ${streamingItem.platform}: ${error}`);
               }
-            } catch (error) {
-              console.log(`❌ Erro ao inserir ${streamingItem.platform}: ${error}`);
+            } else {
+              console.log(`🔍 DRY-RUN: ${streamingItem.platform} (${streamingItem.accessType})`);
             }
           }
         } else {
           console.log(`📺 Nenhuma plataforma de streaming encontrada`);
         }
-        console.log(`✅ Filme criado: ${createdMovie.title}`);
-        console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
-        console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
-        console.log(`TMDB_ID_FOUND: ${createdMovie.tmdbId}`);
-        return { success: true, duplicate: false, movieId: createdMovie.id };
+
+        // Inserir elenco do filme
+        if (cast.length > 0) {
+          if (!dryRun) {
+            console.log(`🎭 Inserindo ${cast.length} atores do elenco...`);
+          } else {
+            console.log(`🔍 DRY-RUN: ${cast.length} atores do elenco seriam inseridos`);
+          }
+          
+          for (const actorData of cast) {
+            if (!dryRun) {
+              try {
+                // Buscar ou criar o ator
+                let actor = await prisma.actor.findUnique({
+                  where: { tmdbId: actorData.tmdbId }
+                });
+
+                if (!actor) {
+                  actor = await prisma.actor.create({
+                    data: {
+                      tmdbId: actorData.tmdbId,
+                      name: actorData.name,
+                      profilePath: actorData.profilePath
+                    }
+                  });
+                  console.log(`👤 Novo ator criado: ${actorData.name}`);
+                }
+
+                // Criar relação MovieCast
+                await prisma.movieCast.create({
+                  data: {
+                    movieId: createdMovie.id,
+                    actorId: actor.id,
+                    characterName: actorData.character,
+                    order: actorData.order
+                  }
+                });
+                console.log(`✅ ${actorData.name} como ${actorData.character}`);
+              } catch (error) {
+                console.log(`❌ Erro ao inserir ator ${actorData.name}: ${error}`);
+              }
+            } else {
+              console.log(`🔍 DRY-RUN: ${actorData.name} como ${actorData.character}`);
+            }
+          }
+        } else {
+          console.log(`🎭 Nenhum ator encontrado para o elenco`);
+        }
+
+        // Buscar e inserir trailers do filme
+        if (!dryRun) {
+          console.log(`🎬 Buscando trailers para TMDB ID: ${movie.id}...`);
+        } else {
+          console.log(`🔍 DRY-RUN: Trailers seriam buscados para TMDB ID: ${movie.id}`);
+        }
+        
+        try {
+          const trailers = await getMovieTrailers(parseInt(movie.id));
+          
+          if (trailers.length > 0) {
+            if (!dryRun) {
+              console.log(`🎬 Inserindo ${trailers.length} trailers...`);
+            } else {
+              console.log(`🔍 DRY-RUN: ${trailers.length} trailers seriam inseridos`);
+            }
+            
+            for (let i = 0; i < trailers.length; i++) {
+              const trailer = trailers[i];
+              const isMain = i === 0; // Primeiro trailer é o principal
+              
+              if (!dryRun) {
+                try {
+                  await prisma.movieTrailer.create({
+                    data: {
+                      movieId: createdMovie.id,
+                      tmdbId: trailer.tmdbId,
+                      key: trailer.key,
+                      name: trailer.name,
+                      site: trailer.site,
+                      type: trailer.type,
+                      language: trailer.language,
+                      isMain: isMain
+                    }
+                  });
+                  console.log(`✅ Trailer: ${trailer.name} (${trailer.language})${isMain ? ' - PRINCIPAL' : ''}`);
+                } catch (error) {
+                  console.log(`❌ Erro ao inserir trailer ${trailer.name}: ${error}`);
+                }
+              } else {
+                console.log(`🔍 DRY-RUN: ${trailer.name} (${trailer.language})${isMain ? ' - PRINCIPAL' : ''}`);
+              }
+            }
+          } else {
+            console.log(`🎬 Nenhum trailer encontrado`);
+          }
+        } catch (error) {
+          console.log(`❌ Erro ao buscar trailers: ${error}`);
+        }
+
+        if (!dryRun) {
+          console.log(`✅ Filme criado: ${createdMovie.title}`);
+          console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
+          console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
+          console.log(`TMDB_ID_FOUND: ${createdMovie.tmdbId}`);
+          return { success: true, duplicate: false, movieId: createdMovie.id };
+        } else {
+          console.log(`🔍 DRY-RUN: Filme seria criado: ${movie.title}`);
+          console.log(`🔍 DRY-RUN: Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
+          console.log(`🔍 DRY-RUN: TMDB_ID: ${movie.id}`);
+          return { success: true, duplicate: false, movieId: 'dry-run' };
+        }
       }
     } else {
       console.log(`❌ Filme não encontrado no TMDB: ${title}`);
@@ -1057,6 +1293,7 @@ if (require.main === module) {
   let filePath: string | undefined;
   let movieTitle: string | undefined;
   let movieYear: number | undefined;
+  let dryRun: boolean = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith('--file=')) {
@@ -1065,15 +1302,17 @@ if (require.main === module) {
       movieTitle = args[i].split('=')[1];
     } else if (args[i].startsWith('--year=')) {
       movieYear = parseInt(args[i].split('=')[1]);
+    } else if (args[i] === '--dry-run') {
+      dryRun = true;
     }
   }
 
   if (filePath) {
     processMoviesFromFile(filePath);
   } else if (movieTitle) {
-    processSingleMovie(movieTitle, movieYear);
+    processSingleMovie(movieTitle, movieYear, dryRun);
   } else {
-    console.log(`\nUso:\n  npx ts-node src/scripts/populateMovies.ts --file=caminho/para/arquivo.csv\n  npx ts-node src/scripts/populateMovies.ts --title="Nome do Filme" [--year=Ano]\n`);
+    console.log(`\nUso:\n  npx ts-node src/scripts/populateMovies.ts --file=caminho/para/arquivo.csv\n  npx ts-node src/scripts/populateMovies.ts --title="Nome do Filme" [--year=Ano] [--dry-run]\n`);
     process.exit(1);
   }
 
