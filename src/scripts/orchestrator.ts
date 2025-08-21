@@ -258,7 +258,7 @@ class MovieCurationOrchestrator {
       const ai = createAIProvider(config);
 
       // PROMPT 1: Gerar targetAudienceForLP
-      const targetAudiencePrompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nFormule uma única frase concisa (máximo 25 palavras) que descreva o principal **benefício emocional ou experiência** que este filme oferece ao espectador, com base nos subsentimentos identificados. Esta frase deve se encaixar perfeitamente após \'Este filme é ideal para quem busca...\'. Foque no **impacto emocional e na síntese das qualidades**, evitando listar termos separados com barras. Não inclua JSON, formatação de lista ou quebras de linha adicionais. O resultado deve sintetizar as características emocionais em uma frase fluída.\n\nExemplo de saída esperada para \'Os Descendentes\':\n\'uma profunda reflexão sobre o crescimento pessoal e aceitação do destino, em meio a paisagens deslumbrantes e desafios familiares.\'';
+      const targetAudiencePrompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nFormule uma única frase concisa (máximo 25 palavras) que descreva o principal **benefício emocional ou experiência** que este filme oferece ao espectador, com base nos subsentimentos identificados. Esta frase deve se encaixar perfeitamente após \'Este filme é ideal para quem busca...\'. Foque no **impacto emocional e na síntese das qualidades**, evitando listar termos separados com barras. Não inclua JSON, formatação de lista, quebras de linha ou aspas. O resultado deve sintetizar as características emocionais em uma frase fluída.\n\nExemplo de saída esperada para \'Os Descendentes\':\n\'uma profunda reflexão sobre o crescimento pessoal e aceitação do destino, em meio a paisagens deslumbrantes e desafios familiares.\'\n\nIMPORTANTE: Responda APENAS com o texto da frase, sem aspas, sem formatação JSON ou markdown.';
 
       const targetAudienceResponse = await ai.generateResponse(
         "Você é um especialista em marketing cinematográfico que cria descrições precisas do público-alvo de filmes.",
@@ -273,7 +273,28 @@ class MovieCurationOrchestrator {
         return { success: false, error: `Falha na geração do targetAudience: ${targetAudienceResponse.error}` };
       }
 
-      const targetAudience = targetAudienceResponse.content.trim();
+      let emotionalBenefit = targetAudienceResponse.content.trim();
+      
+      // Remover o prefixo se a IA já o incluiu
+      emotionalBenefit = emotionalBenefit.replace(/^Este filme é ideal para quem busca\s*/i, '');
+      
+      // Montar o texto completo seguindo o padrão do update-landing-page-hooks.ts
+      let targetAudience;
+      if (emotionalBenefit.includes('reconciliação') || emotionalBenefit.includes('aceitação') || emotionalBenefit.includes('perdão') || emotionalBenefit.includes('cura')) {
+        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma jornada de cura e crescimento emocional.`;
+      } else if (emotionalBenefit.includes('humor') || emotionalBenefit.includes('leveza') || emotionalBenefit.includes('diversão') || emotionalBenefit.includes('alegria') || emotionalBenefit.includes('descontração')) {
+        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência contagiante de alegria e descontração.`;
+      } else if (emotionalBenefit.includes('superação') || emotionalBenefit.includes('crescimento') || emotionalBenefit.includes('inspiração') || emotionalBenefit.includes('otimismo') || emotionalBenefit.includes('esperança')) {
+        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma jornada inspiradora de transformação pessoal.`;
+      } else if (emotionalBenefit.includes('conforto') || emotionalBenefit.includes('aconchego') || emotionalBenefit.includes('família') || emotionalBenefit.includes('conexão') || emotionalBenefit.includes('laços')) {
+        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência calorosa de conexão familiar e emocional.`;
+      } else if (emotionalBenefit.includes('emotivo') || emotionalBenefit.includes('triste') || emotionalBenefit.includes('drama') || emotionalBenefit.includes('catarse')) {
+        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência profunda de reflexão e catarse emocional.`;
+      } else if (emotionalBenefit.includes('nostalgia') || emotionalBenefit.includes('reflexão') || emotionalBenefit.includes('amor') || emotionalBenefit.includes('perda') || emotionalBenefit.includes('memórias')) {
+        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência contemplativa de memórias e emoções profundas.`;
+      } else {
+        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência emocionalmente rica e envolvente.`;
+      }
 
       // PROMPT 2: Gerar landingPageHook (gancho emocional)
       const hookPrompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nCrie uma única frase de gancho cativante e instigante (máximo 35 palavras) para uma landing page. **OBRIGATORIAMENTE comece com "Prepare-se para..."** seguido de uma chamada impactante que convide à imersão. Ela deve destacar o principal apelo emocional ou temático do filme, usando a análise de subsentimentos para torná-la mais precisa e atraente para o público. Não inclua JSON, formatação de lista ou quebras de linha adicionais. O resultado deve ser apenas a frase sintetizada.\n\nExemplo de saída esperada para \'Os Descendentes\':\n\'Prepare-se para uma viagem emocional: Os Descendentes te leva às belas praias do Havaí, onde um pai deve navegar pelas turbulentas águas da traição e tragédia, redescobrindo o valor da família e do perdão.\'';
@@ -363,19 +384,22 @@ class MovieCurationOrchestrator {
 
 Sintetize os principais alertas de tonalidade ou conteúdo para o espectador em UMA ÚNICA FRASE concisa e objetiva, começando com 'Atenção:'. **Não inclua numeração, marcadores de lista, ou quebras de linha. O resultado deve ser apenas a frase sintetizada.**
 
+**Instrução de precisão:** Seja cuidadoso com a intensidade do alerta. Diferencie entre 'abordar um tema' (ex: o filme fala sobre sexualidade) e 'conter cenas explícitas' (ex: o filme mostra cenas de sexo). Use o termo 'explícito(a)' apenas quando houver representação gráfica e direta de violência, nudez ou sexo.
+
 Considere as seguintes categorias de alerta para identificar:
-- Violência (física, psicológica, explícita)
-- **Temas adultos** (nudez, **sugestão sexual, insinuações, sexualidade explícita**, uso de drogas, **uso de álcool**, linguagem forte/ofensiva)
+- Violência (física, psicológica)
+- **Conteúdo Adulto Explícito** (violência gráfica, nudez frontal, sexualidade explícita)
+- **Temas Adultos Sugeridos ou Discutidos** (aborda a descoberta da sexualidade, contém sugestão sexual ou insinuações, uso de drogas/álcool, linguagem forte/ofensiva)
 - Intensidade emocional (cenas que podem ser perturbadoras, muito tristes ou angustiantes)
-- Temas de preconceito/discriminação (racial, de gênero, por orientação sexual, por identidade de gênero, por deficiência, etc.)
+- Temas de preconceito/discriminação (racial, de gênero, por orientação sexual, etc.)
 - Representação LGBTQIA+ (se a representação em si ou os desafios dos personagens forem um ponto de atenção para o conteúdo)
 - Humor ácido/controverso
-- Outros elementos que possam causar impacto (flashbacks intensos, barulhos altos, edição caótica, temas de abuso/assédio)
+- Outros elementos que possam causar impacto (flashbacks intensos, edição caótica, temas de abuso)
 
 Exemplo de saída esperada (sem numeração ou quebras de linha):
 "Atenção: contém cenas intensas de violência, temas adultos e pode ser emocionalmente perturbador."
 "Atenção: explora preconceito racial e contém linguagem forte."
-"Atenção: aborda temas LGBTQIA+ com foco em desafios sociais."
+"Atenção: aborda a descoberta da sexualidade e temas LGBTQIA+."
 "Atenção: possui humor ácido e situações controversas."
 
 Se não houver alertas significativos, responda apenas com:

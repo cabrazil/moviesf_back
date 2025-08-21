@@ -68,7 +68,8 @@ async function automatedCuration(
     const emotionalIntention = await selectEmotionalIntentionAutomated(
       targetSentimentId, 
       movie.genres, 
-      intentionType
+      intentionType,
+      journeyOptionFlowId
     );
 
     // FASE 2: Análise de sentimentos
@@ -136,9 +137,44 @@ async function discoverMovieByTmdbId(tmdbId: number) {
 async function selectEmotionalIntentionAutomated(
   mainSentimentId: number, 
   movieGenres: string[], 
-  intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE'
+  intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE',
+  journeyOptionFlowId?: number
 ): Promise<EmotionalIntention | undefined> {
   console.log(`\n🎭 === FASE 1.5: SELEÇÃO AUTOMÁTICA DA INTENÇÃO EMOCIONAL ===`);
+  
+  // Se temos journeyOptionFlowId, mostrar que está sendo usado
+  if (journeyOptionFlowId) {
+    console.log(`🎯 Usando journeyOptionFlowId fornecido: ${journeyOptionFlowId}`);
+    
+    // Buscar informações da jornada para mostrar detalhes
+    const journeyOption = await prisma.journeyOptionFlow.findUnique({
+      where: { id: journeyOptionFlowId },
+      include: {
+        journeyStepFlow: {
+          include: {
+            journeyFlow: {
+              include: {
+                mainSentiment: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    if (journeyOption) {
+      console.log(`📋 Jornada selecionada: ${journeyOption.journeyStepFlow?.journeyFlow?.mainSentiment?.name || 'Nome não disponível'}`);
+      console.log(`🎭 Sentimento da jornada: ${journeyOption.journeyStepFlow?.journeyFlow?.mainSentiment?.name || 'Sentimento não disponível'}`);
+      console.log(`📝 Opção: "${journeyOption.text}"`);
+      console.log(`ℹ️ Pulando seleção automática - usando jornada específica fornecida`);
+    } else {
+      console.log(`⚠️ JourneyOptionFlow ID ${journeyOptionFlowId} não encontrado`);
+    }
+    
+    return undefined; // Retornar undefined para usar a jornada específica
+  }
+  
+  // Se não temos journeyOptionFlowId, fazer seleção automática
   console.log(`🧠 Selecionando intenção emocional para o sentimento ID: ${mainSentimentId}`);
   
   const mainSentiment = await prisma.mainSentiment.findUnique({
