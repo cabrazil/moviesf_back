@@ -154,7 +154,6 @@ INSTRUÇÕES ESPECÍFICAS PARA ANÁLISE PRECISA:
 
 FORMATO DE RESPOSTA OBRIGATÓRIO:
 Responda SEMPRE com um JSON válido no formato exato:
-\`\`\`json
 {
   "suggestedSubSentiments": [
     {
@@ -165,7 +164,6 @@ Responda SEMPRE com um JSON válido no formato exato:
     }
   ]
 }
-\`\`\`
 `;
 
       // Combinar prompts otimizados

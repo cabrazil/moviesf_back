@@ -136,7 +136,8 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
         m.genres,
         m."landingPageHook",
         m."contentWarnings",
-        m."targetAudienceForLP"
+        m."targetAudienceForLP",
+        m."awardsSummary"
       FROM "Movie" m
       WHERE m.slug = $1
     `, [slug]);
@@ -275,6 +276,59 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
       mainTrailerResult = { rows: [] };
     }
 
+    // Buscar premiações Oscar
+    let oscarWinsResult;
+    let oscarNominationsResult;
+    try {
+      // Buscar vitórias do Oscar
+      oscarWinsResult = await pool.query(`
+        SELECT 
+          ac.name as "categoryName",
+          maw.year,
+          a.name as "personName"
+        FROM "MovieAwardWin" maw
+        JOIN "Award" award ON maw."awardId" = award.id
+        JOIN "AwardCategory" ac ON maw."awardCategoryId" = ac.id
+        LEFT JOIN "PersonAwardWin" paw ON (
+          paw."awardId" = maw."awardId" 
+          AND paw."awardCategoryId" = maw."awardCategoryId" 
+          AND paw.year = maw.year
+          AND paw."forMovieId" = maw."movieId"
+        )
+        LEFT JOIN "Actor" a ON paw."personId" = a.id
+        WHERE maw."movieId" = $1
+          AND award.name = 'Oscar'
+        ORDER BY maw.year DESC, ac.name ASC
+      `, [movie.id]);
+
+      // Buscar indicações do Oscar
+      oscarNominationsResult = await pool.query(`
+        SELECT 
+          ac.name as "categoryName",
+          man.year,
+          a.name as "personName"
+        FROM "MovieAwardNomination" man
+        JOIN "Award" award ON man."awardId" = award.id
+        JOIN "AwardCategory" ac ON man."awardCategoryId" = ac.id
+        LEFT JOIN "PersonAwardNomination" pan ON (
+          pan."awardId" = man."awardId" 
+          AND pan."awardCategoryId" = man."awardCategoryId" 
+          AND pan.year = man.year
+          AND pan."forMovieId" = man."movieId"
+        )
+        LEFT JOIN "Actor" a ON pan."personId" = a.id
+        WHERE man."movieId" = $1
+          AND award.name = 'Oscar'
+        ORDER BY man.year DESC, ac.name ASC
+      `, [movie.id]);
+
+      console.log(`✅ Premiações Oscar encontradas: ${oscarWinsResult.rows.length} vitórias, ${oscarNominationsResult.rows.length} indicações`);
+    } catch (oscarError) {
+      console.error('❌ Erro ao buscar premiações Oscar:', oscarError);
+      oscarWinsResult = { rows: [] };
+      oscarNominationsResult = { rows: [] };
+    }
+
     // Organizar plataformas por tipo de acesso
     const allPlatforms = platformsResult.rows.map((row: any) => ({
       id: row.id,
@@ -319,14 +373,31 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
       isMain: mainTrailerResult.rows[0].isMain
     } : null;
 
+    // Extrair premiações Oscar
+    const oscarWins = oscarWinsResult.rows.map((row: any) => ({
+      category: row.categoryName,
+      year: row.year,
+      personName: row.personName
+    }));
+
+    const oscarNominations = oscarNominationsResult.rows.map((row: any) => ({
+      category: row.categoryName,
+      year: row.year,
+      personName: row.personName
+    }));
+
+    // Calcular se tem premiações Oscar
+    const hasOscarAwards = oscarWins.length > 0 || oscarNominations.length > 0;
+
     // Buscar filmes similares baseado no journeyOptionFlowId
     let similarMoviesResult;
     try {
       similarMoviesResult = await pool.query(`
-        WITH current_movie_flow AS (
+        WITH best_journey AS (
           SELECT msf."journeyOptionFlowId"
           FROM "MovieSuggestionFlow" msf
           WHERE msf."movieId" = $1
+          ORDER BY msf."relevanceScore" DESC
           LIMIT 1
         )
         SELECT DISTINCT
@@ -335,13 +406,13 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
           m.year,
           m.thumbnail,
           m.slug,
+          msf."relevanceScore",
           RANDOM() as random_order
         FROM "MovieSuggestionFlow" msf
         JOIN "Movie" m ON msf."movieId" = m.id
-        CROSS JOIN current_movie_flow cmf
-        WHERE msf."journeyOptionFlowId" = cmf."journeyOptionFlowId"
-          AND msf."movieId" != $1
-        ORDER BY random_order
+        JOIN best_journey bj ON msf."journeyOptionFlowId" = bj."journeyOptionFlowId"
+        WHERE msf."movieId" != $1
+        ORDER BY msf."relevanceScore" DESC, random_order
         LIMIT 6
       `, [movie.id]);
       console.log(`✅ Filmes similares encontrados: ${similarMoviesResult.rows.length}`);
@@ -390,10 +461,17 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
         landingPageHook: movie.landingPageHook,
         contentWarnings: movie.contentWarnings,
         targetAudienceForLP: movie.targetAudienceForLP,
+        awardsSummary: movie.awardsSummary,
         emotionalTags: emotionalTags,
         mainCast: mainCast,
         fullCast: fullCast,
-        mainTrailer: mainTrailer
+        mainTrailer: mainTrailer,
+        oscarAwards: hasOscarAwards ? {
+          wins: oscarWins,
+          nominations: oscarNominations,
+          totalWins: oscarWins.length,
+          totalNominations: oscarNominations.length
+        } : null
       },
       subscriptionPlatforms,
       rentalPurchasePlatforms,

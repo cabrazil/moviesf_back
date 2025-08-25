@@ -417,7 +417,14 @@ async function main() {
       // Gerar inserts para subsentimentos existentes
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
         if (dbMatch) {
-          const explanation = suggestion.explanation.replace(/'/g, "''"); // Escapar aspas simples
+          // Escapar caracteres problemáticos para SQL
+          const explanation = suggestion.explanation
+            .replace(/'/g, "''")           // Escapar aspas simples 
+            .replace(/\\/g, "\\\\")        // Escapar barras invertidas
+            .replace(/\n/g, "\\n")         // Escapar quebras de linha
+            .replace(/\r/g, "\\r")         // Escapar retorno de carro
+            .replace(/\t/g, "\\t");        // Escapar tabs
+          
           sqlInserts.push(
             `-- Match: IA "${suggestion.name}" -> BD "${dbMatch.name}"`,
             `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt") VALUES ('${movie.id}', ${mainSentimentId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW()) ON CONFLICT ("movieId", "mainSentimentId", "subSentimentId") DO UPDATE SET "relevance" = EXCLUDED."relevance", "explanation" = EXCLUDED."explanation", "updatedAt" = NOW();`,
@@ -430,7 +437,14 @@ async function main() {
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
         if (!dbMatch) {
           const subSentimentName = suggestion.name.replace(/'/g, "''"); // Escapar aspas simples
-          const explanation = suggestion.explanation.replace(/'/g, "''"); // Escapar aspas simples
+          
+          // Escapar caracteres problemáticos para SQL
+          const explanation = suggestion.explanation
+            .replace(/'/g, "''")           // Escapar aspas simples 
+            .replace(/\\/g, "\\\\")        // Escapar barras invertidas
+            .replace(/\n/g, "\\n")         // Escapar quebras de linha
+            .replace(/\r/g, "\\r")         // Escapar retorno de carro
+            .replace(/\t/g, "\\t");        // Escapar tabs
           sqlInserts.push(
             `-- Novo SubSentiment: "${suggestion.name}"`,
             `WITH new_sub AS (`,

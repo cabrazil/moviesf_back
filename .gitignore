@@ -15,9 +15,7 @@ dist-ssr
 docker-compose.yml
 
 # Scripts
-src/scripts/*
 sql/*
-scripts/*
 
 # Editor directories and files
 .vscode/*

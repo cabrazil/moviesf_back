@@ -25,6 +25,7 @@ interface OmdbMovieResponse {
   Response: 'True' | 'False';
   Error?: string;
   Ratings?: OmdbRating[];
+  Awards?: string;
 }
 
 interface ExternalIdsResponse {
@@ -97,6 +98,129 @@ async function getOmdbRatings(imdbId: string): Promise<Record<string, number>> {
   } catch (error) {
     console.error(`Error fetching OMDb ratings for IMDb ID ${imdbId}:`, error);
     return {};
+  }
+}
+
+/**
+ * Formata as premiações para exibição na Landing Page em português
+ */
+function formatAwardsForLP(awardsText: string): string {
+  if (!awardsText || awardsText === 'N/A') {
+    return '';
+  }
+
+  let formatted = awardsText;
+
+  // === OSCARS ===
+  // "Won X Oscars" -> "Ganhou X Oscars"
+  formatted = formatted.replace(/^Won\s+(\d+)\s+Oscars?/i, (match, num) => {
+    return `Ganhou ${num} Oscar${parseInt(num) > 1 ? 's' : ''}`;
+  });
+  
+  // "Nominated for X Oscars" -> "Indicado a X Oscars"
+  formatted = formatted.replace(/Nominated for\s+(\d+)\s+Oscars?/i, (match, num) => {
+    return `Indicado a ${num} Oscar${parseInt(num) > 1 ? 's' : ''}`;
+  });
+
+  // === GOLDEN GLOBES ===
+  // "Won X Golden Globes" -> "Ganhou X Globos de Ouro"
+  formatted = formatted.replace(/Won\s+(\d+)\s+Golden Globes?/i, (match, num) => {
+    return `Ganhou ${num} Globo${parseInt(num) > 1 ? 's' : ''} de Ouro`;
+  });
+  
+  // "Nominated for X Golden Globes" -> "Indicado a X Globos de Ouro"
+  formatted = formatted.replace(/Nominated for\s+(\d+)\s+Golden Globes?/i, (match, num) => {
+    return `Indicado a ${num} Globo${parseInt(num) > 1 ? 's' : ''} de Ouro`;
+  });
+
+  // === PADRÃO GERAL: "X wins & Y nominations total" ===
+  formatted = formatted.replace(/(\d+)\s+wins?\s+&\s+(\d+)\s+nominations?\s+total/i, (match, wins, nominations) => {
+    const winsText = `${wins} vitória${parseInt(wins) > 1 ? 's' : ''}`;
+    const nominationsText = `${nominations} indicaç${parseInt(nominations) > 1 ? 'ões' : 'ão'}`;
+    return `${winsText} e ${nominationsText} no total`;
+  });
+
+  // === APENAS VITÓRIAS: "X wins" ===
+  formatted = formatted.replace(/(\d+)\s+wins?(?!\s+&)/i, (match, wins) => {
+    return `${wins} vitória${parseInt(wins) > 1 ? 's' : ''}`;
+  });
+
+  // === APENAS INDICAÇÕES: "X nominations" ===
+  formatted = formatted.replace(/(\d+)\s+nominations?(?!\s+total)/i, (match, nominations) => {
+    return `${nominations} indicaç${parseInt(nominations) > 1 ? 'ões' : 'ão'}`;
+  });
+
+  // === INDICAÇÕES GENÉRICAS ===
+  // "Nominated for X [something]" -> "Indicado a X [something]"
+  formatted = formatted.replace(/Nominated for\s+(\d+)\s+([A-Za-z\s]+)/i, (match, num, award) => {
+    return `Indicado a ${num} ${award}`;
+  });
+
+  // === OUTRAS PREMIAÇÕES COMUNS ===
+  // BAFTA
+  formatted = formatted.replace(/Won\s+(\d+)\s+BAFTA/i, (match, num) => {
+    return `Ganhou ${num} BAFTA${parseInt(num) > 1 ? 's' : ''}`;
+  });
+  
+  // Emmy
+  formatted = formatted.replace(/Won\s+(\d+)\s+Emmys?/i, (match, num) => {
+    return `Ganhou ${num} Emmy${parseInt(num) > 1 ? 's' : ''}`;
+  });
+
+  // Cannes
+  formatted = formatted.replace(/Won.*?Palme d'Or/i, 'Ganhou a Palma de Ouro');
+  formatted = formatted.replace(/Palme d'Or/gi, 'Palma de Ouro');
+
+  // === SUBSTITUIÇÕES GERAIS ===
+  // Termos que podem ter sobrado
+  formatted = formatted.replace(/\bwins?\b/gi, 'vitórias');
+  formatted = formatted.replace(/\bnominations?\b/gi, 'indicações');
+  formatted = formatted.replace(/\btotal\b/gi, 'no total');
+  
+  // Outras premiações conhecidas
+  formatted = formatted.replace(/Golden Globes?/gi, 'Globos de Ouro');
+  formatted = formatted.replace(/Screen Actors Guild/gi, 'Sindicato dos Atores');
+  formatted = formatted.replace(/Critics[']?\s*Choice/gi, 'Escolha da Crítica');
+
+  // === LIMPEZA FINAL ===
+  // Limpar pontuação dupla
+  formatted = formatted.replace(/\.\s*\./g, '.');
+  // Remover espaços extras
+  formatted = formatted.replace(/\s+/g, ' ');
+  // Capitalizar primeira letra
+  formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  
+  return formatted.trim();
+}
+
+/**
+ * Fetches movie awards from OMDb using the IMDb ID and formats for Landing Page.
+ */
+async function getOmdbAwards(imdbId: string): Promise<string | null> {
+  const apiKey = process.env.OMDB_API_KEY;
+  if (!apiKey) {
+    console.error('OMDb API key is not set.');
+    return null;
+  }
+
+  try {
+    const response = await axios.get<OmdbMovieResponse>('http://www.omdbapi.com/', {
+      params: { i: imdbId, apikey: apiKey }
+    });
+
+    if (response.data.Response === 'False' || !response.data.Awards) {
+      return null;
+    }
+
+    const awards = response.data.Awards;
+    if (awards === 'N/A') {
+      return null;
+    }
+
+    return formatAwardsForLP(awards);
+  } catch (error) {
+    console.error(`Error fetching OMDb awards for IMDb ID ${imdbId}:`, error);
+    return null;
   }
 }
 
@@ -992,15 +1116,23 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
           }
         }
 
-        // Obter ratings da OMDb
+        // Obter ratings e premiações da OMDb
         let omdbRatings = {};
+        let awardsSummary: string | null = null;
         const imdbId = await getImdbId(parseInt(movie.id));
         if (imdbId) {
-          console.log(`IMDb ID encontrado: ${imdbId}. Buscando ratings...`);
+          console.log(`IMDb ID encontrado: ${imdbId}. Buscando ratings e premiações...`);
           omdbRatings = await getOmdbRatings(imdbId);
           console.log('Ratings da OMDb encontrados:', omdbRatings);
+          
+          awardsSummary = await getOmdbAwards(imdbId);
+          if (awardsSummary) {
+            console.log(`🏆 Premiações encontradas: "${awardsSummary}"`);
+          } else {
+            console.log('🏆 Nenhuma premiação encontrada');
+          }
         } else {
-          console.log('IMDb ID não encontrado. Pulando busca de ratings.');
+          console.log('IMDb ID não encontrado. Pulando busca de ratings e premiações.');
         }
 
         // Gerar slug único para o filme
@@ -1028,6 +1160,7 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
             genreIds: genreIds,
             runtime: movie.runtime || undefined,
             tmdbId: parseInt(movie.id),
+            awardsSummary: awardsSummary || undefined,
             ...omdbRatings
           }
         });

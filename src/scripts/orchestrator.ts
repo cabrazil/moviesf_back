@@ -155,23 +155,28 @@ class MovieCurationOrchestrator {
         return { success: false, error: `Falha na curadoria: ${curateResult.error}` };
       }
 
-      // Etapa 5: Gerar landingPageHook e targetAudienceForLP
-      console.log(`🎣 Etapa 5: Gerando landingPageHook e targetAudienceForLP...`);
-      const hookResult = await this.generateLandingPageHook(tmdbId, finalAiProvider);
-      if (!hookResult.success) {
-        console.log(`⚠️ Aviso: Falha ao gerar landingPageHook: ${hookResult.error}`);
-      } else {
-        console.log(`🎯 TargetAudienceForLP gerado: "${hookResult.targetAudience}"`);
-        console.log(`🎣 LandingPageHook gerado: "${hookResult.hook}"`);
-      }
+      // Etapa 5: Verificar se deve atualizar campos genéricos baseado no relevanceScore
+      const shouldUpdateGenericFields = await this.shouldUpdateGenericFields(tmdbId, movie.journeyOptionFlowId);
+      
+      if (shouldUpdateGenericFields.shouldUpdate) {
+        console.log(`🎯 Etapa 5: Atualizando campos genéricos (relevanceScore: ${shouldUpdateGenericFields.currentScore} > ${shouldUpdateGenericFields.existingScore || 'N/A'})...`);
+        
+        const hookResult = await this.generateLandingPageHook(tmdbId, finalAiProvider);
+        if (!hookResult.success) {
+          console.log(`⚠️ Aviso: Falha ao gerar landingPageHook: ${hookResult.error}`);
+        } else {
+          console.log(`🎯 TargetAudienceForLP gerado: "${hookResult.targetAudience}"`);
+          console.log(`🎣 LandingPageHook gerado: "${hookResult.hook}"`);
+        }
 
-      // Etapa 6: Gerar contentWarnings
-      console.log(`⚠️ Etapa 6: Gerando contentWarnings...`);
-      const warningsResult = await this.generateContentWarnings(tmdbId, finalAiProvider);
-      if (!warningsResult.success) {
-        console.log(`⚠️ Aviso: Falha ao gerar contentWarnings: ${warningsResult.error}`);
+        const warningsResult = await this.generateContentWarnings(tmdbId, finalAiProvider);
+        if (!warningsResult.success) {
+          console.log(`⚠️ Aviso: Falha ao gerar contentWarnings: ${warningsResult.error}`);
+        } else {
+          console.log(`⚠️ ContentWarning gerado: "${warningsResult.warning}"`);
+        }
       } else {
-        console.log(`⚠️ ContentWarning gerado: "${warningsResult.warning}"`);
+        console.log(`🔒 Etapa 5: Mantendo campos genéricos existentes (relevanceScore atual: ${shouldUpdateGenericFields.currentScore} ≤ melhor existente: ${shouldUpdateGenericFields.existingScore})`);
       }
 
       const createdMovie = await prisma.movie.findFirst({ 
@@ -207,6 +212,63 @@ class MovieCurationOrchestrator {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`❌ Erro ao processar ${movie.title}:`, errorMessage);
       return { success: false, error: `Erro inesperado: ${errorMessage}` };
+    }
+  }
+
+  private async shouldUpdateGenericFields(tmdbId: number, currentJourneyOptionFlowId: number): Promise<{ shouldUpdate: boolean; currentScore?: number; existingScore?: number }> {
+    try {
+      // Buscar o relevanceScore da jornada atual que acabou de ser processada
+      const currentJourneyResult = await prisma.movieSuggestionFlow.findFirst({
+        where: {
+          movie: { tmdbId: tmdbId },
+          journeyOptionFlowId: currentJourneyOptionFlowId
+        },
+        select: {
+          relevanceScore: true
+        }
+      });
+
+      if (!currentJourneyResult || !currentJourneyResult.relevanceScore) {
+        console.log('⚠️ Jornada atual não encontrada ou sem relevanceScore, gerando campos genéricos por padrão');
+        return { shouldUpdate: true };
+      }
+
+      const currentScore = Number(currentJourneyResult.relevanceScore);
+
+      // Buscar o maior relevanceScore existente entre todas as jornadas do filme
+      const bestExistingJourney = await prisma.movieSuggestionFlow.findFirst({
+        where: {
+          movie: { tmdbId: tmdbId },
+          journeyOptionFlowId: { not: currentJourneyOptionFlowId }, // Excluir a jornada atual
+          relevanceScore: { not: null } // Garantir que tem relevanceScore
+        },
+        orderBy: {
+          relevanceScore: 'desc'
+        },
+        select: {
+          relevanceScore: true
+        }
+      });
+
+      if (!bestExistingJourney || !bestExistingJourney.relevanceScore) {
+        // Primeira jornada do filme com score válido - sempre atualizar
+        console.log('✅ Primeira jornada do filme com relevanceScore válido - gerando campos genéricos');
+        return { shouldUpdate: true, currentScore };
+      }
+
+      const existingScore = Number(bestExistingJourney.relevanceScore);
+      const shouldUpdate = currentScore > existingScore;
+
+      return {
+        shouldUpdate,
+        currentScore,
+        existingScore
+      };
+
+    } catch (error) {
+      console.error('❌ Erro ao verificar relevanceScore:', error);
+      // Em caso de erro, sempre gerar por segurança
+      return { shouldUpdate: true };
     }
   }
 
@@ -275,26 +337,35 @@ class MovieCurationOrchestrator {
 
       let emotionalBenefit = targetAudienceResponse.content.trim();
       
+      // Remover blocos de código JSON se presentes (problema do Gemini)
+      emotionalBenefit = emotionalBenefit.replace(/```[\s\S]*?```/g, '').trim();
+      
+      // Se ainda houver JSON, tentar extrair apenas o texto após o JSON
+      if (emotionalBenefit.includes('{') && emotionalBenefit.includes('}')) {
+        const lines = emotionalBenefit.split('\n');
+        const nonJsonLines = lines.filter(line => 
+          !line.trim().startsWith('{') && 
+          !line.trim().startsWith('}') && 
+          !line.includes('"name":') && 
+          !line.includes('"relevance":') &&
+          !line.includes('"explanation":') &&
+          !line.includes('suggestedSubSentiments') &&
+          line.trim().length > 10 &&
+          line.trim().startsWith('Este filme é ideal') // Pegar especificamente a linha que queremos
+        );
+        if (nonJsonLines.length > 0) {
+          emotionalBenefit = nonJsonLines[0].trim(); // Pegar apenas a primeira linha válida
+        }
+      }
+      
       // Remover o prefixo se a IA já o incluiu
       emotionalBenefit = emotionalBenefit.replace(/^Este filme é ideal para quem busca\s*/i, '');
       
-      // Montar o texto completo seguindo o padrão do update-landing-page-hooks.ts
-      let targetAudience;
-      if (emotionalBenefit.includes('reconciliação') || emotionalBenefit.includes('aceitação') || emotionalBenefit.includes('perdão') || emotionalBenefit.includes('cura')) {
-        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma jornada de cura e crescimento emocional.`;
-      } else if (emotionalBenefit.includes('humor') || emotionalBenefit.includes('leveza') || emotionalBenefit.includes('diversão') || emotionalBenefit.includes('alegria') || emotionalBenefit.includes('descontração')) {
-        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência contagiante de alegria e descontração.`;
-      } else if (emotionalBenefit.includes('superação') || emotionalBenefit.includes('crescimento') || emotionalBenefit.includes('inspiração') || emotionalBenefit.includes('otimismo') || emotionalBenefit.includes('esperança')) {
-        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma jornada inspiradora de transformação pessoal.`;
-      } else if (emotionalBenefit.includes('conforto') || emotionalBenefit.includes('aconchego') || emotionalBenefit.includes('família') || emotionalBenefit.includes('conexão') || emotionalBenefit.includes('laços')) {
-        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência calorosa de conexão familiar e emocional.`;
-      } else if (emotionalBenefit.includes('emotivo') || emotionalBenefit.includes('triste') || emotionalBenefit.includes('drama') || emotionalBenefit.includes('catarse')) {
-        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência profunda de reflexão e catarse emocional.`;
-      } else if (emotionalBenefit.includes('nostalgia') || emotionalBenefit.includes('reflexão') || emotionalBenefit.includes('amor') || emotionalBenefit.includes('perda') || emotionalBenefit.includes('memórias')) {
-        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência contemplativa de memórias e emoções profundas.`;
-      } else {
-        targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}, oferecendo uma experiência emocionalmente rica e envolvente.`;
-      }
+      // Remover pontos extras no final
+      emotionalBenefit = emotionalBenefit.replace(/\.+$/, '');
+      
+      // Montar o texto simplificado sem sufixos padronizados
+      const targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}.`;
 
       // PROMPT 2: Gerar landingPageHook (gancho emocional)
       const hookPrompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nCrie uma única frase de gancho cativante e instigante (máximo 35 palavras) para uma landing page. **OBRIGATORIAMENTE comece com "Prepare-se para..."** seguido de uma chamada impactante que convide à imersão. Ela deve destacar o principal apelo emocional ou temático do filme, usando a análise de subsentimentos para torná-la mais precisa e atraente para o público. Não inclua JSON, formatação de lista ou quebras de linha adicionais. O resultado deve ser apenas a frase sintetizada.\n\nExemplo de saída esperada para \'Os Descendentes\':\n\'Prepare-se para uma viagem emocional: Os Descendentes te leva às belas praias do Havaí, onde um pai deve navegar pelas turbulentas águas da traição e tragédia, redescobrindo o valor da família e do perdão.\'';
@@ -312,7 +383,27 @@ class MovieCurationOrchestrator {
         return { success: false, error: `Falha na geração do hook: ${hookResponse.error}` };
       }
 
-      const hook = hookResponse.content.trim();
+      let hook = hookResponse.content.trim();
+      
+      // Remover blocos de código JSON se presentes (problema do Gemini)
+      hook = hook.replace(/```[\s\S]*?```/g, '').trim();
+      
+      // Se ainda houver JSON, tentar extrair apenas o texto após o JSON
+      if (hook.includes('{') && hook.includes('}')) {
+        const lines = hook.split('\n');
+        const nonJsonLines = lines.filter(line => 
+          !line.trim().startsWith('{') && 
+          !line.trim().startsWith('}') && 
+          !line.includes('"name":') && 
+          !line.includes('"relevance":') &&
+          !line.includes('"explanation":') &&
+          !line.includes('suggestedSubSentiments') &&
+          line.trim().length > 10
+        );
+        if (nonJsonLines.length > 0) {
+          hook = nonJsonLines.join(' ').trim();
+        }
+      }
 
       // Validar se os textos foram gerados
       if (!targetAudience || targetAudience.length < 10) {

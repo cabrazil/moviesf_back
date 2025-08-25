@@ -36,6 +36,7 @@ model Movie {
   landingPageHook      String?
   contentWarnings      String?
   targetAudienceForLP  String?
+  awardsSummary        String?
   movieSentiments      MovieSentiment[]
   movieSuggestionFlows MovieSuggestionFlow[]
   // NOVA RELAÇÃO: Streaming platforms (mantendo campo antigo para migração segura)
@@ -44,6 +45,12 @@ model Movie {
   cast                 MovieCast[]
   // NOVA RELAÇÃO: Trailers do filme
   trailers             MovieTrailer[]
+  
+  // NOVAS RELAÇÕES: Premiações detalhadas
+  awardNominations     MovieAwardNomination[]
+  awardWins            MovieAwardWin[]
+  personAwardNominations PersonAwardNomination[] @relation("PersonAwardForMovie")
+  personAwardWins      PersonAwardWin[] @relation("PersonAwardForMovieWin")
 
   @@index([title])
 }
@@ -290,6 +297,10 @@ model Actor {
 
   // Relação com a tabela MovieCast (para os filmes em que atuou)
   movies       MovieCast[]
+  
+  // NOVAS RELAÇÕES: Premiações de pessoas
+  awardNominations PersonAwardNomination[]
+  awardWins        PersonAwardWin[]
 
   @@map("Actor") // Nome da tabela no banco
 }
@@ -336,4 +347,112 @@ model MovieTrailer {
   @@unique([movieId, key]) // Um trailer só pode ser associado uma vez a um filme
   @@index([movieId]) // Índice principal para buscar trailers de um filme
   @@map("MovieTrailer") // Nome da tabela no banco
+}
+
+// ===============================================
+// ESTRUTURAS PARA PREMIAÇÕES DETALHADAS
+// ===============================================
+
+model Award {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique // Ex: "Oscar", "Golden Globe Awards"
+  category  String?  // Ex: "Cinema", "Television" (se o prêmio abrange mais de uma mídia)
+  url       String?  // Link oficial do prêmio
+
+  // Relações
+  nominations MovieAwardNomination[]
+  wins        MovieAwardWin[]
+  personNominations PersonAwardNomination[]
+  personWins        PersonAwardWin[]
+  categories  AwardCategory[]
+
+  @@map("Award")
+}
+
+model AwardCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  awardId   String   @db.Uuid
+  name      String   // Ex: "Melhor Filme", "Melhor Ator", "Melhor Roteiro Original"
+
+  // Relações
+  award     Award    @relation(fields: [awardId], references: [id])
+  movieNominations MovieAwardNomination[]
+  movieWins        MovieAwardWin[]
+  personNominations PersonAwardNomination[]
+  personWins        PersonAwardWin[]
+
+  @@unique([awardId, name]) // Uma categoria é única dentro de um prêmio
+  @@map("AwardCategory")
+}
+
+// Para Indicações de Filmes
+model MovieAwardNomination {
+  id               String        @id @default(uuid()) @db.Uuid
+  movieId          String        @db.Uuid
+  awardId          String        @db.Uuid
+  awardCategoryId  String        @db.Uuid
+  year             Int           // Ano da cerimônia/indicação
+
+  // Relações
+  movie            Movie         @relation(fields: [movieId], references: [id])
+  award            Award         @relation(fields: [awardId], references: [id])
+  awardCategory    AwardCategory @relation(fields: [awardCategoryId], references: [id])
+
+  @@unique([movieId, awardId, awardCategoryId, year]) // Um filme só pode ser indicado uma vez em uma categoria por ano
+  @@map("MovieAwardNomination")
+}
+
+// Para Vitórias de Filmes
+model MovieAwardWin {
+  id               String        @id @default(uuid()) @db.Uuid
+  movieId          String        @db.Uuid
+  awardId          String        @db.Uuid
+  awardCategoryId  String        @db.Uuid
+  year             Int           // Ano da cerimônia/vitória
+
+  // Relações
+  movie            Movie         @relation(fields: [movieId], references: [id])
+  award            Award         @relation(fields: [awardId], references: [id])
+  awardCategory    AwardCategory @relation(fields: [awardCategoryId], references: [id])
+
+  @@unique([movieId, awardId, awardCategoryId, year]) // Um filme só pode ganhar uma vez em uma categoria por ano
+  @@map("MovieAwardWin")
+}
+
+// Para Indicações de Pessoas (Atores, Diretores, etc.)
+model PersonAwardNomination {
+  id               String        @id @default(uuid()) @db.Uuid
+  personId         String        @db.Uuid // Pode ser actorId, directorId, etc.
+  awardId          String        @db.Uuid
+  awardCategoryId  String        @db.Uuid
+  year             Int           // Ano da cerimônia/indicação
+  forMovieId       String?       @db.Uuid // Opcional: para qual filme a pessoa foi indicada
+
+  // Relações
+  person           Actor         @relation(fields: [personId], references: [id])
+  award            Award         @relation(fields: [awardId], references: [id])
+  awardCategory    AwardCategory @relation(fields: [awardCategoryId], references: [id])
+  forMovie         Movie?        @relation("PersonAwardForMovie", fields: [forMovieId], references: [id])
+
+  @@unique([personId, awardId, awardCategoryId, year])
+  @@map("PersonAwardNomination")
+}
+
+// Para Vitórias de Pessoas
+model PersonAwardWin {
+  id               String        @id @default(uuid()) @db.Uuid
+  personId         String        @db.Uuid
+  awardId          String        @db.Uuid
+  awardCategoryId  String        @db.Uuid
+  year             Int           // Ano da cerimônia/vitória
+  forMovieId       String?       @db.Uuid // Opcional: para qual filme a pessoa ganhou
+
+  // Relações
+  person           Actor         @relation(fields: [personId], references: [id])
+  award            Award         @relation(fields: [awardId], references: [id])
+  awardCategory    AwardCategory @relation(fields: [awardCategoryId], references: [id])
+  forMovie         Movie?        @relation("PersonAwardForMovieWin", fields: [forMovieId], references: [id])
+
+  @@unique([personId, awardId, awardCategoryId, year])
+  @@map("PersonAwardWin")
 }

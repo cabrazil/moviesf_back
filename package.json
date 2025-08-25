@@ -21,7 +21,6 @@
     "test:youtube": "jest src/tests/youtube-search.service.test.ts",
     "test:youtube-manual": "jest src/tests/youtube-api-manual.test.ts",
     "test:youtube-script": "ts-node src/scripts/test-youtube-api.ts",
-
     "db:backup": "ts-node prisma/scripts/backup-database.ts",
     "db:restore": "ts-node prisma/scripts/restore-database.ts",
     "db:reset": "ts-node src/scripts/resetDatabase.ts",
