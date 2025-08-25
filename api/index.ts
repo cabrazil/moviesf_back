@@ -542,7 +542,7 @@ app.get('/api/movie/:id/details', async (req, res) => {
       }
     });
 
-    // Buscar filme por UUID
+    // Buscar filme por UUID com campos adicionais
     const movieResult = await pool.query(`
       SELECT 
         m.id,
@@ -555,7 +555,10 @@ app.get('/api/movie/:id/details', async (req, res) => {
         m."imdbRating",
         m."vote_average",
         m.thumbnail,
-        m.genres
+        m.genres,
+        m."targetAudienceForLP",
+        m."landingPageHook",
+        m."contentWarnings"
       FROM "Movie" m
       WHERE m.id = $1
     `, [id]);
@@ -574,19 +577,84 @@ app.get('/api/movie/:id/details', async (req, res) => {
         sp.id,
         sp.name,
         sp.category,
+        sp."logoPath",
+        sp."hasFreeTrial",
+        sp."freeTrialDuration",
+        sp."baseUrl",
         msp."accessType"
       FROM "MovieStreamingPlatform" msp
       JOIN "StreamingPlatform" sp ON msp."streamingPlatformId" = sp.id
       WHERE msp."movieId" = $1
       AND (sp.category = 'SUBSCRIPTION_PRIMARY' OR sp.category = 'HYBRID')
+      ORDER BY 
+        CASE msp."accessType"
+          WHEN 'INCLUDED_WITH_SUBSCRIPTION' THEN 1
+          WHEN 'RENTAL' THEN 2
+          WHEN 'PURCHASE' THEN 3
+          ELSE 4
+        END,
+        sp.name
     `, [movie.id]);
 
+    // Buscar subsentimentos do filme para as tags emocionais
+    let sentimentsResult;
+    try {
+      sentimentsResult = await pool.query(`
+        SELECT 
+          ms."subSentimentId",
+          ss.name as "subSentimentName"
+        FROM "MovieSentiment" ms
+        JOIN "SubSentiment" ss ON ms."subSentimentId" = ss.id
+        WHERE ms."movieId" = $1
+        ORDER BY ms.relevance DESC
+      `, [movie.id]);
+      console.log(`✅ Subsentimentos encontrados: ${sentimentsResult.rows.length}`);
+    } catch (sentimentsError) {
+      console.error('❌ Erro ao buscar subsentimentos:', sentimentsError);
+      sentimentsResult = { rows: [] };
+    }
+
+    // Buscar elenco principal (5 atores com order <= 5)
+    let castResult;
+    try {
+      castResult = await pool.query(`
+        SELECT 
+          a.name as "actorName",
+          mc."characterName",
+          mc."order"
+        FROM "MovieCast" mc
+        JOIN "Actor" a ON mc."actorId" = a.id
+        WHERE mc."movieId" = $1
+          AND mc."order" <= 5
+        ORDER BY mc."order" ASC
+        LIMIT 5
+      `, [movie.id]);
+      console.log(`✅ Elenco principal encontrado: ${castResult.rows.length} atores`);
+    } catch (castError) {
+      console.error('❌ Erro ao buscar elenco:', castError);
+      castResult = { rows: [] };
+    }
+
     await pool.end();
+
+    // Extrair nomes dos subsentimentos para as tags emocionais
+    const emotionalTags = sentimentsResult.rows.map((row: any) => row.subSentimentName);
+
+    // Extrair dados do elenco principal
+    const mainCast = castResult.rows.map((row: any) => ({
+      actorName: row.actorName,
+      characterName: row.characterName,
+      order: row.order
+    }));
 
     const subscriptionPlatforms = platformsResult.rows.map((row: any) => ({
       id: row.id,
       name: row.name,
       category: row.category,
+      logoPath: row.logoPath,
+      hasFreeTrial: row.hasFreeTrial,
+      freeTrialDuration: row.freeTrialDuration,
+      baseUrl: row.baseUrl,
       accessType: row.accessType
     }));
 
@@ -602,7 +670,12 @@ app.get('/api/movie/:id/details', async (req, res) => {
         imdbRating: movie.imdbRating,
         vote_average: movie.vote_average,
         thumbnail: movie.thumbnail,
-        genres: movie.genres
+        genres: movie.genres,
+        targetAudienceForLP: movie.targetAudienceForLP,
+        landingPageHook: movie.landingPageHook,
+        contentWarnings: movie.contentWarnings,
+        emotionalTags: emotionalTags,
+        mainCast: mainCast
       },
       subscriptionPlatforms
     });
