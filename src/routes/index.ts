@@ -3,6 +3,7 @@ import movieRoutes from './movieRoutes';
 
 import mainSentimentsRoutes from './main-sentiments.routes';
 import emotionalRecommendationRoutes from './emotionalRecommendation.routes';
+import blogRoutes from './blog.routes';
 
 const router = Router();
 
@@ -16,5 +17,7 @@ router.use('/movies', movieRoutes);
 
 router.use('/main-sentiments', mainSentimentsRoutes);
 // router.use('/api', emotionalRecommendationRoutes); // COMENTADO - conflita com personalized-journey.routes.ts
+
+router.use('/blog', blogRoutes);
 
 export default router; 

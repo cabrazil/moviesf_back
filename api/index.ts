@@ -19,7 +19,7 @@ const prisma = new PrismaClient();
 app.use(cors({
   origin: '*', // Permite todas as origens em desenvolvimento
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'],
   exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
   credentials: true,
   maxAge: 86400 // 24 horas

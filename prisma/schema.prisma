@@ -456,3 +456,4 @@ model PersonAwardWin {
   @@unique([personId, awardId, awardCategoryId, year])
   @@map("PersonAwardWin")
 }
+
