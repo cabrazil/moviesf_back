@@ -2,7 +2,7 @@
   "name": "moviesf-back",
   "version": "1.0.0",
   "description": "Backend para aplicação de busca de filmes por sentimento",
-  "main": "src/server.ts",
+  "main": "api/index.ts",
   "engines": {
     "node": ">=18.0.0"
   },

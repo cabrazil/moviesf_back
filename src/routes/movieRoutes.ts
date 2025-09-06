@@ -54,7 +54,6 @@ router.get('/:id', async (req, res) => {
         genres: true,
         runtime: true,
         description: true,
-        oscarAwards: true,
         awardsSummary: true,
         // streamingPlatforms: true,
         movieSentiments: {

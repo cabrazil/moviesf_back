@@ -22,8 +22,7 @@
     "src/controllers/**/*",
     "src/routes/**/*",
     "src/utils/**/*",
-    "src/prisma.ts",
-    "src/server.ts"
+    "src/prisma.ts"
   ],
   "exclude": ["node_modules", "dist", "src/scripts/**/*", "src/services/**/*", "src/tests/**/*"]
 } 
