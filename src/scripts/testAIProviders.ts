@@ -9,6 +9,7 @@ async function testAIProviders() {
   console.log('🔑 Verificando variáveis de ambiente...');
   console.log(`OpenAI Key: ${process.env.OPENAI_API_KEY ? '✅ Configurada' : '❌ Não encontrada'}`);
   console.log(`Gemini Key: ${process.env.GEMINI_API_KEY ? '✅ Configurada' : '❌ Não encontrada'}`);
+  console.log(`DeepSeek Key: ${process.env.DEEPSEEK_API_KEY ? '✅ Configurada' : '❌ Não encontrada'}`);
   console.log();
   console.log('🧪 === TESTE DE PROVEDORES DE IA ===\n');
 
@@ -31,7 +32,7 @@ A reflexão deve:
 
   const systemPrompt = 'Você é um crítico de cinema especializado em análise emocional de filmes. Escreva reflexões concisas e inspiradoras que capturem a essência emocional única de cada filme.';
 
-  const providers: AIProvider[] = ['openai', 'gemini'];
+  const providers: AIProvider[] = ['openai', 'gemini', 'deepseek'];
 
   for (const provider of providers) {
     console.log(`\n🔍 Testando ${provider.toUpperCase()}:`);
@@ -65,9 +66,11 @@ A reflexão deve:
   console.log('\nPara usar um provedor específico nos scripts:');
   console.log('• OpenAI: npx ts-node orchestrator.ts --title="..." --ai-provider=openai');
   console.log('• Gemini: npx ts-node orchestrator.ts --title="..." --ai-provider=gemini');
+  console.log('• DeepSeek: npx ts-node orchestrator.ts --title="..." --ai-provider=deepseek');
   console.log('\nOu definir a variável de ambiente:');
   console.log('• export AI_PROVIDER=openai');
   console.log('• export AI_PROVIDER=gemini');
+  console.log('• export AI_PROVIDER=deepseek');
 }
 
 if (require.main === module) {

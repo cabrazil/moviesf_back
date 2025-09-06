@@ -31,15 +31,15 @@ Backend (Porta 3000)
 ### **1. Banco Principal (VibesFilm App)**
 ```env
 # moviesf_back/.env
-DATABASE_URL="postgresql://postgres.tcvgmugkgwbaxdhreuxm:Quemmedera01*@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.tcvgmugkgwbaxdhreuxm:Quemmedera01*@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
+DATABASE_URL=
+DIRECT_URL=
 ```
 
 ### **2. Banco do Blog (VibesFilm Blog)**
 ```env
 # moviesf_back/.env
-BLOG_DATABASE_URL="postgresql://postgres.dadrodpfylduydjbdxpy:Supa@2605ab@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-BLOG_DIRECT_URL="postgresql://postgres.dadrodpfylduydjbdxpy:Supa@2605ab@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
+BLOG_DATABASE_URL=
+BLOG_DIRECT_URL=
 ```
 
 ---

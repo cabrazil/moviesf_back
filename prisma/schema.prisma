@@ -51,8 +51,14 @@ model Movie {
   awardWins            MovieAwardWin[]
   personAwardNominations PersonAwardNomination[] @relation("PersonAwardForMovie")
   personAwardWins      PersonAwardWin[] @relation("PersonAwardForMovieWin")
+  
+  // NOVAS RELAÇÕES: Críticas do filme
+  quotes               Quote[]
 
   @@index([title])
+  @@index([year]) // Consultas por ano são frequentes
+  @@index([tmdbId]) // Integração com TMDB
+  @@index([createdAt]) // Ordenação e filtros temporais
 }
 
 model Genre {
@@ -101,8 +107,9 @@ model MovieSentiment {
   subSentiment    SubSentiment  @relation(fields: [subSentimentId], references: [id])
 
   @@id([movieId, mainSentimentId, subSentimentId])
-  @@index([mainSentimentId])
-  @@index([subSentimentId])
+  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
+  @@index([mainSentimentId]) // ESSENCIAL: relacionamento com MainSentiment
+  @@index([subSentimentId]) // ESSENCIAL: relacionamento com SubSentiment
 }
 
 model JourneyFlow {
@@ -126,7 +133,8 @@ model JourneyStepFlow {
   journeyFlow                    JourneyFlow                     @relation(fields: [journeyFlowId], references: [id])
   emotionalIntentionJourneySteps EmotionalIntentionJourneyStep[]
 
-  @@index([journeyFlowId])
+  @@index([journeyFlowId]) // ESSENCIAL: relacionamento
+  @@index([order]) // ESSENCIAL: ordenação dos passos
 }
 
 model JourneyOptionFlow {
@@ -141,7 +149,8 @@ model JourneyOptionFlow {
   journeyStepFlow   JourneyStepFlow       @relation(fields: [journeyStepFlowId], references: [id])
   movieSuggestions  MovieSuggestionFlow[]
 
-  @@index([journeyStepFlowId])
+  @@index([journeyStepFlowId]) // ESSENCIAL: relacionamento
+  @@index([nextStepId]) // ESSENCIAL: navegação entre opções
 }
 
 model MovieSuggestionFlow {
@@ -156,8 +165,9 @@ model MovieSuggestionFlow {
   journeyOptionFlow   JourneyOptionFlow @relation(fields: [journeyOptionFlowId], references: [id])
   movie               Movie             @relation(fields: [movieId], references: [id])
 
-  @@index([journeyOptionFlowId])
-  @@index([movieId])
+  @@index([journeyOptionFlowId]) // ESSENCIAL: relacionamento
+  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
+  @@index([relevanceScore]) // ESSENCIAL: ordenação por relevância
 }
 
 model GenreSubSentiment {
@@ -198,8 +208,8 @@ model EmotionalIntention {
   emotionalIntentionJourneySteps EmotionalIntentionJourneyStep[]
 
   @@unique([mainSentimentId, intentionType])
-  @@index([mainSentimentId])
-  @@index([intentionType])
+  @@index([mainSentimentId]) // ESSENCIAL: relacionamento
+  @@index([intentionType]) // ESSENCIAL: filtros por tipo
 }
 
 model EmotionalIntentionJourneyStep {
@@ -216,6 +226,9 @@ model EmotionalIntentionJourneyStep {
   journeyStepFlow      JourneyStepFlow    @relation(fields: [journeyStepFlowId], references: [id])
 
   @@unique([emotionalIntentionId, journeyStepFlowId])
+  @@index([emotionalIntentionId]) // ESSENCIAL: relacionamento
+  @@index([journeyStepFlowId]) // ESSENCIAL: relacionamento
+  @@index([priority]) // ESSENCIAL: ordenação por prioridade
 }
 
 enum IntentionType {
@@ -253,7 +266,7 @@ model StreamingPlatform {
   name      String           @unique @db.VarChar(255) // Ex: "Netflix", "Amazon Prime Video", "Apple TV (Loja)", "Apple TV+"
   category  PlatformCategory // Categoria principal da plataforma (para filtros de alto nível)
   createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  updatedAt DateTime         @default(now())
   baseUrl   String?          @db.VarChar(500) // URL base da plataforma para redirecionamento
   hasFreeTrial Boolean       @default(false) // Se a plataforma oferece teste grátis
   freeTrialDuration String?  @db.VarChar(100) // Duração do teste grátis (ex: '7 dias', '30 dias', '1 mês')
@@ -262,6 +275,9 @@ model StreamingPlatform {
   
   // Relação muitos-para-muitos com filmes, através da tabela de junção
   movies    MovieStreamingPlatform[]
+
+  // Tabela pequena, apenas índices essenciais
+  @@index([category]) // ESSENCIAL: filtros por categoria
 }
 
 // Tabela de Junção para a relação muitos-para-muitos entre Movie e StreamingPlatform
@@ -271,15 +287,14 @@ model MovieStreamingPlatform {
   streamingPlatformId Int
   accessType          AccessType       // O TIPO DE ACESSO para ESTE filme NESTA plataforma
   createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  updatedAt           DateTime         @default(now())
   movie               Movie            @relation(fields: [movieId], references: [id])
   streamingPlatform   StreamingPlatform @relation(fields: [streamingPlatformId], references: [id])
 
   // Chave composta para permitir que o mesmo filme esteja na mesma plataforma com diferentes tipos de acesso
   @@id([movieId, streamingPlatformId, accessType])
-  @@index([movieId])
-  @@index([streamingPlatformId])
-  @@index([accessType])
+  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
+  @@index([streamingPlatformId]) // ESSENCIAL: relacionamento com StreamingPlatform
 }
 
 // ===============================================
@@ -293,7 +308,7 @@ model Actor {
   name         String      // Nome completo do ator
   profilePath  String?     // Caminho para a imagem do perfil do ator no TMDB (ex: /path/to/image.jpg)
   createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  updatedAt    DateTime    @default(now())
 
   // Relação com a tabela MovieCast (para os filmes em que atuou)
   movies       MovieCast[]
@@ -303,6 +318,8 @@ model Actor {
   awardWins        PersonAwardWin[]
 
   @@map("Actor") // Nome da tabela no banco
+  @@index([tmdbId]) // ESSENCIAL: integração com TMDB
+  @@index([name]) // ESSENCIAL: busca por nome de ator
 }
 
 // Tabela de associação entre Filmes e Atores (Elenco)
@@ -313,7 +330,7 @@ model MovieCast {
   characterName String?   // Nome do personagem que o ator interpretou
   order        Int       // Ordem de aparição no elenco (para pegar os principais)
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  updatedAt    DateTime  @default(now())
 
   // Relações
   movie        Movie     @relation(fields: [movieId], references: [id])
@@ -321,6 +338,8 @@ model MovieCast {
 
   @@unique([movieId, actorId]) // Um ator só atua uma vez em um filme (para um mesmo personagem)
   @@map("MovieCast") // Nome da tabela no banco
+  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
+  @@index([actorId]) // ESSENCIAL: relacionamento com Actor
 }
 
 // ===============================================
@@ -339,14 +358,15 @@ model MovieTrailer {
   language    String?   // Idioma do trailer (ex: "en", "pt") - Este campo é CRUCIAL
   isMain      Boolean   @default(false) // Flag para indicar se é o trailer principal a ser exibido
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  updatedAt   DateTime  @default(now())
 
   // Relação com a tabela Movie
   movie       Movie     @relation(fields: [movieId], references: [id])
 
   @@unique([movieId, key]) // Um trailer só pode ser associado uma vez a um filme
-  @@index([movieId]) // Índice principal para buscar trailers de um filme
+  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
   @@map("MovieTrailer") // Nome da tabela no banco
+  @@index([tmdbId]) // ESSENCIAL: integração com TMDB
 }
 
 // ===============================================
@@ -367,6 +387,7 @@ model Award {
   categories  AwardCategory[]
 
   @@map("Award")
+  // Tabela pequena, sem índices desnecessários
 }
 
 model AwardCategory {
@@ -383,6 +404,7 @@ model AwardCategory {
 
   @@unique([awardId, name]) // Uma categoria é única dentro de um prêmio
   @@map("AwardCategory")
+  // Tabela pequena, sem índices desnecessários
 }
 
 // Para Indicações de Filmes
@@ -400,6 +422,8 @@ model MovieAwardNomination {
 
   @@unique([movieId, awardId, awardCategoryId, year]) // Um filme só pode ser indicado uma vez em uma categoria por ano
   @@map("MovieAwardNomination")
+  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
+  @@index([year]) // ESSENCIAL: consultas por ano
 }
 
 // Para Vitórias de Filmes
@@ -417,6 +441,8 @@ model MovieAwardWin {
 
   @@unique([movieId, awardId, awardCategoryId, year]) // Um filme só pode ganhar uma vez em uma categoria por ano
   @@map("MovieAwardWin")
+  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
+  @@index([year]) // ESSENCIAL: consultas por ano
 }
 
 // Para Indicações de Pessoas (Atores, Diretores, etc.)
@@ -436,6 +462,9 @@ model PersonAwardNomination {
 
   @@unique([personId, awardId, awardCategoryId, year])
   @@map("PersonAwardNomination")
+  @@index([personId]) // ESSENCIAL: relacionamento com Actor
+  @@index([forMovieId]) // ESSENCIAL: relacionamento com Movie
+  @@index([year]) // ESSENCIAL: consultas por ano
 }
 
 // Para Vitórias de Pessoas
@@ -455,5 +484,22 @@ model PersonAwardWin {
 
   @@unique([personId, awardId, awardCategoryId, year])
   @@map("PersonAwardWin")
+  @@index([personId]) // ESSENCIAL: relacionamento com Actor
+  @@index([forMovieId]) // ESSENCIAL: relacionamento com Movie
+  @@index([year]) // ESSENCIAL: consultas por ano
 }
 
+// Para críticas do filme
+model Quote { 
+  id               Int        @id @default(autoincrement())
+  movieId          String        @db.Uuid
+  text             String
+  author           String?
+  vehicle          String?
+  url              String?        @db.VarChar(500) // URL do veículo que citou a crítica
+  movie            Movie         @relation(fields: [movieId], references: [id])
+
+  @@map("Quote")
+  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
+  @@index([author]) // ESSENCIAL: busca por autor
+}

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export type AIProvider = 'openai' | 'gemini';
+export type AIProvider = 'openai' | 'gemini' | 'deepseek';
 
 // Interfaces para tipagem das respostas das APIs
 interface OpenAIResponse {
@@ -17,6 +17,14 @@ interface GeminiResponse {
       parts: Array<{
         text: string;
       }>;
+    };
+  }>;
+}
+
+interface DeepSeekResponse {
+  choices: Array<{
+    message: {
+      content: string;
     };
   }>;
 }
@@ -57,6 +65,8 @@ class AIProviderManager {
         return this.generateOpenAIResponse(systemPrompt, userPrompt, temperature, maxTokens);
       case 'gemini':
         return this.generateGeminiResponse(systemPrompt, userPrompt, temperature, maxTokens);
+      case 'deepseek':
+        return this.generateDeepSeekResponse(systemPrompt, userPrompt, temperature, maxTokens);
       default:
         throw new Error(`Provedor de IA não suportado: ${this.config.provider}`);
     }
@@ -230,6 +240,40 @@ Responda SEMPRE com um JSON válido no formato exato:
       };
     }
   }
+
+  private async generateDeepSeekResponse(
+    systemPrompt: string,
+    userPrompt: string,
+    temperature: number,
+    maxTokens: number
+  ): Promise<AIResponse> {
+    try {
+      const response = await axios.post<DeepSeekResponse>('https://api.deepseek.com/v1/chat/completions', {
+        model: this.config.model || 'deepseek-chat',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature,
+        max_tokens: maxTokens
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const content = response.data.choices[0].message.content;
+      return { content, success: true };
+    } catch (error) {
+      console.error('Erro na API DeepSeek:', error);
+      return {
+        content: '',
+        success: false,
+        error: `Erro DeepSeek: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+  }
 }
 
 export function createAIProvider(config: AIConfig): AIProviderManager {
@@ -237,10 +281,16 @@ export function createAIProvider(config: AIConfig): AIProviderManager {
 }
 
 export function getDefaultConfig(provider: AIProvider): AIConfig {
+  const modelMap = {
+    'openai': 'gpt-4-turbo',
+    'gemini': 'gemini-1.5-flash',
+    'deepseek': 'deepseek-chat'
+  };
+
   return {
     provider,
-    model: provider === 'openai' ? 'gpt-4-turbo' : 'gemini-1.5-flash',
-    temperature: 0.7,
+    model: modelMap[provider],
+    temperature: provider === 'deepseek' ? 1.0 : 0.7,
     maxTokens: 2000
   };
 }

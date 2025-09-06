@@ -276,6 +276,26 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
       mainTrailerResult = { rows: [] };
     }
 
+    // Buscar críticas/quotes do filme
+    let quotesResult;
+    try {
+      quotesResult = await pool.query(`
+        SELECT 
+          q.id,
+          q.text,
+          q.author,
+          q.vehicle,
+          q.url
+        FROM "Quote" q
+        WHERE q."movieId" = $1
+        ORDER BY q.id ASC
+      `, [movie.id]);
+      console.log(`✅ Quotes encontrados: ${quotesResult.rows.length}`);
+    } catch (quotesError) {
+      console.error('❌ Erro ao buscar quotes:', quotesError);
+      quotesResult = { rows: [] };
+    }
+
     // Buscar premiações Oscar
     let oscarWinsResult;
     let oscarNominationsResult;
@@ -426,12 +446,7 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
 
     // Extrair filmes similares
     const similarMovies = similarMoviesResult.rows.map((row: any) => {
-      const originalThumbnail = row.thumbnail;
       const newThumbnail = row.thumbnail ? row.thumbnail.replace('/w500/', '/w185/') : null;
-      
-      if (originalThumbnail && newThumbnail !== originalThumbnail) {
-        console.log(`🖼️ Thumbnail convertido: ${originalThumbnail} → ${newThumbnail}`);
-      }
       
       return {
         id: row.id,
@@ -466,6 +481,13 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
         mainCast: mainCast,
         fullCast: fullCast,
         mainTrailer: mainTrailer,
+        quotes: quotesResult.rows.map((row: any) => ({
+          id: row.id,
+          text: row.text,
+          author: row.author,
+          vehicle: row.vehicle,
+          url: row.url
+        })),
         oscarAwards: hasOscarAwards ? {
           wins: oscarWins,
           nominations: oscarNominations,
@@ -558,7 +580,8 @@ app.get('/api/movie/:id/details', async (req, res) => {
         m.genres,
         m."targetAudienceForLP",
         m."landingPageHook",
-        m."contentWarnings"
+        m."contentWarnings",
+        m."awardsSummary"
       FROM "Movie" m
       WHERE m.id = $1
     `, [id]);
@@ -570,6 +593,62 @@ app.get('/api/movie/:id/details', async (req, res) => {
 
     const movie = movieResult.rows[0];
     console.log(`✅ Filme encontrado: ${movie.title}`);
+    console.log(`🏆 Awards Summary: ${movie.awardsSummary}`);
+
+    // Buscar dados estruturados de premiações Oscar (unificado para evitar duplicações)
+    const oscarAwardsResult = await pool.query(`
+      SELECT DISTINCT
+        ac.name as category_name,
+        COALESCE(maw.year, man.year, paw.year, pan.year) as year,
+        CASE 
+          WHEN maw.id IS NOT NULL OR paw.id IS NOT NULL THEN 'win'
+          ELSE 'nomination'
+        END as type,
+        act.name as person_name
+      FROM "AwardCategory" ac
+      JOIN "Award" a ON ac."awardId" = a.id
+      LEFT JOIN "MovieAwardWin" maw ON (ac.id = maw."awardCategoryId" AND maw."movieId" = $1)
+      LEFT JOIN "MovieAwardNomination" man ON (ac.id = man."awardCategoryId" AND man."movieId" = $1)
+      LEFT JOIN "PersonAwardWin" paw ON (ac.id = paw."awardCategoryId" AND paw."forMovieId" = $1)
+      LEFT JOIN "PersonAwardNomination" pan ON (ac.id = pan."awardCategoryId" AND pan."forMovieId" = $1)
+      LEFT JOIN "Actor" act ON (paw."personId" = act.id OR pan."personId" = act.id)
+      WHERE a.name = 'Oscar'
+        AND (maw.id IS NOT NULL OR man.id IS NOT NULL OR paw.id IS NOT NULL OR pan.id IS NOT NULL)
+      ORDER BY year DESC, type DESC, category_name
+    `, [movie.id]);
+
+    // Processar dados de premiações estruturados
+    let oscarAwards = null;
+    if (oscarAwardsResult.rows.length > 0) {
+      const wins: any[] = [];
+      const nominations: any[] = [];
+      
+      // Processar todos os dados de Oscar (sem duplicação)
+      oscarAwardsResult.rows.forEach((row: any) => {
+        if (row.type === 'win') {
+          wins.push({
+            category: row.category_name,
+            year: row.year,
+            personName: row.person_name
+          });
+        } else {
+          nominations.push({
+            category: row.category_name,
+            year: row.year,
+            personName: row.person_name
+          });
+        }
+      });
+      
+      oscarAwards = {
+        wins,
+        nominations,
+        totalWins: wins.length,
+        totalNominations: nominations.length
+      };
+      
+      console.log(`🏆 Dados de Oscar encontrados: ${wins.length} vitórias, ${nominations.length} indicações`);
+    }
 
     // Buscar plataformas de streaming
     const platformsResult = await pool.query(`
@@ -635,6 +714,26 @@ app.get('/api/movie/:id/details', async (req, res) => {
       castResult = { rows: [] };
     }
 
+    // Extrair críticas/quotes
+    let quotesResult;
+    try {
+      quotesResult = await pool.query(`
+        SELECT 
+          q.id,
+          q.text,
+          q.author,
+          q.vehicle,
+          q.url
+        FROM "Quote" q
+        WHERE q."movieId" = $1
+        ORDER BY q.id ASC
+      `, [movie.id]);
+      console.log(`✅ Quotes encontrados: ${quotesResult.rows.length}`);
+    } catch (quotesError) {
+      console.error('❌ Erro ao buscar quotes:', quotesError);
+      quotesResult = { rows: [] };
+    }
+
     await pool.end();
 
     // Extrair nomes dos subsentimentos para as tags emocionais
@@ -674,8 +773,17 @@ app.get('/api/movie/:id/details', async (req, res) => {
         targetAudienceForLP: movie.targetAudienceForLP,
         landingPageHook: movie.landingPageHook,
         contentWarnings: movie.contentWarnings,
+        awardsSummary: movie.awardsSummary,
+        oscarAwards: oscarAwards,
         emotionalTags: emotionalTags,
-        mainCast: mainCast
+        mainCast: mainCast,
+        quotes: quotesResult.rows.map((row: any) => ({
+          id: row.id,
+          text: row.text,
+          author: row.author,
+          vehicle: row.vehicle,
+          url: row.url
+        }))
       },
       subscriptionPlatforms
     });

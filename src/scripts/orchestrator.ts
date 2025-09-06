@@ -13,7 +13,7 @@ interface MovieToProcess {
   journeyOptionFlowId: number;
   analysisLens: number;
   journeyValidation: number;
-  aiProvider?: 'openai' | 'gemini' | 'auto';
+  aiProvider?: 'openai' | 'gemini' | 'deepseek' | 'auto';
 }
 
 interface ProcessingResult {
@@ -613,7 +613,7 @@ function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
     else if (arg.startsWith('--journeyOptionFlowId=')) parsed.journeyOptionFlowId = parseInt(arg.split('=')[1]);
     else if (arg.startsWith('--analysisLens=')) parsed.analysisLens = parseInt(arg.split('=')[1]);
     else if (arg.startsWith('--journeyValidation=')) parsed.journeyValidation = parseInt(arg.split('=')[1]);
-    else if (arg.startsWith('--ai-provider=')) parsed.aiProvider = arg.split('=')[1] as 'openai' | 'gemini' | 'auto';
+    else if (arg.startsWith('--ai-provider=')) parsed.aiProvider = arg.split('=')[1] as 'openai' | 'gemini' | 'deepseek' | 'auto';
   }
   return parsed;
 }
@@ -630,7 +630,7 @@ async function main() {
       console.log(`\nUso: npx ts-node orchestrator.ts --title="Título" --year=2023 --journeyOptionFlowId=81 --analysisLens=14 --journeyValidation=15`);
       console.log(`\nFlags opcionais:`);
       console.log(`   --approve-new-subsentiments: Aprova automaticamente a criação de novos subsentimentos sugeridos pela IA.`);
-      console.log(`   --ai-provider=openai|gemini|auto: Escolhe o provedor de IA (padrão: openai, auto=seleção automática baseada no filme).`);
+      console.log(`   --ai-provider=openai|gemini|deepseek|auto: Escolhe o provedor de IA (padrão: openai, auto=seleção automática baseada no filme).`);
       return;
     }
 

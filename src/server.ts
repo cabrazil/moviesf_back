@@ -133,7 +133,8 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
         m."rottenTomatoesRating",
         m."metacriticRating",
         m.thumbnail,
-        m.genres
+        m.genres,
+        m."awardsSummary"
       FROM "Movie" m
       WHERE m.slug = $1
     `, [slug]);
@@ -145,6 +146,112 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
 
     const movie = movieResult.rows[0];
     console.log(`✅ Filme hero encontrado: ${movie.title}`);
+
+    // Buscar dados estruturados de premiações (Oscar) para Landing Page
+    const oscarAwardsResult = await pool.query(`
+      SELECT 
+        a.name as award_name,
+        ac.name as category_name,
+        maw.year,
+        'win' as type
+      FROM "MovieAwardWin" maw
+      JOIN "Award" a ON maw."awardId" = a.id
+      JOIN "AwardCategory" ac ON maw."awardCategoryId" = ac.id
+      WHERE maw."movieId" = $1 AND a.name = 'Oscar'
+      
+      UNION ALL
+      
+      SELECT 
+        a.name as award_name,
+        ac.name as category_name,
+        man.year,
+        'nomination' as type
+      FROM "MovieAwardNomination" man
+      JOIN "Award" a ON man."awardId" = a.id
+      JOIN "AwardCategory" ac ON man."awardCategoryId" = ac.id
+      WHERE man."movieId" = $1 AND a.name = 'Oscar'
+      
+      ORDER BY year DESC, type DESC, category_name
+    `, [movie.id]);
+
+    // Buscar premiações de pessoas (atores, diretores) para o filme
+    const personAwardsResult = await pool.query(`
+      SELECT 
+        a.name as award_name,
+        ac.name as category_name,
+        act.name as person_name,
+        paw.year,
+        'win' as type
+      FROM "PersonAwardWin" paw
+      JOIN "Award" a ON paw."awardId" = a.id
+      JOIN "AwardCategory" ac ON paw."awardCategoryId" = ac.id
+      JOIN "Actor" act ON paw."personId" = act.id
+      WHERE paw."forMovieId" = $1 AND a.name = 'Oscar'
+      
+      UNION ALL
+      
+      SELECT 
+        a.name as award_name,
+        ac.name as category_name,
+        act.name as person_name,
+        pan.year,
+        'nomination' as type
+      FROM "PersonAwardNomination" pan
+      JOIN "Award" a ON pan."awardId" = a.id
+      JOIN "AwardCategory" ac ON pan."awardCategoryId" = ac.id
+      JOIN "Actor" act ON pan."personId" = act.id
+      WHERE pan."forMovieId" = $1 AND a.name = 'Oscar'
+      
+      ORDER BY year DESC, type DESC, category_name
+    `, [movie.id]);
+
+    // Processar dados de premiações estruturados para Landing Page
+    let oscarAwards = null;
+    if (oscarAwardsResult.rows.length > 0 || personAwardsResult.rows.length > 0) {
+      const wins = [];
+      const nominations = [];
+      
+      // Processar vitórias e indicações do filme
+      oscarAwardsResult.rows.forEach(row => {
+        if (row.type === 'win') {
+          wins.push({
+            category: row.category_name,
+            year: row.year
+          });
+        } else {
+          nominations.push({
+            category: row.category_name,
+            year: row.year
+          });
+        }
+      });
+      
+      // Processar vitórias e indicações de pessoas
+      personAwardsResult.rows.forEach(row => {
+        if (row.type === 'win') {
+          wins.push({
+            category: row.category_name,
+            year: row.year,
+            personName: row.person_name
+          });
+        } else {
+          nominations.push({
+            category: row.category_name,
+            year: row.year,
+            personName: row.person_name
+          });
+        }
+      });
+      
+      oscarAwards = {
+        wins,
+        nominations,
+        totalWins: wins.length,
+        totalNominations: nominations.length
+      };
+      
+      console.log(`🏆 Dados de Oscar encontrados para LP: ${wins.length} vitórias, ${nominations.length} indicações`);
+    }
 
     // Buscar plataformas de streaming
     const platformsResult = await pool.query(`
@@ -193,7 +300,9 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
         rottenTomatoesRating: movie.rottenTomatoesRating,
         metacriticRating: movie.metacriticRating,
         thumbnail: movie.thumbnail,
-        genres: movie.genres
+        genres: movie.genres,
+        awardsSummary: movie.awardsSummary,
+        oscarAwards: oscarAwards
       },
       subscriptionPlatforms,
       reason
@@ -304,7 +413,8 @@ app.get('/api/movie/:id/details', async (req, res) => {
         m.genres,
         m."targetAudienceForLP",
         m."landingPageHook",
-        m."contentWarnings"
+        m."contentWarnings",
+        m."awardsSummary"
       FROM "Movie" m
       WHERE m.id = $1
     `, [id]);
@@ -316,6 +426,113 @@ app.get('/api/movie/:id/details', async (req, res) => {
 
     const movie = movieResult.rows[0];
     console.log(`✅ Filme encontrado: ${movie.title}`);
+    console.log(`🏆 Awards Summary: ${movie.awardsSummary}`);
+
+    // Buscar dados estruturados de premiações (Oscar)
+    const oscarAwardsResult = await pool.query(`
+      SELECT 
+        a.name as award_name,
+        ac.name as category_name,
+        maw.year,
+        'win' as type
+      FROM "MovieAwardWin" maw
+      JOIN "Award" a ON maw."awardId" = a.id
+      JOIN "AwardCategory" ac ON maw."awardCategoryId" = ac.id
+      WHERE maw."movieId" = $1 AND a.name = 'Oscar'
+      
+      UNION ALL
+      
+      SELECT 
+        a.name as award_name,
+        ac.name as category_name,
+        man.year,
+        'nomination' as type
+      FROM "MovieAwardNomination" man
+      JOIN "Award" a ON man."awardId" = a.id
+      JOIN "AwardCategory" ac ON man."awardCategoryId" = ac.id
+      WHERE man."movieId" = $1 AND a.name = 'Oscar'
+      
+      ORDER BY year DESC, type DESC, category_name
+    `, [movie.id]);
+
+    // Buscar premiações de pessoas (atores, diretores) para o filme
+    const personAwardsResult = await pool.query(`
+      SELECT 
+        a.name as award_name,
+        ac.name as category_name,
+        act.name as person_name,
+        paw.year,
+        'win' as type
+      FROM "PersonAwardWin" paw
+      JOIN "Award" a ON paw."awardId" = a.id
+      JOIN "AwardCategory" ac ON paw."awardCategoryId" = ac.id
+      JOIN "Actor" act ON paw."personId" = act.id
+      WHERE paw."forMovieId" = $1 AND a.name = 'Oscar'
+      
+      UNION ALL
+      
+      SELECT 
+        a.name as award_name,
+        ac.name as category_name,
+        act.name as person_name,
+        pan.year,
+        'nomination' as type
+      FROM "PersonAwardNomination" pan
+      JOIN "Award" a ON pan."awardId" = a.id
+      JOIN "AwardCategory" ac ON pan."awardCategoryId" = ac.id
+      JOIN "Actor" act ON pan."personId" = act.id
+      WHERE pan."forMovieId" = $1 AND a.name = 'Oscar'
+      
+      ORDER BY year DESC, type DESC, category_name
+    `, [movie.id]);
+
+    // Processar dados de premiações estruturados
+    let oscarAwards = null;
+    if (oscarAwardsResult.rows.length > 0 || personAwardsResult.rows.length > 0) {
+      const wins = [];
+      const nominations = [];
+      
+      // Processar vitórias e indicações do filme
+      oscarAwardsResult.rows.forEach(row => {
+        if (row.type === 'win') {
+          wins.push({
+            category: row.category_name,
+            year: row.year
+          });
+        } else {
+          nominations.push({
+            category: row.category_name,
+            year: row.year
+          });
+        }
+      });
+      
+      // Processar vitórias e indicações de pessoas
+      personAwardsResult.rows.forEach(row => {
+        if (row.type === 'win') {
+          wins.push({
+            category: row.category_name,
+            year: row.year,
+            personName: row.person_name
+          });
+        } else {
+          nominations.push({
+            category: row.category_name,
+            year: row.year,
+            personName: row.person_name
+          });
+        }
+      });
+      
+      oscarAwards = {
+        wins,
+        nominations,
+        totalWins: wins.length,
+        totalNominations: nominations.length
+      };
+      
+      console.log(`🏆 Dados de Oscar encontrados: ${wins.length} vitórias, ${nominations.length} indicações`);
+    }
 
     // Buscar plataformas de streaming com informações completas
     const platformsResult = await pool.query(`
@@ -420,6 +637,8 @@ app.get('/api/movie/:id/details', async (req, res) => {
         targetAudienceForLP: movie.targetAudienceForLP,
         landingPageHook: movie.landingPageHook,
         contentWarnings: movie.contentWarnings,
+        awardsSummary: movie.awardsSummary,
+        oscarAwards: oscarAwards,
         emotionalTags: emotionalTags,
         mainCast: mainCast
       },
