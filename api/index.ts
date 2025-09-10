@@ -201,20 +201,24 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
     try {
       sentimentsResult = await pool.query(`
         SELECT 
+          ms."mainSentimentId",
           ms."subSentimentId",
+          ms.relevance,
+          ms_main.name as "mainSentimentName",
           ss.name as "subSentimentName"
         FROM "MovieSentiment" ms
+        JOIN "MainSentiment" ms_main ON ms."mainSentimentId" = ms_main.id
         JOIN "SubSentiment" ss ON ms."subSentimentId" = ss.id
         WHERE ms."movieId" = $1
         ORDER BY ms.relevance DESC
       `, [movie.id]);
-      console.log(`✅ Subsentimentos encontrados: ${sentimentsResult.rows.length}`);
+      console.log(`✅ Sentimentos encontrados: ${sentimentsResult.rows.length}`);
     } catch (sentimentsError) {
       console.error('❌ Erro ao buscar subsentimentos:', sentimentsError);
       sentimentsResult = { rows: [] };
     }
 
-    // Buscar elenco principal (5 atores com order <= 5)
+    // Buscar elenco principal (primeiros 5 atores por ordem)
     let castResult;
     try {
       castResult = await pool.query(`
@@ -225,7 +229,6 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
         FROM "MovieCast" mc
         JOIN "Actor" a ON mc."actorId" = a.id
         WHERE mc."movieId" = $1
-          AND mc."order" <= 5
         ORDER BY mc."order" ASC
         LIMIT 5
       `, [movie.id]);
@@ -366,8 +369,12 @@ app.get('/api/movie/:slug/hero', async (req, res) => {
 
     const reason = reasonResult.rows.length > 0 ? reasonResult.rows[0].reason : null;
 
-    // Extrair nomes dos subsentimentos para as tags emocionais
-    const emotionalTags = sentimentsResult.rows.map((row: any) => row.subSentimentName);
+    // Extrair sentimentos com relevância para as tags emocionais
+    const emotionalTags = sentimentsResult.rows.map((row: any) => ({
+      mainSentiment: row.mainSentimentName,
+      subSentiment: row.subSentimentName,
+      relevance: parseFloat(row.relevance) || 0
+    }));
 
     // Extrair elenco principal
     const mainCast = castResult.rows.map((row: any) => ({
@@ -680,20 +687,24 @@ app.get('/api/movie/:id/details', async (req, res) => {
     try {
       sentimentsResult = await pool.query(`
         SELECT 
+          ms."mainSentimentId",
           ms."subSentimentId",
+          ms.relevance,
+          ms_main.name as "mainSentimentName",
           ss.name as "subSentimentName"
         FROM "MovieSentiment" ms
+        JOIN "MainSentiment" ms_main ON ms."mainSentimentId" = ms_main.id
         JOIN "SubSentiment" ss ON ms."subSentimentId" = ss.id
         WHERE ms."movieId" = $1
         ORDER BY ms.relevance DESC
       `, [movie.id]);
-      console.log(`✅ Subsentimentos encontrados: ${sentimentsResult.rows.length}`);
+      console.log(`✅ Sentimentos encontrados: ${sentimentsResult.rows.length}`);
     } catch (sentimentsError) {
       console.error('❌ Erro ao buscar subsentimentos:', sentimentsError);
       sentimentsResult = { rows: [] };
     }
 
-    // Buscar elenco principal (5 atores com order <= 5)
+    // Buscar elenco principal (primeiros 5 atores por ordem)
     let castResult;
     try {
       castResult = await pool.query(`
@@ -704,7 +715,6 @@ app.get('/api/movie/:id/details', async (req, res) => {
         FROM "MovieCast" mc
         JOIN "Actor" a ON mc."actorId" = a.id
         WHERE mc."movieId" = $1
-          AND mc."order" <= 5
         ORDER BY mc."order" ASC
         LIMIT 5
       `, [movie.id]);
@@ -734,10 +744,36 @@ app.get('/api/movie/:id/details', async (req, res) => {
       quotesResult = { rows: [] };
     }
 
+    // Buscar trailer principal
+    let mainTrailerResult;
+    try {
+      mainTrailerResult = await pool.query(`
+        SELECT 
+          mt.key,
+          mt.name,
+          mt.site,
+          mt.type,
+          mt.language,
+          mt."isMain"
+        FROM "MovieTrailer" mt
+        WHERE mt."movieId" = $1
+          AND mt."isMain" = true
+        LIMIT 1
+      `, [movie.id]);
+      console.log(`✅ Trailer principal encontrado: ${mainTrailerResult.rows.length > 0 ? 'Sim' : 'Não'}`);
+    } catch (trailerError) {
+      console.error('❌ Erro ao buscar trailer principal:', trailerError);
+      mainTrailerResult = { rows: [] };
+    }
+
     await pool.end();
 
-    // Extrair nomes dos subsentimentos para as tags emocionais
-    const emotionalTags = sentimentsResult.rows.map((row: any) => row.subSentimentName);
+    // Extrair sentimentos com relevância para as tags emocionais
+    const emotionalTags = sentimentsResult.rows.map((row: any) => ({
+      mainSentiment: row.mainSentimentName,
+      subSentiment: row.subSentimentName,
+      relevance: parseFloat(row.relevance) || 0
+    }));
 
     // Extrair dados do elenco principal
     const mainCast = castResult.rows.map((row: any) => ({
@@ -745,6 +781,16 @@ app.get('/api/movie/:id/details', async (req, res) => {
       characterName: row.characterName,
       order: row.order
     }));
+
+    // Extrair trailer principal
+    const mainTrailer = mainTrailerResult.rows.length > 0 ? {
+      key: mainTrailerResult.rows[0].key,
+      name: mainTrailerResult.rows[0].name,
+      site: mainTrailerResult.rows[0].site,
+      type: mainTrailerResult.rows[0].type,
+      language: mainTrailerResult.rows[0].language,
+      isMain: mainTrailerResult.rows[0].isMain
+    } : null;
 
     const subscriptionPlatforms = platformsResult.rows.map((row: any) => ({
       id: row.id,
@@ -777,6 +823,7 @@ app.get('/api/movie/:id/details', async (req, res) => {
         oscarAwards: oscarAwards,
         emotionalTags: emotionalTags,
         mainCast: mainCast,
+        mainTrailer: mainTrailer,
         quotes: quotesResult.rows.map((row: any) => ({
           id: row.id,
           text: row.text,
