@@ -7,6 +7,7 @@ import moviesRoutes from '../src/routes/movies.routes';
 import blogRoutes from '../src/routes/blog.routes';
 import personalizedJourneyRoutes from '../src/routes/personalized-journey.routes';
 import publicRoutes from '../src/routes/public';
+import emotionalIntentionsRoutes from '../src/routes/emotional-intentions.routes';
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/movies', moviesRoutes);
 app.use('/api/blog', blogRoutes);
 app.use('/api/personalized-journey', personalizedJourneyRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/emotional-intentions', emotionalIntentionsRoutes);
 
 // Handler para rotas não encontradas (404)
 app.use('*', (req, res) => {
