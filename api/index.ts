@@ -16,9 +16,33 @@ const app = express();
 const port = Number(process.env.PORT) || 3000;
 const prisma = new PrismaClient();
 
-// Configuração CORS mais permissiva para desenvolvimento
+// Configuração CORS para produção e desenvolvimento
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://moviesf-front.vercel.app',
+  'https://moviesf-front-k9p4up8ey-cabrazils-projects.vercel.app',
+  'https://moviesf-front-git-main-cabrazils-projects.vercel.app',
+  'https://moviesf-front-git-feature-blog-integration-cabrazils-projects.vercel.app'
+];
+
 app.use(cors({
-  origin: '*', // Permite todas as origens em desenvolvimento
+  origin: function (origin, callback) {
+    // Permitir requisições sem origin (ex: mobile apps, Postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // Em desenvolvimento, permitir localhost com qualquer porta
+      if (process.env.NODE_ENV === 'development' && origin.includes('localhost')) {
+        callback(null, true);
+      } else {
+        console.log('🚫 CORS bloqueado para origin:', origin);
+        callback(new Error('Não permitido pelo CORS'));
+      }
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'],
   exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
