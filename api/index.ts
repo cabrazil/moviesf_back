@@ -8,6 +8,7 @@ import mainSentimentsRoutes from '../src/routes/main-sentiments.routes';
 import moviesRoutes from '../src/routes/movies.routes';
 import personalizedJourneyRoutes from '../src/routes/personalized-journey.routes';
 import publicRoutes from '../src/routes/public';
+import blogRoutes from '../src/routes/blog.routes';
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.use('/main-sentiments', mainSentimentsRoutes);
 app.use('/movies', moviesRoutes);
 app.use('/api/personalized-journey', personalizedJourneyRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/blog', blogRoutes);
 
 // Buscar todas as plataformas de streaming
 app.get('/api/streaming-platforms', async (req, res) => {

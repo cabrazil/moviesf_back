@@ -1,402 +1,230 @@
-import express from 'express';
-import { Pool } from 'pg';
+import { Router } from 'express';
+import { BlogPrismaService } from '../services/blogPrismaService';
 
-const router = express.Router();
+const router = Router();
+const blogService = new BlogPrismaService();
 
-// Pool de conexão para o banco de dados do blog
-const blogDbPool = new Pool({
-  connectionString: process.env.BLOG_DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
-
-// GET /api/blog/articles - Listar artigos
-router.get('/articles', async (req, res) => {
+/**
+ * GET /api/blog/posts
+ * Listar artigos com paginação e filtros
+ */
+router.get('/posts', async (req, res) => {
   try {
-    const {
-      blogId = '3',
-      published = 'true',
-      categorySlug,
-      tagSlug,
-      limit = '10',
-      offset = '0'
-    } = req.query;
+    const { page, limit, category, search, featured } = req.query;
+    
+    const result = await blogService.getPosts({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      category: category as string,
+      search: search as string,
+      featured: featured === 'true'
+    });
 
-    const whereCondition: any = {
-      blogId: parseInt(blogId as string),
-      published: published === 'true',
-    };
-
-    // Filtro por categoria
-    if (categorySlug) {
-      whereCondition.category = {
-        slug: categorySlug as string
-      };
+    if (!result.success) {
+      return res.status(500).json(result);
     }
 
-    // Filtro por tag
-    if (tagSlug) {
-      whereCondition.tags = {
-        some: {
-          slug: tagSlug as string
-        }
-      };
-    }
-
-    // Construir a query SQL
-    let query = `
-      SELECT 
-        a.id,
-        a.title,
-        a.slug,
-        a.description,
-        a.content,
-        a."imageUrl",
-        a.keywords,
-        a.published,
-        a."viewCount",
-        a."likeCount",
-        a.date,
-        a."createdAt",
-        a."updatedAt",
-        json_build_object(
-          'id', au.id,
-          'name', au.name,
-          'role', au.role,
-          'imageUrl', au."imageUrl",
-          'bio', au.bio,
-          'email', au.email,
-          'website', au.website
-        ) as author,
-        json_build_object(
-          'id', c.id,
-          'title', c.title,
-          'slug', c.slug,
-          'description', c.description
-        ) as category,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', t.id,
-              'name', t.name,
-              'slug', t.slug,
-              'color', t.color
-            )
-          ) FILTER (WHERE t.id IS NOT NULL),
-          '[]'::json
-        ) as tags
-      FROM "Article" a
-      LEFT JOIN "Author" au ON a."authorId" = au.id
-      LEFT JOIN "Category" c ON a."categoryId" = c.id
-      LEFT JOIN "Article" at ON a.id = at.id
-      LEFT JOIN "Tag" t ON t.id IN (
-        SELECT "Tag".id FROM "Tag" 
-        JOIN "Article" ON "Article".id = a.id
-        WHERE "Tag"."blogId" = $1
-      )
-      WHERE a."blogId" = $1 AND a.published = $2
-    `;
-
-    const params: (string | number | boolean)[] = [parseInt(blogId as string), published === 'true'];
-    let paramIndex = 3;
-
-    if (categorySlug) {
-      query += ` AND c.slug = $${paramIndex}`;
-      params.push(categorySlug as string);
-      paramIndex++;
-    }
-
-    if (tagSlug) {
-      query += ` AND EXISTS (
-        SELECT 1 FROM "Tag" t2 
-        WHERE t2.slug = $${paramIndex} AND t2."blogId" = $1
-      )`;
-      params.push(tagSlug as string);
-      paramIndex++;
-    }
-
-    query += `
-      GROUP BY a.id, au.id, c.id
-      ORDER BY a.date DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-
-    params.push(parseInt(limit as string), parseInt(offset as string));
-
-    const result = await blogDbPool.query(query, params);
-    const articles = result.rows;
-
-    res.json(articles);
+    res.json(result);
   } catch (error) {
-    console.error('Error fetching articles:', error);
-    res.status(500).json({ error: 'Failed to fetch articles' });
+    console.error('Erro na rota de artigos:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
   }
 });
 
-// GET /api/blog/articles/:slug - Buscar artigo por slug
-router.get('/articles/:slug', async (req, res) => {
+/**
+ * GET /api/blog/posts/featured
+ * Buscar artigos em destaque
+ */
+router.get('/posts/featured', async (req, res) => {
+  try {
+    const result = await blogService.getFeaturedPosts();
+
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Erro na rota de artigos em destaque:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
+  }
+});
+
+/**
+ * GET /api/blog/posts/:slug
+ * Buscar artigo por slug
+ */
+router.get('/posts/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    const { blogId = '3' } = req.query;
-
-    const query = `
-      SELECT 
-        a.id,
-        a.title,
-        a.slug,
-        a.description,
-        a.content,
-        a."imageUrl",
-        a.keywords,
-        a.published,
-        a."viewCount",
-        a."likeCount",
-        a.date,
-        a."createdAt",
-        a."updatedAt",
-        json_build_object(
-          'id', au.id,
-          'name', au.name,
-          'role', au.role,
-          'imageUrl', au."imageUrl",
-          'bio', au.bio,
-          'email', au.email,
-          'website', au.website
-        ) as author,
-        json_build_object(
-          'id', c.id,
-          'title', c.title,
-          'slug', c.slug,
-          'description', c.description
-        ) as category,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', t.id,
-              'name', t.name,
-              'slug', t.slug,
-              'color', t.color
-            )
-          ) FILTER (WHERE t.id IS NOT NULL),
-          '[]'::json
-        ) as tags
-      FROM "Article" a
-      LEFT JOIN "Author" au ON a."authorId" = au.id
-      LEFT JOIN "Category" c ON a."categoryId" = c.id
-      LEFT JOIN "Tag" t ON t.id IN (
-        SELECT "Tag".id FROM "Tag" 
-        WHERE "Tag"."blogId" = $1
-      )
-      WHERE a.slug = $2 AND a."blogId" = $1 AND a.published = true
-      GROUP BY a.id, au.id, c.id
-    `;
-
-    const result = await blogDbPool.query(query, [parseInt(blogId as string), slug]);
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Article not found' });
+    const result = await blogService.getPostBySlug(slug);
+
+    if (!result.success) {
+      const statusCode = result.error === 'Artigo não encontrado' ? 404 : 500;
+      return res.status(statusCode).json(result);
     }
 
-    res.json(result.rows[0]);
+    res.json(result);
   } catch (error) {
-    console.error('Error fetching article:', error);
-    res.status(500).json({ error: 'Failed to fetch article' });
+    console.error('Erro na rota de artigo por slug:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
   }
 });
 
-// PUT /api/blog/articles/:id/view - Incrementar contador de visualizações
-router.put('/articles/:id/view', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { blogId = '3' } = req.body;
-
-    const query = `
-      UPDATE "Article" 
-      SET "viewCount" = "viewCount" + 1 
-      WHERE id = $1 AND "blogId" = $2
-    `;
-
-    await blogDbPool.query(query, [parseInt(id), parseInt(blogId as string)]);
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error incrementing view count:', error);
-    res.status(500).json({ error: 'Failed to increment view count' });
-  }
-});
-
-// GET /api/blog/categories - Listar categorias
+/**
+ * GET /api/blog/categories
+ * Listar categorias
+ */
 router.get('/categories', async (req, res) => {
   try {
-    const { blogId = '3' } = req.query;
+    const result = await blogService.getCategories();
 
-    const query = `
-      SELECT 
-        id,
-        title,
-        slug,
-        description,
-        "imageUrl",
-        "createdAt",
-        "updatedAt"
-      FROM "Category"
-      WHERE "blogId" = $1
-      ORDER BY title ASC
-    `;
-
-    const result = await blogDbPool.query(query, [parseInt(blogId as string)]);
-    const categories = result.rows;
-
-    res.json(categories);
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({ error: 'Failed to fetch categories' });
-  }
-});
-
-// GET /api/blog/articles/search - Buscar artigos
-router.get('/articles/search', async (req, res) => {
-  try {
-    const { blogId = '3', search = '' } = req.query;
-
-    if (!search || typeof search !== 'string') {
-      return res.json([]);
+    if (!result.success) {
+      return res.status(500).json(result);
     }
 
-    const articles = await blogDbPool.query(`
-      SELECT 
-        a.id,
-        a.title,
-        a.slug,
-        a.description,
-        a.content,
-        a."imageUrl",
-        a.keywords,
-        a.published,
-        a."viewCount",
-        a."likeCount",
-        a.date,
-        a."createdAt",
-        a."updatedAt",
-        json_build_object(
-          'id', au.id,
-          'name', au.name,
-          'role', au.role,
-          'imageUrl', au."imageUrl",
-          'bio', au.bio,
-          'email', au.email,
-          'website', au.website
-        ) as author,
-        json_build_object(
-          'id', c.id,
-          'title', c.title,
-          'slug', c.slug,
-          'description', c.description
-        ) as category,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', t.id,
-              'name', t.name,
-              'slug', t.slug,
-              'color', t.color
-            )
-          ) FILTER (WHERE t.id IS NOT NULL),
-          '[]'::json
-        ) as tags
-      FROM "Article" a
-      LEFT JOIN "Author" au ON a."authorId" = au.id
-      LEFT JOIN "Category" c ON a."categoryId" = c.id
-      LEFT JOIN "Tag" t ON t.id IN (
-        SELECT "Tag".id FROM "Tag" 
-        JOIN "Article" ON "Article".id = a.id
-        WHERE "Tag"."blogId" = $1
-      )
-      WHERE a."blogId" = $1 AND a.published = true
-      AND (
-        a.title ILIKE $2 OR
-        a.description ILIKE $2 OR
-        a.content ILIKE $2 OR
-        a.keywords ILIKE $2
-      )
-      GROUP BY a.id, au.id, c.id
-      ORDER BY a.date DESC
-      LIMIT 20
-    `, [parseInt(blogId as string), `%${search}%`]);
-
-    res.json(articles.rows);
+    res.json(result);
   } catch (error) {
-    console.error('Error searching articles:', error);
-    res.status(500).json({ error: 'Failed to search articles' });
+    console.error('Erro na rota de categorias:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
   }
 });
 
-// GET /api/blog/tags - Listar tags
+/**
+ * GET /api/blog/categories/:slug/posts
+ * Buscar artigos por categoria
+ */
+router.get('/categories/:slug/posts', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { page, limit } = req.query;
+    
+    const result = await blogService.getPostsByCategory(
+      slug, 
+      page ? parseInt(page as string) : 1, 
+      limit ? parseInt(limit as string) : 10
+    );
+
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Erro na rota de artigos por categoria:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
+  }
+});
+
+/**
+ * GET /api/blog/tags
+ * Listar tags
+ */
 router.get('/tags', async (req, res) => {
   try {
-    const { blogId = '3' } = req.query;
+    const result = await blogService.getTags();
 
-    const tags = await blogDbPool.query(`
-      SELECT 
-        t.id,
-        t.name,
-        t.slug,
-        t.color,
-        COUNT(DISTINCT a.id) as article_count
-      FROM "Tag" t
-      LEFT JOIN "ArticleTag" at ON t.id = at."tagId"
-      LEFT JOIN "Article" a ON at."articleId" = a.id
-      WHERE t."blogId" = $1
-      GROUP BY t.id, t.name, t.slug, t.color
-      ORDER BY t.name ASC
-    `, [parseInt(blogId as string)]);
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
 
-    // Transform to include count
-    const tagsWithCount = tags.rows.map((tag: any) => ({
-      id: tag.id,
-      name: tag.name,
-      slug: tag.slug,
-      color: tag.color,
-      count: tag.article_count
-    }));
-
-    res.json(tagsWithCount);
+    res.json(result);
   } catch (error) {
-    console.error('Error fetching tags:', error);
-    res.status(500).json({ error: 'Failed to fetch tags' });
+    console.error('Erro na rota de tags:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
   }
 });
 
-// GET /api/blog/authors - Listar autores
-router.get('/authors', async (req, res) => {
+/**
+ * GET /api/blog/tags/:slug/posts
+ * Buscar artigos por tag
+ */
+router.get('/tags/:slug/posts', async (req, res) => {
   try {
-    const { blogId = '3' } = req.query;
+    const { slug } = req.params;
+    const { page, limit } = req.query;
+    
+    const result = await blogService.getPostsByTag(
+      slug, 
+      page ? parseInt(page as string) : 1, 
+      limit ? parseInt(limit as string) : 10
+    );
 
-    const authors = await blogDbPool.query(`
-      SELECT 
-        a.id,
-        a.name,
-        a.role,
-        a."imageUrl",
-        a.bio,
-        a.email,
-        a.website,
-        a.social,
-        a.skills,
-        COUNT(DISTINCT a.id) as article_count
-      FROM "Author" a
-      LEFT JOIN "Article" au ON a.id = au."authorId"
-      WHERE a."blogId" = $1
-      GROUP BY a.id, a.name, a.role, a."imageUrl", a.bio, a.email, a.website, a.social, a.skills
-      ORDER BY a.name ASC
-    `, [parseInt(blogId as string)]);
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
 
-    res.json(authors.rows);
+    res.json(result);
   } catch (error) {
-    console.error('Error fetching authors:', error);
-    res.status(500).json({ error: 'Failed to fetch authors' });
+    console.error('Erro na rota de artigos por tag:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
   }
+});
+
+/**
+ * GET /api/blog/posts/:id/comments
+ * Buscar comentários de um artigo
+ */
+router.get('/posts/:id/comments', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const articleId = parseInt(id);
+    
+    if (isNaN(articleId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'ID do artigo inválido' 
+      });
+    }
+    
+    const result = await blogService.getPostComments(articleId);
+
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Erro na rota de comentários:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
+  }
+});
+
+/**
+ * GET /api/blog/health
+ * Health check para o blog
+ */
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Blog API funcionando!',
+    timestamp: new Date().toISOString()
+  });
 });
 
 export default router;
