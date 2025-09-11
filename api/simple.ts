@@ -30,13 +30,75 @@ app.get('/test', (req, res) => {
   });
 });
 
-// Main sentiments endpoint simples
+// Main sentiments endpoint com dados mais realistas
 app.get('/main-sentiments', (req, res) => {
   res.json([
-    { id: 1, name: 'Alegria', description: 'Sentimento de felicidade e contentamento' },
-    { id: 2, name: 'Tristeza', description: 'Sentimento de melancolia e pesar' },
-    { id: 3, name: 'Medo', description: 'Sentimento de ansiedade e preocupação' },
-    { id: 4, name: 'Raiva', description: 'Sentimento de irritação e frustração' }
+    { 
+      id: 1, 
+      name: 'Alegria', 
+      description: 'Sentimento de felicidade e contentamento',
+      color: '#FFD700',
+      icon: '😊'
+    },
+    { 
+      id: 2, 
+      name: 'Tristeza', 
+      description: 'Sentimento de melancolia e pesar',
+      color: '#4169E1',
+      icon: '😢'
+    },
+    { 
+      id: 3, 
+      name: 'Medo', 
+      description: 'Sentimento de ansiedade e preocupação',
+      color: '#8B0000',
+      icon: '😨'
+    },
+    { 
+      id: 4, 
+      name: 'Raiva', 
+      description: 'Sentimento de irritação e frustração',
+      color: '#DC143C',
+      icon: '😠'
+    },
+    { 
+      id: 5, 
+      name: 'Surpresa', 
+      description: 'Sentimento de admiração e espanto',
+      color: '#FF8C00',
+      icon: '😲'
+    },
+    { 
+      id: 6, 
+      name: 'Nojo', 
+      description: 'Sentimento de repulsa e aversão',
+      color: '#228B22',
+      icon: '🤢'
+    }
+  ]);
+});
+
+// Journey flow endpoint mock
+app.get('/main-sentiments/:id/journey-flow', (req, res) => {
+  const sentimentId = parseInt(req.params.id);
+  res.json({
+    id: sentimentId,
+    name: ['Alegria', 'Tristeza', 'Medo', 'Raiva', 'Surpresa', 'Nojo'][sentimentId - 1] || 'Desconhecido',
+    journeyOptions: [
+      { id: 1, name: 'Filmes Clássicos', description: 'Explore filmes atemporais' },
+      { id: 2, name: 'Filmes Modernos', description: 'Descubra produções recentes' },
+      { id: 3, name: 'Filmes Independentes', description: 'Conheça produções alternativas' }
+    ]
+  });
+});
+
+// Emotional intentions endpoint mock
+app.get('/api/emotional-intentions/:sentimentId', (req, res) => {
+  const sentimentId = parseInt(req.params.sentimentId);
+  res.json([
+    { id: 1, name: 'Relaxar', description: 'Quero me acalmar e relaxar' },
+    { id: 2, name: 'Refletir', description: 'Quero pensar sobre a vida' },
+    { id: 3, name: 'Motivar', description: 'Quero me sentir inspirado' }
   ]);
 });
 
