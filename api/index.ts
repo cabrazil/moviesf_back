@@ -61,7 +61,19 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    vercel: process.env.VERCEL === '1',
+    database_url: process.env.DATABASE_URL ? 'configured' : 'missing',
+    blog_database_url: process.env.BLOG_DATABASE_URL ? 'configured' : 'missing'
+  });
+});
+
+// Test endpoint simples para verificar CORS
+app.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Test endpoint working',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
   });
 });
 
