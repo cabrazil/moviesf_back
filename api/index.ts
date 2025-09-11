@@ -102,7 +102,7 @@ app.get('/test', (req, res) => {
 
 // Routes - apenas se carregadas com sucesso
 if (routes) app.use('/', routes);
-// if (mainSentimentsRoutes) app.use('/main-sentiments', mainSentimentsRoutes); // Removido para evitar conflito de roteamento
+if (mainSentimentsRoutes) app.use('/main-sentiments', mainSentimentsRoutes);
 if (moviesRoutes) app.use('/movies', moviesRoutes);
 if (personalizedJourneyRoutes) app.use('/api/personalized-journey', personalizedJourneyRoutes);
 if (publicRoutes) app.use('/api/public', publicRoutes);
