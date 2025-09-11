@@ -1,20 +1,43 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
-import directDb from '../src/utils/directDb';
-import routes from '../src/routes';
-import mainSentimentsRoutes from '../src/routes/main-sentiments.routes';
-import moviesRoutes from '../src/routes/movies.routes';
-import personalizedJourneyRoutes from '../src/routes/personalized-journey.routes';
-import publicRoutes from '../src/routes/public';
-import blogRoutes from '../src/routes/blog.routes';
 
 dotenv.config();
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
-const prisma = new PrismaClient();
+
+// Inicialização segura do Prisma
+let prisma: any = null;
+try {
+  const { PrismaClient } = require('@prisma/client');
+  prisma = new PrismaClient();
+  console.log('✅ Prisma Client inicializado com sucesso');
+} catch (error) {
+  console.error('❌ Erro ao inicializar Prisma Client:', error);
+}
+
+// Importações condicionais para evitar erros
+let directDb: any = null;
+let routes: any = null;
+let mainSentimentsRoutes: any = null;
+let moviesRoutes: any = null;
+let personalizedJourneyRoutes: any = null;
+let publicRoutes: any = null;
+let blogRoutes: any = null;
+
+try {
+  directDb = require('../src/utils/directDb').default;
+  routes = require('../src/routes').default;
+  mainSentimentsRoutes = require('../src/routes/main-sentiments.routes').default;
+  moviesRoutes = require('../src/routes/movies.routes').default;
+  personalizedJourneyRoutes = require('../src/routes/personalized-journey.routes').default;
+  publicRoutes = require('../src/routes/public').default;
+  blogRoutes = require('../src/routes/blog.routes').default;
+  console.log('✅ Rotas carregadas com sucesso');
+} catch (error) {
+  console.error('❌ Erro ao carregar rotas:', error);
+}
 
 // Configuração CORS mais permissiva para resolver problemas de preflight
 app.use(cors({
@@ -77,13 +100,13 @@ app.get('/test', (req, res) => {
   });
 });
 
-// Routes
-app.use('/', routes);
-app.use('/main-sentiments', mainSentimentsRoutes);
-app.use('/movies', moviesRoutes);
-app.use('/api/personalized-journey', personalizedJourneyRoutes);
-app.use('/api/public', publicRoutes);
-app.use('/api/blog', blogRoutes);
+// Routes - apenas se carregadas com sucesso
+if (routes) app.use('/', routes);
+if (mainSentimentsRoutes) app.use('/main-sentiments', mainSentimentsRoutes);
+if (moviesRoutes) app.use('/movies', moviesRoutes);
+if (personalizedJourneyRoutes) app.use('/api/personalized-journey', personalizedJourneyRoutes);
+if (publicRoutes) app.use('/api/public', publicRoutes);
+if (blogRoutes) app.use('/api/blog', blogRoutes);
 
 // Buscar todas as plataformas de streaming
 app.get('/api/streaming-platforms', async (req, res) => {
