@@ -10,6 +10,7 @@ import publicRoutes from '../src/routes/public';
 import emotionalIntentionsRoutes from '../src/routes/emotional-intentions.routes';
 import streamingPlatformsRoutes from '../src/routes/streaming-platforms.routes';
 import movieDetailsRoutes from '../src/routes/movie-details.routes';
+import movieHeroRoutes from '../src/routes/movie-hero.routes';
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/public', publicRoutes);
 app.use('/api/emotional-intentions', emotionalIntentionsRoutes);
 app.use('/api/streaming-platforms', streamingPlatformsRoutes);
 app.use('/api/movie', movieDetailsRoutes);
+app.use('/api/movie', movieHeroRoutes);
 
 // Handler para rotas não encontradas (404)
 app.use('*', (req, res) => {
