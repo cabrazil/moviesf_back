@@ -1,13 +1,13 @@
 {
   "functions": {
-    "api/index.ts": {
+    "api/simple.ts": {
       "maxDuration": 30
     }
   },
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/api/index.ts"
+      "destination": "/api/simple.ts"
     }
   ]
 }
