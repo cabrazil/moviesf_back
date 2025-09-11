@@ -1,3 +1,4 @@
+console.log('--- API ENTRYPOINT LOADED ---');
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -36,7 +37,7 @@ try {
   blogRoutes = require('../src/routes/blog.routes').default;
   console.log('✅ Rotas carregadas com sucesso');
 } catch (error) {
-  console.error('❌ Erro ao carregar rotas:', error);
+  console.error('❌ Erro ao carregar rotas:', error); console.log('--- ROUTE LOADING FAILED ---');
 }
 
 // Configuração CORS mais permissiva para resolver problemas de preflight
@@ -100,6 +101,8 @@ app.get('/test', (req, res) => {
   });
 });
 
+console.log('--- REGISTERING ROUTES ---');
+console.log('Is routes object valid?', !!routes);
 // Routes - apenas se carregadas com sucesso
 if (routes) app.use('/', routes);
 if (mainSentimentsRoutes) app.use('/main-sentiments', mainSentimentsRoutes);
@@ -911,6 +914,7 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
 
 // 404 handler
 app.use('*', (req, res) => {
+  console.log('--- 404 HANDLER REACHED for URL:', req.url, '---');
   res.status(404).json({ error: 'Endpoint não encontrado' });
 });
 
