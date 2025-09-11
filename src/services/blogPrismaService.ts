@@ -1,15 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { prismaBlog } from '../prisma';
 import { supabaseBlog } from '../lib/supabaseBlog';
 import { BlogPost, BlogCategory, BlogAuthor, BlogTag, BlogComment } from '../types/blog';
 
-// Cliente Prisma para o banco do blog (Supabase B - diferente do app web)
-const blogPrisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.BLOG_DATABASE_URL
-    }
-  }
-});
+// Usa a instância singleton do Prisma Client para o blog
+const blogPrisma = prismaBlog;
 
 export class BlogPrismaService {
   private readonly BLOG_ID = 3; // ID do blog VibesFilm

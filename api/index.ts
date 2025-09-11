@@ -1,23 +1,46 @@
 import express from 'express';
 import cors from 'cors';
-import mainSentimentsRoutes from '../src/routes/main-sentiments.routes'; // Importação direta
 
-console.log('--- SIMPLIFIED API ENTRYPOINT LOADED ---');
+// Importar todas as rotas necessárias
+import mainSentimentsRoutes from '../src/routes/main-sentiments.routes';
+import moviesRoutes from '../src/routes/movies.routes';
+import blogRoutes from '../src/routes/blog.routes';
+import personalizedJourneyRoutes from '../src/routes/personalized-journey.routes';
+import publicRoutes from '../src/routes/public';
 
 const app = express();
+
+// Middlewares
 app.use(cors());
 app.use(express.json());
+
+// Log de requisições
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+// --- Registro das Rotas ---
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-console.log('--- REGISTERING /main-sentiments ROUTE ---');
 app.use('/main-sentiments', mainSentimentsRoutes);
+app.use('/movies', moviesRoutes);
+app.use('/api/blog', blogRoutes);
+app.use('/api/personalized-journey', personalizedJourneyRoutes);
+app.use('/api/public', publicRoutes);
 
+// Handler para rotas não encontradas (404)
 app.use('*', (req, res) => {
-  console.log(`--- 404 in simplified app for URL: ${req.originalUrl} ---`);
-  res.status(404).json({ error: `Endpoint not found: ${req.originalUrl}` });
+  res.status(404).json({ error: `Endpoint não encontrado: ${req.originalUrl}` });
+});
+
+// Handler para erros inesperados (500)
+app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Erro não tratado:', error);
+  res.status(500).json({ error: 'Erro Interno do Servidor' });
 });
 
 export default app;

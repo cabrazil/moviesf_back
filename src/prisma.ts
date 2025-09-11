@@ -1,11 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 
-// Singleton pattern para serverless
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+// --- Main App Prisma Client (Singleton) ---
+const globalForPrismaApp = globalThis as unknown as {
+  prismaApp: PrismaClient | undefined
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+export const prismaApp = globalForPrismaApp.prismaApp ?? new PrismaClient({
   log: ['error'],
   datasources: {
     db: {
@@ -14,7 +14,21 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   }
 });
 
-// Manter instância em produção também
-if (process.env.NODE_ENV !== 'development') globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== 'development') globalForPrismaApp.prismaApp = prismaApp;
 
-export default prisma; 
+
+// --- Blog Prisma Client (Singleton) ---
+const globalForPrismaBlog = globalThis as unknown as {
+  prismaBlog: PrismaClient | undefined
+}
+
+export const prismaBlog = globalForPrismaBlog.prismaBlog ?? new PrismaClient({
+  log: ['error'],
+  datasources: {
+    db: {
+      url: process.env.BLOG_DATABASE_URL
+    }
+  }
+});
+
+if (process.env.NODE_ENV !== 'development') globalForPrismaBlog.prismaBlog = prismaBlog;
