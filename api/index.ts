@@ -16,39 +16,37 @@ const app = express();
 const port = Number(process.env.PORT) || 3000;
 const prisma = new PrismaClient();
 
-// Configuração CORS para produção e desenvolvimento
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'https://moviesf-front.vercel.app',
-  'https://moviesf-front-k9p4up8ey-cabrazils-projects.vercel.app',
-  'https://moviesf-front-git-main-cabrazils-projects.vercel.app',
-  'https://moviesf-front-git-feature-blog-integration-cabrazils-projects.vercel.app'
-];
-
+// Configuração CORS mais permissiva para resolver problemas de preflight
 app.use(cors({
-  origin: function (origin, callback) {
-    // Permitir requisições sem origin (ex: mobile apps, Postman)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      // Em desenvolvimento, permitir localhost com qualquer porta
-      if (process.env.NODE_ENV === 'development' && origin.includes('localhost')) {
-        callback(null, true);
-      } else {
-        console.log('🚫 CORS bloqueado para origin:', origin);
-        callback(new Error('Não permitido pelo CORS'));
-      }
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'],
+  origin: true, // Permitir todas as origens temporariamente para debug
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Accept', 
+    'Authorization', 
+    'X-Requested-With', 
+    'X-CSRF-Token',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Headers',
+    'Access-Control-Allow-Methods'
+  ],
   exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
   credentials: true,
-  maxAge: 86400 // 24 horas
+  maxAge: 86400, // 24 horas
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 }));
+
+// Middleware adicional para lidar com preflight requests
+app.options('*', (req, res) => {
+  console.log('🔄 Preflight request recebido para:', req.url);
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With, X-CSRF-Token');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  res.sendStatus(200);
+});
 
 app.use(express.json());
 
