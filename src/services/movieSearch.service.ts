@@ -77,7 +77,7 @@ export class MovieSearchService {
         }
       });
 
-      const movies = response.data.results;
+      const movies = (response.data as any).results;
       const mainKeywords = this.sentimentKeywords.get(mainSentiment) || [];
       const subKeywords = subSentiment ? this.sentimentKeywords.get(subSentiment) || [] : [];
 

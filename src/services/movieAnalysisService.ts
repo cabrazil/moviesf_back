@@ -127,7 +127,7 @@ export class MovieAnalysisService {
       const movie = await prisma.movie.findUnique({
         where: { id: movieId },
         include: {
-          movieSentiment: {
+          movieSentiments: {
             include: {
               mainSentiment: true,
               subSentiment: true

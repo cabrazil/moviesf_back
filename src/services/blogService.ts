@@ -245,7 +245,7 @@ export class BlogService {
     try {
       await supabaseBlog
         .from('Article')
-        .update({ viewCount: supabaseBlog.raw('viewCount + 1') })
+        .update({ viewCount: (supabaseBlog as any).raw('viewCount + 1') })
         .eq('id', articleId);
     } catch (error) {
       console.error('Erro ao incrementar visualizações:', error);

@@ -9,6 +9,9 @@
     "api/**/*",
     "src/controllers/**/*",
     "src/routes/**/*",
+    "src/services/**/*",
+    "src/repositories/**/*",
+    "src/types/**/*",
     "src/utils/**/*",
     "src/prisma.ts"
   ],
@@ -18,10 +21,9 @@
     "**/*.test.ts",
     "**/*.spec.ts",
     "src/scripts",
-    "src/services",
     "src/tests",
     "src/scripts/**/*",
-    "src/services/**/*", 
-    "src/tests/**/*"
+    "src/tests/**/*",
+    "src/services/emotionalRecommendationService.ts"
   ]
 } 

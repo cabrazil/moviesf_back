@@ -15,7 +15,18 @@ import movieHeroRoutes from '../src/routes/movie-hero.routes';
 const app = express();
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',  // Vite dev server
+    'http://localhost:3000',  // Backend local
+    'http://127.0.0.1:5173',  // Vite dev server (alternativo)
+    'https://moviesf-front.vercel.app',  // Frontend produção
+    'https://vibesfilm.vercel.app'       // Frontend produção (alternativo)
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 app.use(express.json());
 
 // Log de requisições
@@ -49,6 +60,15 @@ app.use('*', (req, res) => {
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Erro não tratado:', error);
   res.status(500).json({ error: 'Erro Interno do Servidor' });
+});
+
+// Iniciar servidor
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🌐 URL: http://localhost:${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
 });
 
 export default app;
