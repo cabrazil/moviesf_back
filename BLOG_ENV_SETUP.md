@@ -15,7 +15,7 @@ SUPABASE_BLOG_ANON_KEY="SUA_CHAVE_ANONIMA_AQUI"
 SUPABASE_BLOG_SERVICE_KEY="SUA_CHAVE_SERVICE_AQUI"
 
 # Server
-PORT=3000
+PORT=3003
 NODE_ENV=development
 
 # Vercel
@@ -43,10 +43,10 @@ Após configurar o `.env`, teste as APIs:
 npm run dev
 
 # Testar health check do blog
-curl http://localhost:3000/api/blog/health
+curl http://localhost:3003/api/blog/health
 
 # Testar listagem de artigos
-curl http://localhost:3000/api/blog/posts
+curl http://localhost:3003/api/blog/posts
 ```
 
 ## Estrutura das APIs do Blog

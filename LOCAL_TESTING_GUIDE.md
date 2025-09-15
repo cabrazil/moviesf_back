@@ -28,7 +28,7 @@ DIRECT_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/p
 BLOG_DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
 
 # ===== CONFIGURAÇÕES DO SERVIDOR =====
-PORT=3000
+PORT=3003
 NODE_ENV=development
 
 # ===== APIS EXTERNAS (OPCIONAIS) =====
@@ -56,7 +56,7 @@ npm run prisma:generate
 npm run dev
 ```
 
-**✅ Backend rodando em:** `http://localhost:3000`
+**✅ Backend rodando em:** `http://localhost:3003`
 
 ## 🌐 Passo 3: Iniciar o Frontend
 
@@ -78,12 +78,12 @@ npm run dev
 
 1. **Health Check do Backend:**
    ```
-   http://localhost:3000/health
+   http://localhost:3003/health
    ```
 
 2. **Health Check do Movie Hero:**
    ```
-   http://localhost:3000/api/movie/health
+   http://localhost:3003/api/movie/health
    ```
 
 3. **Landing Page de um Filme:**
@@ -102,7 +102,7 @@ http://localhost:5173/movie/pulp-fiction
 
 ### 1. Testar API Diretamente:
 ```bash
-curl http://localhost:3000/api/movie/inception/hero
+curl http://localhost:3003/api/movie/inception/hero
 ```
 
 ### 2. Verificar Logs do Backend:
@@ -126,7 +126,7 @@ curl http://localhost:3000/api/movie/inception/hero
 
 ### ❌ Erro: "CORS policy"
 **Solução:**
-- Verificar se o backend está rodando na porta 3000
+- Verificar se o backend está rodando na porta 3003
 - Verificar se o frontend está rodando na porta 5173
 - Adicionar `CORS_ORIGIN="http://localhost:5173"` no .env
 
@@ -149,7 +149,7 @@ npm cache clean --force
 
 ## 📊 Endpoints Disponíveis
 
-### Backend (localhost:3000):
+### Backend (localhost:3003):
 - `GET /health` - Health check geral
 - `GET /api/movie/health` - Health check do movie hero
 - `GET /api/movie/:slug/hero` - Dados do filme (refatorado)

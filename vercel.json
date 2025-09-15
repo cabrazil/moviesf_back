@@ -9,5 +9,8 @@
       "source": "/(.*)",
       "destination": "/api/index.ts"
     }
-  ]
+  ],
+  "env": {
+    "PORT": "3333"
+  }
 }

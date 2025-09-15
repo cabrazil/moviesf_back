@@ -10,7 +10,7 @@ export const ENV_CONFIG = {
   IS_PROD: process.env.NODE_ENV === 'production',
   
   // Porta do servidor
-  PORT: process.env.PORT || 3000,
+  PORT: process.env.PORT || 3333,
   
   // URLs de conexão
   DATABASE_URL: process.env.DATABASE_URL,

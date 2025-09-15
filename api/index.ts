@@ -18,7 +18,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5173',  // Vite dev server
-    'http://localhost:3000',  // Backend local
+    'http://localhost:3333',  // Backend local
     'http://127.0.0.1:5173',  // Vite dev server (alternativo)
     'https://moviesf-front.vercel.app',  // Frontend produção
     'https://vibesfilm.vercel.app'       // Frontend produção (alternativo)
@@ -69,7 +69,7 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
 });
 
 // Iniciar servidor
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3333;
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);

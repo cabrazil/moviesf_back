@@ -32,7 +32,7 @@ touch .env
 DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
 DIRECT_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
 BLOG_DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
-PORT=3000
+PORT=3003
 NODE_ENV=development
 ```
 
@@ -46,9 +46,9 @@ node test-local-setup.js
 
 ### **2. URLs para testar:**
 - **Frontend:** http://localhost:5173
-- **Backend:** http://localhost:3000
-- **API Movie Hero:** http://localhost:3000/api/movie/[slug]/hero
-- **Health Check:** http://localhost:3000/api/movie/health
+- **Backend:** http://localhost:3003
+- **API Movie Hero:** http://localhost:3003/api/movie/[slug]/hero
+- **Health Check:** http://localhost:3003/api/movie/health
 
 ### **3. Exemplo de filme:**
 ```
@@ -91,7 +91,7 @@ http://localhost:5173/movie/the-matrix
 - Testar: `npm run prisma:generate`
 
 ### **❌ "CORS policy"**
-- Backend: porta 3000
+- Backend: porta 3003
 - Frontend: porta 5173
 - Adicionar `CORS_ORIGIN="http://localhost:5173"` no .env
 
