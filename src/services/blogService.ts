@@ -31,6 +31,7 @@ export class BlogService {
 
       // Aplicar filtros
       if (category) {
+        // Usar inner join para categoria (similar ao que funciona com tags)
         query = query.eq('category.slug', category);
       }
 
@@ -260,6 +261,7 @@ export class BlogService {
     page?: number;
     limit?: number;
   } = {}): Promise<BlogApiResponse<{ articles: BlogPost[] }>> {
+    // Usar o método getPosts que já funciona perfeitamente
     return this.getPosts({ ...options, category: categorySlug });
   }
 

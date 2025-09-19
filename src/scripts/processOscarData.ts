@@ -78,9 +78,14 @@ function parseOscarText(text: string): OscarData | null {
     // Remover marcação de vitória se existir
     const cleanLine = line.replace(/^\*\s*/, '');
     
-    // Padrão: "CATEGORY -- Nominee {"Character"}" (incluindo parênteses e WRITING)
-    // Primeiro tenta o padrão com parênteses
-    let nominationMatch = cleanLine.match(/^([A-Z\s]+\([^)]+\))\s*--\s*(.+?)(?:\s*\{\"([^"]+)\"\})?\s*$/);
+    // Padrão: "CATEGORY -- Nominee {"Character"}" (incluindo parênteses aninhados)
+    // Primeiro tenta o padrão com parênteses aninhados (mais específico)
+    let nominationMatch = cleanLine.match(/^([A-Z\s]+\([^)]*(?:\([^)]*\)[^)]*)*\))\s*--\s*(.+?)(?:\s*\{\"([^"]+)\"\})?\s*$/);
+    
+    // Se não encontrar, tenta o padrão com parênteses simples
+    if (!nominationMatch) {
+      nominationMatch = cleanLine.match(/^([A-Z\s]+\([^)]+\))\s*--\s*(.+?)(?:\s*\{\"([^"]+)\"\})?\s*$/);
+    }
     
     // Se não encontrar, tenta o padrão sem parênteses
     if (!nominationMatch) {
@@ -240,33 +245,24 @@ async function processOscarData(text: string): Promise<void> {
         // Se há informações de pessoa, criar registro em PersonAwardWin
         if (nomination.nominee && nomination.nominee.trim() !== '') {
           try {
-            // Buscar ou criar ator
-            let actor = await prisma.actor.findFirst({
-              where: {
-                name: {
-                  contains: nomination.nominee,
-                  mode: 'insensitive'
-                }
+            // Criar ator único para cada indicação específica
+            // Não reutilizar atores entre categorias diferentes
+            
+            // Gerar tmdbId único para ator temporário
+            const maxTmdbId = await prisma.actor.findFirst({
+              orderBy: { tmdbId: 'desc' },
+              select: { tmdbId: true }
+            });
+            const newTmdbId = (maxTmdbId?.tmdbId || 0) + 1;
+            
+            // Criar ator temporário
+            const actor = await prisma.actor.create({
+              data: {
+                tmdbId: newTmdbId,
+                name: nomination.nominee
               }
             });
-
-            if (!actor) {
-              // Gerar tmdbId único para ator temporário
-              const maxTmdbId = await prisma.actor.findFirst({
-                orderBy: { tmdbId: 'desc' },
-                select: { tmdbId: true }
-              });
-              const newTmdbId = (maxTmdbId?.tmdbId || 0) + 1;
-              
-              // Criar ator temporário
-              actor = await prisma.actor.create({
-                data: {
-                  tmdbId: newTmdbId,
-                  name: nomination.nominee
-                }
-              });
-              console.log(`   👤 Ator criado: ${nomination.nominee} (tmdbId: ${newTmdbId})`);
-            }
+            console.log(`   👤 Ator criado: ${nomination.nominee} (tmdbId: ${newTmdbId})`);
 
             // Usar upsert para evitar duplicatas
             await prisma.personAwardWin.upsert({
@@ -320,33 +316,24 @@ async function processOscarData(text: string): Promise<void> {
         // Se há informações de pessoa, criar registro em PersonAwardNomination
         if (nomination.nominee && nomination.nominee.trim() !== '') {
           try {
-            // Buscar ou criar ator
-            let actor = await prisma.actor.findFirst({
-              where: {
-                name: {
-                  contains: nomination.nominee,
-                  mode: 'insensitive'
-                }
+            // Criar ator único para cada indicação específica
+            // Não reutilizar atores entre categorias diferentes
+            
+            // Gerar tmdbId único para ator temporário
+            const maxTmdbId = await prisma.actor.findFirst({
+              orderBy: { tmdbId: 'desc' },
+              select: { tmdbId: true }
+            });
+            const newTmdbId = (maxTmdbId?.tmdbId || 0) + 1;
+            
+            // Criar ator temporário
+            const actor = await prisma.actor.create({
+              data: {
+                tmdbId: newTmdbId,
+                name: nomination.nominee
               }
             });
-
-            if (!actor) {
-              // Gerar tmdbId único para ator temporário
-              const maxTmdbId = await prisma.actor.findFirst({
-                orderBy: { tmdbId: 'desc' },
-                select: { tmdbId: true }
-              });
-              const newTmdbId = (maxTmdbId?.tmdbId || 0) + 1;
-              
-              // Criar ator temporário
-              actor = await prisma.actor.create({
-                data: {
-                  tmdbId: newTmdbId,
-                  name: nomination.nominee
-                }
-              });
-              console.log(`   👤 Ator criado: ${nomination.nominee} (tmdbId: ${newTmdbId})`);
-            }
+            console.log(`   👤 Ator criado: ${nomination.nominee} (tmdbId: ${newTmdbId})`);
 
             // Usar upsert para evitar duplicatas
             await prisma.personAwardNomination.upsert({

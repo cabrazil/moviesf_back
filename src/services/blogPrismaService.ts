@@ -329,75 +329,12 @@ export class BlogPrismaService {
    */
   async getPostsByCategory(categorySlug: string, page: number = 1, limit: number = 10) {
     try {
-      const skip = (page - 1) * limit;
-      
-      // Buscar artigos da categoria
-      const { data: articles, error: articlesError } = await supabaseBlog
-        .from('Article')
-        .select(`
-          id,
-          title,
-          slug,
-          content,
-          description,
-          imageUrl,
-          imageAlt,
-          date,
-          published,
-          readingTime,
-          authorId,
-          categoryId,
-          blogId,
-          Author!inner(id, name, image),
-          Category!inner(id, title, slug, description, image),
-          _ArticleToTag(
-            Tag(id, name, slug, color)
-          )
-        `)
-        .eq('blogId', this.BLOG_ID)
-        .eq('published', true)
-        .eq('Category.slug', categorySlug)
-        .order('date', { ascending: false })
-        .range(skip, skip + limit - 1);
-
-      if (articlesError) {
-        throw articlesError;
-      }
-
-      // Buscar contagem total
-      const { count, error: countError } = await supabaseBlog
-        .from('Article')
-        .select('*', { count: 'exact', head: true })
-        .eq('blogId', this.BLOG_ID)
-        .eq('published', true)
-        .eq('Category.slug', categorySlug);
-
-      if (countError) {
-        throw countError;
-      }
-
-      // Processar dados para o formato esperado
-      const processedArticles = (articles || []).map((article: any) => ({
-        ...article,
-        author_name: Array.isArray(article.Author) ? article.Author[0]?.name : article.Author?.name,
-        author_image: Array.isArray(article.Author) ? article.Author[0]?.image : article.Author?.image,
-        category_title: Array.isArray(article.Category) ? article.Category[0]?.title : article.Category?.title,
-        category_slug: Array.isArray(article.Category) ? article.Category[0]?.slug : article.Category?.slug,
-        category_description: Array.isArray(article.Category) ? article.Category[0]?.description : article.Category?.description,
-        category_image: Array.isArray(article.Category) ? article.Category[0]?.image : article.Category?.image,
-        tags: article._ArticleToTag?.map((at: any) => at.Tag) || []
-      }));
-
-      return {
-        success: true,
-        data: { articles: processedArticles },
-        pagination: {
-          page,
-          limit,
-          total: count || 0,
-          totalPages: Math.ceil((count || 0) / limit)
-        }
-      };
+      // Usar o método getPosts que já funciona perfeitamente
+      return this.getPosts({ 
+        page, 
+        limit, 
+        category: categorySlug 
+      });
     } catch (error: any) {
       console.error('Erro ao buscar artigos por categoria:', error);
       return {
