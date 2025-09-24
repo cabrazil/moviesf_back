@@ -1,6 +1,27 @@
 import { prismaApp as prisma } from '../prisma';
+// @ts-ignore
 import * as fs from 'fs';
+// @ts-ignore
 import * as path from 'path';
+
+// Declarações de tipos para Node.js
+// @ts-ignore
+declare const process: {
+  env: { [key: string]: string | undefined };
+  argv: string[];
+  exit(code?: number): never;
+  cwd(): string;
+};
+
+// @ts-ignore
+declare const require: {
+  main: any;
+};
+
+// @ts-ignore
+declare const module: {
+  exports: any;
+};
 
 // Interface para Google Translate API
 interface TranslateResponse {
