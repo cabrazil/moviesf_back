@@ -144,6 +144,7 @@ model JourneyOptionFlow {
   text              String
   nextStepId        String?               @db.VarChar(255)
   isEndState        Boolean               @default(false)
+  displayTitle      String?
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
   journeyStepFlow   JourneyStepFlow       @relation(fields: [journeyStepFlowId], references: [id])

@@ -32,13 +32,16 @@ export class MovieHeroService {
       console.log(`✅ Filme encontrado: ${movie.title}`);
 
       // 2. Buscar todos os dados relacionados em paralelo
-      const movieData = await movieHeroRepository.getMovieData(movie.id);
+      const [movieData, primaryJourney] = await Promise.all([
+        movieHeroRepository.getMovieData(movie.id),
+        movieHeroRepository.getMoviePrimaryJourney(movie.id)
+      ]);
 
       // 3. Processar e organizar dados
       const processedData = this.processMovieData(movieData);
 
       // 4. Montar resposta final
-      const response = this.buildResponse(movie, processedData);
+      const response = this.buildResponse(movie, processedData, primaryJourney);
 
       console.log(`🎉 Resposta montada com sucesso para: ${movie.title}`);
       return response;
@@ -104,7 +107,7 @@ export class MovieHeroService {
   /**
    * Monta a resposta final
    */
-  private buildResponse(movie: Movie, processedData: any): MovieHeroResponse {
+  private buildResponse(movie: Movie, processedData: any, primaryJourney: any): MovieHeroResponse {
     return {
       movie: {
         id: movie.id,
@@ -130,7 +133,8 @@ export class MovieHeroService {
         fullCast: processedData.fullCast,
         mainTrailer: processedData.mainTrailer,
         quotes: processedData.quotes,
-        oscarAwards: processedData.oscarAwards
+        oscarAwards: processedData.oscarAwards,
+        primaryJourney: primaryJourney
       },
       subscriptionPlatforms: processedData.subscriptionPlatforms,
       rentalPurchasePlatforms: processedData.rentalPurchasePlatforms,

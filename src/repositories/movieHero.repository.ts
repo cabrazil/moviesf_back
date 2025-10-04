@@ -20,6 +20,33 @@ import {
 export class MovieHeroRepository {
   
   /**
+   * Busca jornada principal do filme
+   */
+  async getMoviePrimaryJourney(movieId: string): Promise<{ journeyOptionFlowId: number; displayTitle: string | null } | null> {
+    const query = `
+      SELECT 
+        msf."journeyOptionFlowId",
+        jof."displayTitle"
+      FROM "MovieSuggestionFlow" msf
+      JOIN "JourneyOptionFlow" jof ON msf."journeyOptionFlowId" = jof.id
+      WHERE msf."movieId" = $1
+      ORDER BY msf."relevanceScore" DESC
+      LIMIT 1
+    `;
+
+    const result = await dbConnection.query(query, [movieId]);
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return {
+      journeyOptionFlowId: result.rows[0].journeyOptionFlowId,
+      displayTitle: result.rows[0].displayTitle
+    };
+  }
+
+  /**
    * Busca filme por slug
    */
   async findMovieBySlug(slug: string): Promise<Movie | null> {
@@ -303,9 +330,12 @@ export class MovieHeroRepository {
         m.thumbnail,
         m.slug,
         msf."relevanceScore",
+        msf."journeyOptionFlowId",
+        jof."displayTitle",
         RANDOM() as random_order
       FROM "MovieSuggestionFlow" msf
       JOIN "Movie" m ON msf."movieId" = m.id
+      JOIN "JourneyOptionFlow" jof ON msf."journeyOptionFlowId" = jof.id
       JOIN best_journey bj ON msf."journeyOptionFlowId" = bj."journeyOptionFlowId"
       WHERE msf."movieId" != $1
       ORDER BY msf."relevanceScore" DESC, random_order
@@ -383,7 +413,9 @@ export class MovieHeroRepository {
       year: row.year,
       thumbnail: row.thumbnail,
       slug: row.slug,
-      relevanceScore: row.relevanceScore
+      relevanceScore: row.relevanceScore,
+      journeyOptionFlowId: row.journeyOptionFlowId,
+      displayTitle: row.displayTitle
     }));
   }
 }

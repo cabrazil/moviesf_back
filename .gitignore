@@ -16,6 +16,7 @@ docker-compose.yml
 
 # Scripts
 sql/*
+docs/*
 
 # Editor directories and files
 .vscode/*
@@ -27,3 +28,4 @@ sql/*
 *.njsproj
 *.sln
 *.sw?
+*.txt

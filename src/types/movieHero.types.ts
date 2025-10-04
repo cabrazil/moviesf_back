@@ -26,6 +26,10 @@ export interface Movie {
   contentWarnings: string[];
   targetAudienceForLP: string;
   awardsSummary: string;
+  primaryJourney?: {
+    journeyOptionFlowId: number;
+    displayTitle: string | null;
+  } | null;
 }
 
 export interface StreamingPlatform {
@@ -88,6 +92,8 @@ export interface SimilarMovie {
   thumbnail: string;
   slug: string;
   relevanceScore: number;
+  journeyOptionFlowId: number;
+  displayTitle: string | null;
 }
 
 // ===== TIPOS DE RESPOSTA =====
