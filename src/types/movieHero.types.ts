@@ -124,6 +124,10 @@ export interface MovieHeroResponse {
     mainTrailer: Trailer | null;
     quotes: Quote[];
     oscarAwards: OscarAwards | null;
+    primaryJourney?: {
+      journeyOptionFlowId: number;
+      displayTitle: string | null;
+    } | null;
   };
   subscriptionPlatforms: StreamingPlatform[];
   rentalPurchasePlatforms: StreamingPlatform[];
