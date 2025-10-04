@@ -36,20 +36,39 @@ class DatabaseConnection {
    */
   public getPool(): Pool {
     if (!this.pool) {
-      this.pool = new Pool(databaseConfig);
+      this.pool = new Pool({
+        ...databaseConfig,
+        // Otimizações de performance
+        max: 10,                    // Máximo de conexões no pool (reduzido)
+        min: 2,                     // Mínimo de conexões no pool
+        idleTimeoutMillis: 60000,   // 60s para fechar conexões idle (aumentado)
+        connectionTimeoutMillis: 5000, // 5s timeout para conexão (aumentado)
+        // Desabilitar logs em produção
+        ...(process.env.NODE_ENV === 'production' ? {} : {
+          // Logs apenas em desenvolvimento
+        })
+      });
       
-      // Configurar eventos do pool
-      this.pool.on('error', (err) => {
-        console.error('❌ Erro inesperado no pool de conexões:', err);
-      });
+      // Configurar eventos do pool (apenas em desenvolvimento)
+      if (process.env.NODE_ENV !== 'production') {
+        this.pool.on('error', (err) => {
+          console.error('❌ Erro inesperado no pool de conexões:', err);
+        });
 
-      this.pool.on('connect', () => {
-        console.log('✅ Nova conexão estabelecida com o banco');
-      });
+        this.pool.on('connect', () => {
+          // Log apenas quando pool está vazio (primeira conexão)
+          if (this.pool && this.pool.totalCount === 1) {
+            console.log('✅ Pool de conexões inicializado');
+          }
+        });
 
-      this.pool.on('remove', () => {
-        console.log('🔌 Conexão removida do pool');
-      });
+        this.pool.on('remove', () => {
+          // Log apenas quando pool está sendo esvaziado
+          if (this.pool && this.pool.totalCount === 0) {
+            console.log('🔌 Pool de conexões esvaziado');
+          }
+        });
+      }
     }
 
     return this.pool;
@@ -67,9 +86,17 @@ class DatabaseConnection {
     
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        console.log(`🔍 Executando consulta (tentativa ${attempt}/${retries})`);
+        // Log apenas para queries importantes (não para todas)
+        if (process.env.NODE_ENV !== 'production' && attempt === 1 && text.includes('SELECT m.id, m.title')) {
+          console.log(`🔍 Executando consulta principal (tentativa ${attempt}/${retries})`);
+        }
+        
         const result = await pool.query(text, params);
-        console.log(`✅ Consulta executada com sucesso: ${result.rows.length} registros`);
+        
+        // Log apenas para queries importantes
+        if (process.env.NODE_ENV !== 'production' && text.includes('SELECT m.id, m.title')) {
+          console.log(`✅ Consulta principal executada: ${result.rows.length} registros`);
+        }
         return result;
       } catch (error) {
         console.error(`❌ Erro na consulta (tentativa ${attempt}/${retries}):`, error);

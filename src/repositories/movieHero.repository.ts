@@ -20,7 +20,7 @@ import {
 export class MovieHeroRepository {
   
   /**
-   * Busca jornada principal do filme
+   * Busca jornada principal do filme (otimizada)
    */
   async getMoviePrimaryJourney(movieId: string): Promise<{ journeyOptionFlowId: number; displayTitle: string | null } | null> {
     const query = `
