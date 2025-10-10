@@ -48,7 +48,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/main-sentiments', mainSentimentsRoutes);
-app.use('/movies', moviesRoutes);
+app.use('/api/movies', moviesRoutes);
 app.use('/api/blog', blogRoutes);
 app.use('/api/personalized-journey', personalizedJourneyRoutes);
 app.use('/api/public', publicRoutes);

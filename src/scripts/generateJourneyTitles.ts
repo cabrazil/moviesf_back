@@ -15,19 +15,28 @@ function generateDisplayTitle(text: string): string {
     .replace(/\?/g, '')
     .trim();
 
-  // Padrões comuns de transformação
+  // Padrões comuns de transformação - usando "que" e primeira pessoa do plural
   const patterns = [
+    // Padrões específicos com transformações de verbos
+    { from: /^te prenda com (.+)$/i, to: 'Filmes que te prendem com $1' },
+    { from: /^te envolva em (.+)$/i, to: 'Filmes que te envolvem em $1' },
+    { from: /^te faça (.+)$/i, to: 'Filmes que te fazem $1' },
+    { from: /^me faça (.+)$/i, to: 'Filmes que me fazem $1' },
+    { from: /^seja (.+)$/i, to: 'Filmes que são $1' },
+    { from: /^seja (.+) e (.+)$/i, to: 'Filmes que são $1 e $2' },
+    
+    // Padrões gerais
     { from: /^as complexidades (.+)$/i, to: 'Filmes que exploram $1' },
     { from: /^explore (.+)$/i, to: 'Filmes que exploram $1' },
-    { from: /^te envolva em (.+)$/i, to: 'Filmes de $1' },
-    { from: /^te prenda com (.+)$/i, to: 'Filmes com $1' },
     { from: /^mergulhe (.+)$/i, to: 'Filmes que mergulham em $1' },
     { from: /^revele (.+)$/i, to: 'Filmes que revelam $1' },
     { from: /^ofereça (.+)$/i, to: 'Filmes que oferecem $1' },
     { from: /^uma exploração (.+)$/i, to: 'Filmes com uma exploração de $1' },
     { from: /^uma análise (.+)$/i, to: 'Filmes com uma análise de $1' },
     { from: /^um mergulho (.+)$/i, to: 'Filmes com um mergulho em $1' },
-    { from: /^(.+) e (.+)$/i, to: 'Filmes sobre $1 e $2' },
+    
+    // Padrões com "e" - usando "que" em vez de "sobre"
+    { from: /^(.+) e (.+)$/i, to: 'Filmes que $1 e $2' },
   ];
 
   for (const pattern of patterns) {
@@ -37,8 +46,8 @@ function generateDisplayTitle(text: string): string {
     }
   }
 
-  // Fallback: adicionar prefixo genérico
-  return `Filmes sobre ${processed}`;
+  // Fallback: adicionar prefixo genérico usando "que" em vez de "sobre"
+  return `Filmes que ${processed}`;
 }
 
 async function generateJourneyTitles() {
