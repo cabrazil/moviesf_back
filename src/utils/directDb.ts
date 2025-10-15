@@ -1,18 +1,26 @@
 import { Pool } from 'pg';
 
-// Criar pool de conexões
+// Criar pool de conexões otimizado para Supabase
 const pool = new Pool({
   connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  // Configurações otimizadas para Supabase
+  max: 10,           // Máximo 10 conexões simultâneas
+  min: 2,            // Mínimo 2 conexões
+  idleTimeoutMillis: 30000,  // 30 segundos
+  connectionTimeoutMillis: 2000,  // 2 segundos
+  acquireTimeoutMillis: 60000,   // 60 segundos
 });
 
 export class DirectDatabase {
   
   async getMainSentiments() {
+    let client;
     try {
-      const result = await pool.query(`
+      client = await pool.connect();
+      const result = await client.query(`
         SELECT 
           id, 
           name, 
@@ -28,12 +36,21 @@ export class DirectDatabase {
     } catch (error) {
       console.error('Erro ao buscar sentimentos principais:', error);
       throw error;
+    } finally {
+      if (client) {
+        client.release();
+      }
     }
   }
 
   async getEmotionalIntentions(sentimentId: number) {
+    let client;
     try {
-      const result = await pool.query(`
+      // Log do status do pool
+      console.log(`🔗 Pool status: total=${pool.totalCount}, idle=${pool.idleCount}, waiting=${pool.waitingCount}`);
+      
+      client = await pool.connect();
+      const result = await client.query(`
         SELECT 
           ei.id,
           ei."intentionType" as type,
@@ -61,6 +78,11 @@ export class DirectDatabase {
     } catch (error) {
       console.error('Erro ao buscar intenções emocionais:', error);
       throw error;
+    } finally {
+      // Liberar conexão de volta para o pool
+      if (client) {
+        client.release();
+      }
     }
   }
 

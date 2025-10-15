@@ -365,7 +365,7 @@ class MovieCurationOrchestrator {
       emotionalBenefit = emotionalBenefit.replace(/\.+$/, '');
       
       // Montar o texto simplificado sem sufixos padronizados
-      const targetAudience = `Este filme é ideal para quem busca ${emotionalBenefit}.`;
+      const targetAudience = `Este filme pode ser perfeito para quem busca ${emotionalBenefit}.`;
 
       // PROMPT 2: Gerar landingPageHook (gancho emocional)
       const hookPrompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nCrie uma única frase de gancho cativante e instigante (máximo 35 palavras) para uma landing page. **OBRIGATORIAMENTE comece com "Prepare-se para..."** seguido de uma chamada impactante que convide à imersão. Ela deve destacar o principal apelo emocional ou temático do filme, usando a análise de subsentimentos para torná-la mais precisa e atraente para o público. Não inclua JSON, formatação de lista ou quebras de linha adicionais. O resultado deve ser apenas a frase sintetizada.\n\nExemplo de saída esperada para \'Os Descendentes\':\n\'Prepare-se para uma viagem emocional: Os Descendentes te leva às belas praias do Havaí, onde um pai deve navegar pelas turbulentas águas da traição e tragédia, redescobrindo o valor da família e do perdão.\'';

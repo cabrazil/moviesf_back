@@ -223,7 +223,6 @@ export class MovieHeroRepository {
       JOIN "Actor" a ON mc."actorId" = a.id
       WHERE mc."movieId" = $1
       ORDER BY mc."order" ASC
-      LIMIT 5
     `;
   }
 
