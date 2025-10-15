@@ -2,7 +2,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -158,6 +158,7 @@ async function getOrCreateCategory(awardId: string, categoryName: string) {
 
 // Função para obter ou criar filme
 async function getOrCreateMovie(filmTitle: string, year: number) {
+  // Primeira tentativa: buscar por original_title
   let movie = await prisma.movie.findFirst({
     where: {
       original_title: {
@@ -168,14 +169,30 @@ async function getOrCreateMovie(filmTitle: string, year: number) {
     }
   });
 
+  // Segunda tentativa: buscar por title se não encontrou por original_title
+  if (!movie) {
+    console.log(`🔍 Filme "${filmTitle}" (${year}) não encontrado por original_title, tentando por title...`);
+    movie = await prisma.movie.findFirst({
+      where: {
+        title: {
+          contains: filmTitle,
+          mode: 'insensitive'
+        },
+        year: year
+      }
+    });
+  }
+
   if (!movie) {
     console.log(`⚠️ Filme "${filmTitle}" (${year}) não encontrado no banco`);
-    console.log('   Buscando por título original (original_title)');
+    console.log('   Tentativas realizadas:');
+    console.log('   - Busca por original_title');
+    console.log('   - Busca por title');
     console.log('   Você precisa adicionar o filme primeiro usando populateMovies.ts');
     return null;
   }
 
-  console.log(`✅ Filme encontrado: ${movie.original_title} (${movie.title})`);
+  console.log(`✅ Filme encontrado: ${movie.original_title || movie.title} (${movie.title})`);
   return movie;
 }
 

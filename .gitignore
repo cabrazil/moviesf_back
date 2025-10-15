@@ -13,6 +13,7 @@ dist-ssr
 *.local
 .env
 docker-compose.yml
+10mangos
 
 # Scripts
 sql/*
