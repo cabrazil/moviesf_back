@@ -11,7 +11,6 @@ const pool = new Pool({
   min: 2,            // Mínimo 2 conexões
   idleTimeoutMillis: 30000,  // 30 segundos
   connectionTimeoutMillis: 2000,  // 2 segundos
-  acquireTimeoutMillis: 60000,   // 60 segundos
 });
 
 export class DirectDatabase {
