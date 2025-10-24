@@ -17,12 +17,19 @@ router.get('/', async (req, res) => {
         id,
         name,
         category,
+        "showFilter",
         "logoPath",
         "baseUrl",
         "hasFreeTrial",
         "freeTrialDuration"
       FROM "StreamingPlatform"
       ORDER BY 
+        CASE "showFilter"
+          WHEN 'PRIORITY' THEN 1
+          WHEN 'SECONDARY' THEN 2
+          WHEN 'HIDDEN' THEN 3
+          ELSE 4
+        END,
         CASE category
           WHEN 'SUBSCRIPTION_PRIMARY' THEN 1
           WHEN 'HYBRID' THEN 2
@@ -39,6 +46,7 @@ router.get('/', async (req, res) => {
       id: row.id,
       name: row.name,
       category: row.category,
+      showFilter: row.showFilter,
       logoPath: row.logoPath,
       baseUrl: row.baseUrl,
       hasFreeTrial: row.hasFreeTrial,

@@ -340,9 +340,17 @@ router.get('/search', async (req, res) => {
 router.get('/platforms', async (req, res) => {
   try {
     const platforms = await prisma.streamingPlatform.findMany({
-      orderBy: {
-        name: 'asc'
-      }
+      orderBy: [
+        {
+          showFilter: 'asc' // PRIORITY -> SECONDARY -> HIDDEN
+        },
+        {
+          category: 'asc'
+        },
+        {
+          name: 'asc'
+        }
+      ]
     });
 
     res.json(platforms);

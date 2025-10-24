@@ -261,17 +261,25 @@ enum PlatformCategory {
   HYBRID                    // Plataformas que oferecem múltiplos modelos como principal (Amazon Prime Video)
 }
 
+// Enum para controlar visibilidade da plataforma no filtro de seleção do usuário
+enum ShowFilterType {
+  PRIORITY      // Plataformas principais (exibidas primeiro - top 9)
+  SECONDARY     // Outras plataformas (exibidas após expandir)
+  HIDDEN        // Não exibir no filtro (ex: plataformas sem conteúdo ou descontinuadas)
+}
+
 // Nova Model para Plataformas de Streaming (a plataforma em si)
 model StreamingPlatform {
-  id        Int              @id @default(autoincrement())
-  name      String           @unique @db.VarChar(255) // Ex: "Netflix", "Amazon Prime Video", "Apple TV (Loja)", "Apple TV+"
-  category  PlatformCategory // Categoria principal da plataforma (para filtros de alto nível)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @default(now())
-  baseUrl   String?          @db.VarChar(500) // URL base da plataforma para redirecionamento
-  hasFreeTrial Boolean       @default(false) // Se a plataforma oferece teste grátis
-  freeTrialDuration String?  @db.VarChar(100) // Duração do teste grátis (ex: '7 dias', '30 dias', '1 mês')
-  logoPath   String?          @db.VarChar(500) // URL da imagem da plataforma (local ou externa)
+  id                Int              @id @default(autoincrement())
+  name              String           @unique @db.VarChar(255) // Ex: "Netflix", "Amazon Prime Video", "Apple TV (Loja)", "Apple TV+"
+  category          PlatformCategory // Categoria principal da plataforma (para filtros de alto nível)
+  showFilter        ShowFilterType   @default(SECONDARY) // Visibilidade no filtro de seleção do usuário
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now())
+  baseUrl           String?          @db.VarChar(500) // URL base da plataforma para redirecionamento
+  hasFreeTrial      Boolean          @default(false) // Se a plataforma oferece teste grátis
+  freeTrialDuration String?          @db.VarChar(100) // Duração do teste grátis (ex: '7 dias', '30 dias', '1 mês')
+  logoPath          String?          @db.VarChar(500) // URL da imagem da plataforma (local ou externa)
   
   
   // Relação muitos-para-muitos com filmes, através da tabela de junção
@@ -279,6 +287,7 @@ model StreamingPlatform {
 
   // Tabela pequena, apenas índices essenciais
   @@index([category]) // ESSENCIAL: filtros por categoria
+  @@index([showFilter]) // ESSENCIAL: filtros por visibilidade
 }
 
 // Tabela de Junção para a relação muitos-para-muitos entre Movie e StreamingPlatform
