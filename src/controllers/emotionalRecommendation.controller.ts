@@ -194,7 +194,15 @@ export class EmotionalRecommendationController {
               include: {
                 movieSuggestions: {
                   include: {
-                    movie: true
+                    movie: {
+                      include: {
+                        platforms: {
+                          include: {
+                            streamingPlatform: true
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -218,7 +226,19 @@ export class EmotionalRecommendationController {
             isEndState: option.isEndState,
             movieSuggestions: option.movieSuggestions?.map((ms: any) => ({
               id: ms.id,
-              movie: ms.movie,
+              movie: {
+                ...ms.movie,
+                platforms: ms.movie.platforms?.map((p: any) => ({
+                  streamingPlatformId: p.streamingPlatformId,
+                  accessType: p.accessType,
+                  streamingPlatform: {
+                    id: p.streamingPlatform.id,
+                    name: p.streamingPlatform.name,
+                    category: p.streamingPlatform.category,
+                    logoPath: p.streamingPlatform.logoPath
+                  }
+                }))
+              },
               reason: ms.reason
             }))
           }))
@@ -248,7 +268,19 @@ export class EmotionalRecommendationController {
           isEndState: option.isEndState,
           movieSuggestions: option.movieSuggestions?.map((ms: any) => ({
             id: ms.id,
-            movie: ms.movie,
+            movie: {
+              ...ms.movie,
+              platforms: ms.movie.platforms?.map((p: any) => ({
+                streamingPlatformId: p.streamingPlatformId,
+                accessType: p.accessType,
+                streamingPlatform: {
+                  id: p.streamingPlatform.id,
+                  name: p.streamingPlatform.name,
+                  category: p.streamingPlatform.category,
+                  logoPath: p.streamingPlatform.logoPath
+                }
+              }))
+            },
             reason: ms.reason
           }))
         }))
@@ -290,7 +322,15 @@ export class EmotionalRecommendationController {
                   include: {
                     movieSuggestions: {
                       include: {
-                        movie: true
+                        movie: {
+                          include: {
+                            platforms: {
+                              include: {
+                                streamingPlatform: true
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -314,7 +354,19 @@ export class EmotionalRecommendationController {
                   isEndState: option.isEndState,
                   movieSuggestions: option.movieSuggestions?.map((ms: any) => ({
                     id: ms.id,
-                    movie: ms.movie,
+                    movie: {
+                      ...ms.movie,
+                      platforms: ms.movie.platforms?.map((p: any) => ({
+                        streamingPlatformId: p.streamingPlatformId,
+                        accessType: p.accessType,
+                        streamingPlatform: {
+                          id: p.streamingPlatform.id,
+                          name: p.streamingPlatform.name,
+                          category: p.streamingPlatform.category,
+                          logoPath: p.streamingPlatform.logoPath
+                        }
+                      }))
+                    },
                     reason: ms.reason
                   }))
                 }))
