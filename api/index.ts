@@ -9,8 +9,9 @@ import personalizedJourneyRoutes from '../src/routes/personalized-journey.routes
 import publicRoutes from '../src/routes/public';
 import emotionalIntentionsRoutes from '../src/routes/emotional-intentions.routes';
 import streamingPlatformsRoutes from '../src/routes/streaming-platforms.routes';
-import movieDetailsRoutes from '../src/routes/movie-details.routes';
+import movieDetailsRoutes from '../src/routes/movie-details-optimized.routes';
 import movieHeroRoutes from '../src/routes/movie-hero.routes';
+import tmdbRoutes from '../src/routes/tmdb.routes';
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.use('/api/emotional-intentions', emotionalIntentionsRoutes);
 app.use('/api/streaming-platforms', streamingPlatformsRoutes);
 app.use('/api/movie', movieDetailsRoutes);
 app.use('/api/movie', movieHeroRoutes);
+app.use('/api/tmdb', tmdbRoutes);
 
 // Handler para rotas não encontradas (404)
 app.use('*', (req, res) => {

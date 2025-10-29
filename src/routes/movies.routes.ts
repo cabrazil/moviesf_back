@@ -22,6 +22,7 @@ router.get('/:id', async (req, res) => {
       select: {
         id: true,
         title: true,
+        original_title: true,
         thumbnail: true,
         year: true,
         director: true,
@@ -30,6 +31,9 @@ router.get('/:id', async (req, res) => {
         genres: true,
         runtime: true,
         description: true,
+        landingPageHook: true,
+        targetAudienceForLP: true,
+        contentWarnings: true,
         // streamingPlatforms: true,
         movieSentiments: {
           select: {
@@ -49,6 +53,22 @@ router.get('/:id', async (req, res) => {
           select: {
             reason: true,
             relevance: true
+          }
+        },
+        platforms: {
+          select: {
+            accessType: true,
+            streamingPlatform: {
+              select: {
+                id: true,
+                name: true,
+                logoPath: true,
+                category: true,
+                hasFreeTrial: true,
+                freeTrialDuration: true,
+                baseUrl: true
+              }
+            }
           }
         }
       }
