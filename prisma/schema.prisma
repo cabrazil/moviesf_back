@@ -513,3 +513,23 @@ model Quote {
   @@index([movieId]) // ESSENCIAL: relacionamento com Movie
   @@index([author]) // ESSENCIAL: busca por autor
 }
+
+// Newsletter - Assinantes (Banco do Blog)
+// NOTA: Esta tabela está fisicamente no banco do Blog (BLOG_DATABASE_URL)
+// Mas o modelo precisa estar aqui para o Prisma Client gerar os tipos TypeScript
+model NewsletterSubscription {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique @db.VarChar(255)
+  subscribedAt  DateTime  @default(now())
+  isActive      Boolean   @default(true)
+  ipAddress     String?   @db.VarChar(45)
+  userAgent     String?   @db.Text
+  source        String?   @db.VarChar(50)
+  emailSent     Boolean   @default(false)
+  unsubscribedAt DateTime?
+
+  @@map("NewsletterSubscription")
+  @@index([email])
+  @@index([isActive])
+  @@index([subscribedAt])
+}

@@ -1,5 +1,7 @@
+/// <reference types="node" />
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import axios from 'axios';
 
 const prisma = new PrismaClient();
@@ -25,10 +27,10 @@ interface TMDBWatchProviders {
 interface MovieWithStreaming {
   id: string;
   title: string;
-  year: number;
-  tmdbId: number;
-  vote_average: number;
-  vote_count: number;
+  year: number | null;
+  tmdbId: number | null;
+  vote_average: Decimal | null;
+  vote_count: number | null;
   lastUpdate?: Date;
 }
 
@@ -166,16 +168,20 @@ async function updateMovieStreamingData(movie: MovieWithStreaming): Promise<void
     console.log(`🔄 Atualizando: ${movie.title} (${movie.year})`);
 
     // Buscar dados TMDB
+    if (!movie.tmdbId) {
+      console.warn(`⚠️ TMDB ID ausente, pulando: ${movie.title}`);
+      return;
+    }
     const tmdbData = await getTMDBStreamingData(movie.tmdbId);
     
     // Buscar dados YouTube
-    const youtubeData = await checkYouTubeAvailability(movie.title, movie.year);
+    const youtubeData = await checkYouTubeAvailability(movie.title, movie.year ?? undefined);
     
     // Combinar dados
     const allStreamingData = [...tmdbData];
     
     if (youtubeData.available) {
-      const isOldMovie = movie.year < 1970;
+      const isOldMovie = (movie.year ?? 0) < 1970;
       const youtubePlatform = isOldMovie ? 'YouTube (Gratuito)' : 'YouTube Premium';
       
       youtubeData.accessTypes.forEach(accessType => {
@@ -222,20 +228,26 @@ async function updateMovieStreamingData(movie: MovieWithStreaming): Promise<void
   }
 }
 
-async function getHighPriorityMovies(): Promise<MovieWithStreaming[]> {
+async function getHighPriorityMovies(startsWith?: string): Promise<MovieWithStreaming[]> {
   // Filmes recentes (últimos 6 meses) ou muito populares
+  const baseWhere: any = {
+    OR: [
+      { year: { gte: 2024 } },
+      { 
+        AND: [
+          { vote_average: { gte: 7.5 } },
+          { vote_count: { gte: 1000 } }
+        ]
+      }
+    ]
+  };
+
+  const where = startsWith
+    ? { AND: [baseWhere, { title: { startsWith, mode: 'insensitive' as const } }] }
+    : baseWhere;
+
   return await prisma.movie.findMany({
-    where: {
-      OR: [
-        { year: { gte: 2024 } },
-        { 
-          AND: [
-            { vote_average: { gte: 7.5 } },
-            { vote_count: { gte: 1000 } }
-          ]
-        }
-      ]
-    },
+    where,
     select: {
       id: true,
       title: true,
@@ -247,20 +259,26 @@ async function getHighPriorityMovies(): Promise<MovieWithStreaming[]> {
   });
 }
 
-async function getMediumPriorityMovies(): Promise<MovieWithStreaming[]> {
+async function getMediumPriorityMovies(startsWith?: string): Promise<MovieWithStreaming[]> {
   // Filmes de 2020-2023 ou com rating moderado
+  const baseWhere: any = {
+    OR: [
+      { year: { gte: 2020, lt: 2024 } },
+      { 
+        AND: [
+          { vote_average: { gte: 6.5, lt: 7.5 } },
+          { vote_count: { gte: 500 } }
+        ]
+      }
+    ]
+  };
+
+  const where = startsWith
+    ? { AND: [baseWhere, { title: { startsWith, mode: 'insensitive' as const } }] }
+    : baseWhere;
+
   return await prisma.movie.findMany({
-    where: {
-      OR: [
-        { year: { gte: 2020, lt: 2024 } },
-        { 
-          AND: [
-            { vote_average: { gte: 6.5, lt: 7.5 } },
-            { vote_count: { gte: 500 } }
-          ]
-        }
-      ]
-    },
+    where,
     select: {
       id: true,
       title: true,
@@ -272,20 +290,26 @@ async function getMediumPriorityMovies(): Promise<MovieWithStreaming[]> {
   });
 }
 
-async function getLowPriorityMovies(): Promise<MovieWithStreaming[]> {
+async function getLowPriorityMovies(startsWith?: string): Promise<MovieWithStreaming[]> {
   // Filmes antigos ou pouco populares
+  const baseWhere: any = {
+    OR: [
+      { year: { lt: 2020 } },
+      { 
+        AND: [
+          { vote_average: { lt: 6.5 } },
+          { vote_count: { lt: 500 } }
+        ]
+      }
+    ]
+  };
+
+  const where = startsWith
+    ? { AND: [baseWhere, { title: { startsWith, mode: 'insensitive' as const } }] }
+    : baseWhere;
+
   return await prisma.movie.findMany({
-    where: {
-      OR: [
-        { year: { lt: 2020 } },
-        { 
-          AND: [
-            { vote_average: { lt: 6.5 } },
-            { vote_count: { lt: 500 } }
-          ]
-        }
-      ]
-    },
+    where,
     select: {
       id: true,
       title: true,
@@ -297,23 +321,26 @@ async function getLowPriorityMovies(): Promise<MovieWithStreaming[]> {
   });
 }
 
-async function updateStreamingData(priority: 'high' | 'medium' | 'low' = 'high'): Promise<void> {
+async function updateStreamingData(priority: 'high' | 'medium' | 'low' = 'high', startsWith?: string): Promise<void> {
   console.log(`🚀 === ATUALIZAÇÃO DE DADOS DE STREAMING ===`);
   console.log(`📊 Prioridade: ${priority.toUpperCase()}`);
+  if (startsWith) {
+    console.log(`🔤 Filtro por título iniciando com: "${startsWith}" (case-insensitive)`);
+  }
 
   let movies: MovieWithStreaming[] = [];
 
   switch (priority) {
     case 'high':
-      movies = await getHighPriorityMovies();
+      movies = await getHighPriorityMovies(startsWith);
       console.log(`🎯 Filmes de alta prioridade: ${movies.length}`);
       break;
     case 'medium':
-      movies = await getMediumPriorityMovies();
+      movies = await getMediumPriorityMovies(startsWith);
       console.log(`🎯 Filmes de média prioridade: ${movies.length}`);
       break;
     case 'low':
-      movies = await getLowPriorityMovies();
+      movies = await getLowPriorityMovies(startsWith);
       console.log(`🎯 Filmes de baixa prioridade: ${movies.length}`);
       break;
   }
@@ -350,8 +377,12 @@ async function updateStreamingData(priority: 'high' | 'medium' | 'low' = 'high')
 // Função principal
 async function main(): Promise<void> {
   try {
-    const priority = process.argv[2] as 'high' | 'medium' | 'low' || 'high';
-    await updateStreamingData(priority);
+    const args = process.argv.slice(2);
+    const priorityArg = args.find(a => a === 'high' || a === 'medium' || a === 'low');
+    const priority = (priorityArg as 'high' | 'medium' | 'low') || 'high';
+    const startsWithArg = args.find(a => a.startsWith('--startsWith='));
+    const startsWith = startsWithArg ? startsWithArg.split('=')[1]?.slice(0, 1) : undefined;
+    await updateStreamingData(priority, startsWith);
   } catch (error) {
     console.error('❌ Erro:', error);
   } finally {
