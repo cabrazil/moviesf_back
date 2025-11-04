@@ -97,8 +97,9 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     } : undefined,
     "genre": movie.genres?.join(', '),
     // AggregateRating: usar vote_average (TMDB) com vote_count
-    // Só incluir se tiver vote_average E vote_count (obrigatório pelo Schema.org)
-    "aggregateRating": (movie.vote_average && movie.vote_count) ? {
+    // Google Rich Results REQUER ratingCount quando aggregateRating existe
+    // Só incluir se tiver vote_average E vote_count válido (> 0)
+    "aggregateRating": (movie.vote_average && movie.vote_count && movie.vote_count > 0) ? {
       "@type": "AggregateRating",
       "ratingValue": movie.vote_average,
       "bestRating": 10,
