@@ -1,7 +1,13 @@
+import * as dotenv from 'dotenv';
+
+// Carregar variáveis de ambiente do .env
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 
 // Importar todas as rotas necessárias
+import ssrRoutes from '../src/routes/ssr.routes';
 import mainSentimentsRoutes from '../src/routes/main-sentiments.routes';
 import moviesRoutes from '../src/routes/movies.routes';
 import blogRoutes from '../src/routes/blog.routes';
@@ -49,6 +55,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Rotas SSR - DEVEM VIR ANTES das rotas API para não serem interceptadas
+// SSR renderiza HTML completo para bots do Google (SEO)
+app.use('/', ssrRoutes);
+
+// Rotas API (mantém como está)
 app.use('/main-sentiments', mainSentimentsRoutes);
 app.use('/api/movies', moviesRoutes);
 app.use('/api/blog', blogRoutes);

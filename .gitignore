@@ -30,3 +30,4 @@ docs/*
 *.sln
 *.sw?
 *.txt
+SSR*.md

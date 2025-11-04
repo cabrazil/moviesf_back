@@ -1,4 +1,10 @@
+import * as dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+
+// Carregar variáveis de ambiente se ainda não foram carregadas
+if (!process.env.DATABASE_URL) {
+  dotenv.config();
+}
 
 // --- Main App Prisma Client (Singleton) ---
 const globalForPrismaApp = globalThis as unknown as {

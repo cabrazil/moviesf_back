@@ -4,13 +4,40 @@
  * Gerencia conexões com PostgreSQL de forma eficiente e segura
  */
 
+import * as dotenv from 'dotenv';
 import { Pool, PoolClient } from 'pg';
 import { DatabaseConfig } from '../types/movieHero.types';
 
+// Carregar variáveis de ambiente ANTES de qualquer uso
+dotenv.config();
+
 // ===== CONFIGURAÇÃO =====
 
+// Função para obter connection string (avaliada quando necessário)
+function getConnectionString(): string {
+  const directUrl = process.env.DIRECT_URL;
+  const databaseUrl = process.env.DATABASE_URL;
+  
+  if (!directUrl && !databaseUrl) {
+    console.error('❌ DATABASE_URL ou DIRECT_URL não configurados!');
+    throw new Error('Variáveis de ambiente do banco de dados não configuradas');
+  }
+  
+  const connectionString = directUrl || databaseUrl || '';
+  
+  // Log de debug (apenas em desenvolvimento)
+  if (process.env.NODE_ENV !== 'production') {
+    const host = connectionString.match(/@([^:]+)/)?.[1];
+    console.log(`✅ Database configurado - Host: ${host || 'não encontrado'}`);
+  }
+  
+  return connectionString;
+}
+
 const databaseConfig: DatabaseConfig = {
-  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL || '',
+  get connectionString() {
+    return getConnectionString();
+  },
   ssl: {
     rejectUnauthorized: false
   }
@@ -36,8 +63,20 @@ class DatabaseConnection {
    */
   public getPool(): Pool {
     if (!this.pool) {
+      // Garantir que variáveis de ambiente estão carregadas
+      const connectionString = getConnectionString();
+      
+      if (!connectionString) {
+        throw new Error('DATABASE_URL ou DIRECT_URL não configurados');
+      }
+      
+      console.log(`🔌 Criando pool de conexões com host: ${connectionString.match(/@([^:]+)/)?.[1] || 'desconhecido'}`);
+      
       this.pool = new Pool({
-        ...databaseConfig,
+        connectionString: connectionString,
+        ssl: {
+          rejectUnauthorized: false
+        },
         // Otimizações de performance
         max: 10,                    // Máximo de conexões no pool (reduzido)
         min: 2,                     // Mínimo de conexões no pool
