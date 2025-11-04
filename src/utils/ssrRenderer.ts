@@ -96,11 +96,14 @@ export function renderMovieHTML(movieData: any, slug: string): string {
       "name": movie.director
     } : undefined,
     "genre": movie.genres?.join(', '),
-    "aggregateRating": movie.vote_average ? {
+    // AggregateRating: usar vote_average (TMDB) com vote_count
+    // Só incluir se tiver vote_average E vote_count (obrigatório pelo Schema.org)
+    "aggregateRating": (movie.vote_average && movie.vote_count) ? {
       "@type": "AggregateRating",
       "ratingValue": movie.vote_average,
       "bestRating": 10,
-      "worstRating": 0
+      "worstRating": 0,
+      "ratingCount": movie.vote_count
     } : undefined,
     "offers": offers.length > 0 ? offers : undefined
   };

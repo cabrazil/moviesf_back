@@ -62,6 +62,7 @@ export class MovieHeroRepository {
         m.certification,
         m."imdbRating",
         m."vote_average",
+        m."vote_count",
         m."rottenTomatoesRating",
         m."metacriticRating",
         m.thumbnail,

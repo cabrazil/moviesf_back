@@ -18,6 +18,7 @@ export interface Movie {
   certification: string;
   imdbRating: number;
   vote_average: number;
+  vote_count?: number;
   rottenTomatoesRating: number;
   metacriticRating: number;
   thumbnail: string;
