@@ -10,6 +10,36 @@
 export function renderMovieHTML(movieData: any, slug: string): string {
   const { movie, subscriptionPlatforms = [], rentalPurchasePlatforms = [] } = movieData;
   
+  // Converter vote_count para número e validar
+  let voteCount: number | null = null;
+  
+  if (movie.vote_count != null) {
+    let parsed: number;
+    
+    if (typeof movie.vote_count === 'string') {
+      parsed = parseInt(movie.vote_count, 10);
+    } else if (typeof movie.vote_count === 'number') {
+      parsed = movie.vote_count;
+    } else {
+      parsed = Number(movie.vote_count);
+    }
+    
+    // Validar se é um número válido
+    if (!isNaN(parsed) && Number.isFinite(parsed) && parsed > 0) {
+      voteCount = parsed;
+    }
+  }
+  
+  // Debug: verificar vote_count (apenas em desenvolvimento)
+  if (process.env.NODE_ENV !== 'production' && movie.vote_average) {
+    console.log(`🔍 [SSR] Filme ${movie.title}:`, {
+      vote_average: movie.vote_average,
+      vote_count_raw: movie.vote_count,
+      vote_count_processed: voteCount,
+      has_aggregateRating: !!(movie.vote_average && voteCount && voteCount > 0)
+    });
+  }
+  
   // Gerar meta tags
   // Formato: "Filme (Ano): Onde assistir e Análise Emocional | Vibesfilm"
   // Para títulos longos, usar versão mais curta para evitar truncamento
@@ -99,12 +129,12 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     // AggregateRating: usar vote_average (TMDB) com vote_count
     // Google Rich Results REQUER ratingCount quando aggregateRating existe
     // Só incluir se tiver vote_average E vote_count válido (> 0)
-    "aggregateRating": (movie.vote_average && movie.vote_count && movie.vote_count > 0) ? {
+    "aggregateRating": (movie.vote_average && voteCount && voteCount > 0 && !isNaN(voteCount)) ? {
       "@type": "AggregateRating",
       "ratingValue": movie.vote_average,
       "bestRating": 10,
       "worstRating": 0,
-      "ratingCount": movie.vote_count
+      "ratingCount": voteCount
     } : undefined,
     "offers": offers.length > 0 ? offers : undefined
   };
@@ -201,7 +231,8 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
     "description": seoDescription,
     "author": {
       "@type": "Person",
-      "name": article.author_name || "VibesFilm Blog"
+      "name": article.author_name || "VibesFilm Blog",
+      "url": "https://vibesfilm.com/blog"
     },
     "publisher": {
       "@type": "Organization",
