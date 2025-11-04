@@ -22,7 +22,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     : `${baseTitle}: Onde assistir e Análise Emocional | Vibesfilm`;
   
   // Descrição otimizada
-  let description = `Descubra onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''} online`;
+  let description = `Descubra onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}`;
   
   // Determinar tipos de acesso disponíveis
   const hasSubscription = subscriptionPlatforms.some((p: any) => 
