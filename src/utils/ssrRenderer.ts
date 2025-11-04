@@ -153,10 +153,26 @@ export function renderMovieHTML(movieData: any, slug: string): string {
       "worstRating": 0,
       "ratingCount": voteCount
     };
+  } else {
+    // Log para debug quando aggregateRating NÃO é incluído
+    if (movie.vote_average) {
+      console.warn(`⚠️ [SSR] Filme ${movie.title} (${slug}): vote_average existe mas aggregateRating NÃO será incluído:`, {
+        vote_average: movie.vote_average,
+        vote_count_raw: movie.vote_count,
+        vote_count_processed: voteCount,
+        reason: !voteCount ? 'vote_count ausente' : voteCount <= 0 ? 'vote_count <= 0' : 'isNaN'
+      });
+    }
   }
   
   // Remover campos undefined antes de serializar
   const cleanedSchema = removeUndefined(schema);
+  
+  // Validação final: garantir que aggregateRating tenha ratingCount se existir
+  if (cleanedSchema.aggregateRating && !cleanedSchema.aggregateRating.ratingCount) {
+    console.error(`❌ [SSR] ERRO CRÍTICO: aggregateRating sem ratingCount para ${movie.title}! Removendo aggregateRating.`);
+    delete cleanedSchema.aggregateRating;
+  }
   
   // Gerar keywords
   const keywords = [
