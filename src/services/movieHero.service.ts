@@ -120,6 +120,7 @@ export class MovieHeroService {
         certification: movie.certification,
         imdbRating: movie.imdbRating,
         vote_average: movie.vote_average,
+        vote_count: movie.vote_count,
         rottenTomatoesRating: movie.rottenTomatoesRating,
         metacriticRating: movie.metacriticRating,
         thumbnail: movie.thumbnail,
