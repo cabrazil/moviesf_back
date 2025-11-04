@@ -13,7 +13,14 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   // Converter vote_count para número e validar
   let voteCount: number | null = null;
   
-  if (movie.vote_count != null) {
+  // Debug: log completo do objeto movie (apenas em desenvolvimento/produção para debug)
+  if (movie.vote_average && !movie.vote_count) {
+    console.warn(`⚠️ [SSR] Filme ${movie.title} (${slug}): vote_average existe (${movie.vote_average}) mas vote_count está ausente ou null/undefined`);
+    console.warn(`   vote_count value:`, movie.vote_count, `typeof:`, typeof movie.vote_count);
+    console.warn(`   movie keys:`, Object.keys(movie));
+  }
+  
+  if (movie.vote_count != null && movie.vote_count !== undefined) {
     let parsed: number;
     
     if (typeof movie.vote_count === 'string') {
@@ -27,17 +34,9 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     // Validar se é um número válido
     if (!isNaN(parsed) && Number.isFinite(parsed) && parsed > 0) {
       voteCount = parsed;
+    } else {
+      console.warn(`⚠️ [SSR] Filme ${movie.title}: vote_count inválido após conversão:`, parsed, `(original:`, movie.vote_count, `)`);
     }
-  }
-  
-  // Debug: verificar vote_count (apenas em desenvolvimento)
-  if (process.env.NODE_ENV !== 'production' && movie.vote_average) {
-    console.log(`🔍 [SSR] Filme ${movie.title}:`, {
-      vote_average: movie.vote_average,
-      vote_count_raw: movie.vote_count,
-      vote_count_processed: voteCount,
-      has_aggregateRating: !!(movie.vote_average && voteCount && voteCount > 0)
-    });
   }
   
   // Gerar meta tags
@@ -114,7 +113,22 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     "description": `Assistir ${movie.title} no ${platform.name}`
   }));
   
-  const schema = {
+  // Função helper para remover campos undefined do objeto
+  const removeUndefined = (obj: any): any => {
+    if (obj === null || obj === undefined) return undefined;
+    if (Array.isArray(obj)) return obj.map(removeUndefined).filter(item => item !== undefined);
+    if (typeof obj !== 'object') return obj;
+    
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefined(value);
+      }
+    }
+    return cleaned;
+  };
+
+  const schema: any = {
     "@context": "https://schema.org",
     "@type": "Movie",
     "name": movie.title,
@@ -126,18 +140,23 @@ export function renderMovieHTML(movieData: any, slug: string): string {
       "name": movie.director
     } : undefined,
     "genre": movie.genres?.join(', '),
-    // AggregateRating: usar vote_average (TMDB) com vote_count
-    // Google Rich Results REQUER ratingCount quando aggregateRating existe
-    // Só incluir se tiver vote_average E vote_count válido (> 0)
-    "aggregateRating": (movie.vote_average && voteCount && voteCount > 0 && !isNaN(voteCount)) ? {
+    "offers": offers.length > 0 ? offers : undefined
+  };
+
+  // AggregateRating: SÓ incluir se tiver vote_average E vote_count válido (> 0)
+  // Google Rich Results REQUER ratingCount quando aggregateRating existe
+  if (movie.vote_average && voteCount && voteCount > 0 && !isNaN(voteCount)) {
+    schema.aggregateRating = {
       "@type": "AggregateRating",
       "ratingValue": movie.vote_average,
       "bestRating": 10,
       "worstRating": 0,
       "ratingCount": voteCount
-    } : undefined,
-    "offers": offers.length > 0 ? offers : undefined
-  };
+    };
+  }
+  
+  // Remover campos undefined antes de serializar
+  const cleanedSchema = removeUndefined(schema);
   
   // Gerar keywords
   const keywords = [
@@ -178,7 +197,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   
   <!-- Schema.org markup -->
   <script type="application/ld+json">
-    ${JSON.stringify(schema, null, 2)}
+    ${JSON.stringify(cleanedSchema, null, 2)}
   </script>
   
   <!-- Meta tags adicionais -->
@@ -223,6 +242,21 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
     ? `${description.substring(0, 157)}...` 
     : description;
   
+  // Função helper para remover campos undefined (reutilizar se já não existir)
+  const removeUndefinedFromSchema = (obj: any): any => {
+    if (obj === null || obj === undefined) return undefined;
+    if (Array.isArray(obj)) return obj.map(removeUndefinedFromSchema).filter(item => item !== undefined);
+    if (typeof obj !== 'object') return obj;
+    
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefinedFromSchema(value);
+      }
+    }
+    return cleaned;
+  };
+
   // Schema.org para artigo
   const schema: any = {
     "@context": "https://schema.org",
@@ -315,7 +349,7 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
   
   <!-- Schema.org markup -->
   <script type="application/ld+json">
-    ${JSON.stringify(schema, null, 2)}
+    ${JSON.stringify(removeUndefinedFromSchema(schema), null, 2)}
   </script>
   
   <!-- Meta tags adicionais -->
