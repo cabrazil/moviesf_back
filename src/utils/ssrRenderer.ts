@@ -11,7 +11,15 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   const { movie, subscriptionPlatforms = [], rentalPurchasePlatforms = [] } = movieData;
   
   // Gerar meta tags
-  const title = `Onde Assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''} - Streaming Online | vibesfilm`;
+  // Formato: "Filme (Ano): Onde assistir e Análise Emocional | Vibesfilm"
+  // Para títulos longos, usar versão mais curta para evitar truncamento
+  const baseTitle = `${movie.title}${movie.year ? ` (${movie.year})` : ''}`;
+  const titleLength = baseTitle.length;
+  
+  // Se título do filme + ano > 40 caracteres, usar versão mais curta
+  const title = titleLength > 40
+    ? `${baseTitle}: Onde assistir | Vibesfilm`
+    : `${baseTitle}: Onde assistir e Análise Emocional | Vibesfilm`;
   
   // Descrição otimizada
   let description = `Descubra onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''} online`;
