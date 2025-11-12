@@ -38,12 +38,13 @@ interface MovieWithStreaming {
 const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string }> = {
   'Netflix': { name: 'Netflix', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Netflix Standard with Ads': { name: 'Netflix', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
-  'Prime Video': { name: 'Prime Video', accessType: 'HYBRID_OR_UNKNOWN' },
-  'Amazon Prime Video': { name: 'Prime Video', accessType: 'HYBRID_OR_UNKNOWN' },
-  'Amazon Prime Video with Ads': { name: 'Prime Video', accessType: 'HYBRID_OR_UNKNOWN' },
+  'Prime Video': { name: 'Prime Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Amazon Prime Video': { name: 'Prime Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'Amazon Prime Video with Ads': { name: 'Prime Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Disney Plus': { name: 'Disney+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Disney+': { name: 'Disney+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'HBO Max': { name: 'HBO Max', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'HBO Max Amazon Channel': { name: 'HBO Max', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Max': { name: 'HBO Max', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Paramount Plus': { name: 'Paramount+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Paramount+': { name: 'Paramount+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
@@ -51,10 +52,10 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'Paramount Plus Premium': { name: 'Paramount+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV+': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV Plus Amazon Channel': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
-  'Apple TV': { name: 'Apple TV (Loja)', accessType: 'HYBRID_OR_UNKNOWN' },
-  'Google Play Movies': { name: 'Google Play', accessType: 'HYBRID_OR_UNKNOWN' },
-  'Google Play': { name: 'Google Play', accessType: 'HYBRID_OR_UNKNOWN' },
-  'Amazon Video': { name: 'Prime Video', accessType: 'HYBRID_OR_UNKNOWN' },
+  'Apple TV': { name: 'Apple TV (Loja)' }, // accessType removido - usar fallback baseado no tipo do provider
+  'Google Play Movies': { name: 'Google Play' }, // accessType removido - usar fallback baseado no tipo do provider
+  'Google Play': { name: 'Google Play' }, // accessType removido - usar fallback baseado no tipo do provider
+  'Amazon Video': { name: 'Prime Video' }, // accessType removido - usar fallback baseado no tipo do provider
   'Globoplay': { name: 'Globoplay', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Claro video': { name: 'Claro Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Claro tv+': { name: 'Claro Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
@@ -75,13 +76,13 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
 };
 
 function getAccessTypeFromTMDB(providerType: 'flatrate' | 'buy' | 'rent' | 'free', providerName: string): string {
+  // Primeiro, verificar mapeamento específico
   const mapped = TMDB_PROVIDER_MAPPING[providerName];
-  if (!mapped) return 'HYBRID_OR_UNKNOWN';
+  if (mapped && mapped.accessType) {
+    return mapped.accessType; // Usar accessType explícito se definido
+  }
 
-  // Se o mapeamento tem um accessType específico, use-o
-  if (mapped.accessType) return mapped.accessType;
-
-  // Caso contrário, determine baseado no tipo do provedor
+  // Fallback baseado no tipo do provider (mais específico que HYBRID_OR_UNKNOWN)
   switch (providerType) {
     case 'flatrate':
       return 'INCLUDED_WITH_SUBSCRIPTION';

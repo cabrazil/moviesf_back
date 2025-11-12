@@ -1122,6 +1122,57 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
       if (existingMovie) {
         console.log(`⚠️ Filme já existe no banco: ${movie.title}`);
         console.log(`TMDB_ID_FOUND: ${existingMovie.tmdbId}`);
+        console.log(`🔄 Reprocessando plataformas de streaming...`);
+        
+        // Processar plataformas de streaming mesmo quando o filme já existe
+        if (streamingData.length > 0) {
+          if (!dryRun) {
+            console.log(`📺 Atualizando ${streamingData.length} relações de streaming...`);
+            
+            for (const streamingItem of streamingData) {
+              try {
+                // Buscar a plataforma no banco
+                const platform = await prisma.streamingPlatform.findFirst({
+                  where: { name: streamingItem.platform }
+                });
+
+                if (platform) {
+                  // Usar upsert para atualizar ou criar
+                  await prisma.movieStreamingPlatform.upsert({
+                    where: {
+                      movieId_streamingPlatformId_accessType: {
+                        movieId: existingMovie.id,
+                        streamingPlatformId: platform.id,
+                        accessType: streamingItem.accessType as any
+                      }
+                    },
+                    update: {
+                      updatedAt: new Date()
+                    },
+                    create: {
+                      movieId: existingMovie.id,
+                      streamingPlatformId: platform.id,
+                      accessType: streamingItem.accessType as any
+                    }
+                  });
+                  console.log(`✅ ${streamingItem.platform} (${streamingItem.accessType})`);
+                } else {
+                  console.log(`⚠️ Plataforma não encontrada: ${streamingItem.platform}`);
+                }
+              } catch (error) {
+                console.log(`❌ Erro ao atualizar ${streamingItem.platform}: ${error}`);
+              }
+            }
+          } else {
+            console.log(`🔍 DRY-RUN: ${streamingData.length} relações de streaming seriam atualizadas`);
+            streamingData.forEach(item => {
+              console.log(`🔍 DRY-RUN: ${item.platform} (${item.accessType})`);
+            });
+          }
+        } else {
+          console.log(`📺 Nenhuma plataforma de streaming encontrada para atualizar`);
+        }
+        
         return { success: true, duplicate: true, movieId: existingMovie.id };
       } else {
         // Buscar ou criar os gêneros

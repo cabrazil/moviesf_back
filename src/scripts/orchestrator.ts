@@ -100,21 +100,27 @@ class MovieCurationOrchestrator {
         tmdbId = movieFound.tmdbId;
         console.log(`✅ Filme já existe no banco: ${movieFound.title} (${movie.year})`);
         console.log(`🎯 TMDB ID encontrado: ${tmdbId}`);
-        console.log(`⏭️  Pulando Etapa 1 (filme já adicionado anteriormente)`);
-      } else {
-        // Etapa 1: Adicionar filme
-        console.log(`📥 Etapa 1: Adicionando filme ao banco...`);
-        const addResult = await this.runScript('populateMovies.ts', [`--title=${movie.title}`, `--year=${movie.year.toString()}`]);
-        
-        if (!addResult.success) {
-          return { success: false, error: `Falha ao adicionar filme: ${addResult.error}` };
-        }
+        console.log(`🔄 Executando Etapa 1 para reprocessar plataformas de streaming...`);
+      }
+      
+      // Etapa 1: Adicionar/Atualizar filme (sempre executa para reprocessar streaming)
+      console.log(`📥 Etapa 1: Processando filme no banco...`);
+      const addResult = await this.runScript('populateMovies.ts', [`--title=${movie.title}`, `--year=${movie.year.toString()}`]);
+      
+      if (!addResult.success) {
+        return { success: false, error: `Falha ao processar filme: ${addResult.error}` };
+      }
 
-        // Capturar o TMDB ID do output
-        const tmdbIdMatch = addResult.output.match(/TMDB_ID_FOUND: (\d+)/);
-        if (!tmdbIdMatch) {
+      // Capturar o TMDB ID do output (pode ser do filme existente ou recém-criado)
+      const tmdbIdMatch = addResult.output.match(/TMDB_ID_FOUND: (\d+)/);
+      if (!tmdbIdMatch) {
+        // Se não encontrou no output mas já temos o tmdbId do filme existente, usar ele
+        if (tmdbId) {
+          console.log(`🎯 Usando TMDB ID do filme existente: ${tmdbId}`);
+        } else {
           return { success: false, error: 'TMDB ID não encontrado no output do populateMovies.ts' };
         }
+      } else {
         tmdbId = parseInt(tmdbIdMatch[1]);
         console.log(`🎯 TMDB ID capturado: ${tmdbId}`);
       }
