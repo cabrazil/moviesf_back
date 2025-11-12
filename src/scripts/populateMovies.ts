@@ -446,7 +446,7 @@ const commonKeywordsMapping: { [key: string]: string } = {
   'japan': 'japão'
 };
 
-async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movieYear?: number): Promise<{ platforms: string[]; streamingData: Array<{ platform: string; accessType: string }> }> {
+async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movieYear?: number, skipYouTube: boolean = false): Promise<{ platforms: string[]; streamingData: Array<{ platform: string; accessType: string }> }> {
   try {
     const response = await axios.get<TMDBWatchProvidersResponse>(`${TMDB_API_URL}/movie/${movieId}/watch/providers`, {
       params: {
@@ -490,8 +490,8 @@ async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movie
       }
     }
 
-    // Verificar disponibilidade no YouTube se título e ano foram fornecidos
-    if (movieTitle && movieYear) {
+    // Verificar disponibilidade no YouTube se título e ano foram fornecidos e não foi solicitado pular
+    if (!skipYouTube && movieTitle && movieYear) {
       const youtubeAvailability = await checkYouTubeAvailability(movieTitle, movieYear);
       if (youtubeAvailability.available) {
         // Determinar qual plataforma YouTube usar baseado no ano
@@ -839,13 +839,23 @@ async function checkYouTubeAvailability(movieTitle: string, year?: number): Prom
     }
 
     return { available: false, accessTypes: [] };
-  } catch (error) {
-    console.error(`Erro ao verificar YouTube para ${movieTitle}:`, error);
+  } catch (error: any) {
+    // Tratar erros HTTP de forma mais silenciosa
+    if (error?.response?.status === 403) {
+      console.log(`⚠️ YouTube API: Acesso negado (403) para "${movieTitle}". Pode ser quota excedida, restrição geográfica ou API key inválida. Continuando sem verificação do YouTube.`);
+    } else if (error?.response?.status === 429) {
+      console.log(`⚠️ YouTube API: Limite de requisições excedido (429) para "${movieTitle}". Continuando sem verificação do YouTube.`);
+    } else if (error?.code === 'ERR_BAD_REQUEST' || error?.response?.status) {
+      console.log(`⚠️ YouTube API: Erro ${error.response?.status || 'desconhecido'} ao verificar "${movieTitle}". Continuando sem verificação do YouTube.`);
+    } else {
+      // Apenas logar erros não-HTTP de forma mais detalhada
+      console.log(`⚠️ Erro ao verificar YouTube para "${movieTitle}": ${error?.message || 'Erro desconhecido'}. Continuando sem verificação do YouTube.`);
+    }
     return { available: false, accessTypes: [] };
   }
 }
 
-export async function searchMovie(title?: string, year?: number, tmdbId?: number): Promise<{ movie: TMDBMovie; platforms: string[]; streamingData: Array<{ platform: string; accessType: string }>; director: string | null; certification: string | null; keywords: string[]; cast: Array<{ tmdbId: number; name: string; character: string; order: number; profilePath: string | null }> } | null> {
+export async function searchMovie(title?: string, year?: number, tmdbId?: number, skipStreaming: boolean = false): Promise<{ movie: TMDBMovie; platforms: string[]; streamingData: Array<{ platform: string; accessType: string }>; director: string | null; certification: string | null; keywords: string[]; cast: Array<{ tmdbId: number; name: string; character: string; order: number; profilePath: string | null }> } | null> {
   try {
     if (tmdbId) {
       console.log(`Buscando filme no TMDB pelo ID: ${tmdbId}`);
@@ -860,7 +870,17 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
 
       const directors = await getMovieDirectors(tmdbId);
       const keywords = await getMovieKeywords(tmdbId);
-      const { platforms, streamingData } = await getMovieStreamingInfo(tmdbId, movieDetails.title, parseInt(movieDetails.release_date.split('-')[0]));
+      
+      // Buscar streaming apenas se não foi solicitado pular
+      let platforms: string[] = [];
+      let streamingData: Array<{ platform: string; accessType: string }> = [];
+      
+      if (!skipStreaming) {
+        const streamingInfo = await getMovieStreamingInfo(tmdbId, movieDetails.title, parseInt(movieDetails.release_date.split('-')[0]));
+        platforms = streamingInfo.platforms;
+        streamingData = streamingInfo.streamingData;
+      }
+      
       const certification = await getBrazilianCertification(tmdbId);
       const cast = await getMovieCast(tmdbId);
 
@@ -1032,8 +1052,15 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     const keywords = await getMovieKeywords(parseInt(movie.id));
     console.log(`Palavras-chave encontradas: ${keywords.join(', ')}`);
     
-    // Buscar informações de streaming
-          const { platforms, streamingData } = await getMovieStreamingInfo(parseInt(movie.id), movie.title, new Date(movie.release_date).getFullYear());
+    // Buscar informações de streaming apenas se não foi solicitado pular
+    let platforms: string[] = [];
+    let streamingData: Array<{ platform: string; accessType: string }> = [];
+    
+    if (!skipStreaming) {
+      const streamingInfo = await getMovieStreamingInfo(parseInt(movie.id), movie.title, new Date(movie.release_date).getFullYear());
+      platforms = streamingInfo.platforms;
+      streamingData = streamingInfo.streamingData;
+    }
     
     // Buscar certificação brasileira
     const certification = await getBrazilianCertification(parseInt(movie.id));

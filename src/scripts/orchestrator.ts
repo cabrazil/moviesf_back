@@ -47,21 +47,81 @@ class MovieCurationOrchestrator {
       writeFileSync(this.insertFile, '');
       console.log(`🧹 Arquivo inserts.sql limpo.`);
 
-      // Etapa 1: Adicionar filme
-      console.log(`📥 Etapa 1: Adicionando filme ao banco...`);
-      const addResult = await this.runScript('populateMovies.ts', [`--title=${movie.title}`, `--year=${movie.year.toString()}`]);
-      
-      if (!addResult.success) {
-        return { success: false, error: `Falha ao adicionar filme: ${addResult.error}` };
+      // Verificar se o filme já existe no banco antes de adicionar
+      // Busca flexível por título (case-insensitive e contains) e ano
+      let tmdbId: number | null = null;
+      const existingMovie = await prisma.movie.findFirst({
+        where: {
+          title: {
+            contains: movie.title,
+            mode: 'insensitive'
+          },
+          year: movie.year
+        },
+        select: {
+          tmdbId: true,
+          id: true,
+          title: true
+        }
+      });
+
+      // Se não encontrou com contains, tentar busca reversa (verificar se o título do banco contém o título buscado)
+      let movieFound = existingMovie;
+      if (!movieFound) {
+        // Buscar todos os filmes do mesmo ano e verificar se algum título contém ou é contido
+        const moviesSameYear = await prisma.movie.findMany({
+          where: {
+            year: movie.year
+          },
+          select: {
+            tmdbId: true,
+            id: true,
+            title: true,
+            original_title: true
+          }
+        });
+
+        // Verificar similaridade de títulos
+        for (const dbMovie of moviesSameYear) {
+          const dbTitle = (dbMovie.title || '').toLowerCase().trim();
+          const dbOriginalTitle = (dbMovie.original_title || '').toLowerCase().trim();
+          const searchTitle = movie.title.toLowerCase().trim();
+          
+          // Verificar se os títulos são similares (um contém o outro ou são muito parecidos)
+          if (dbTitle.includes(searchTitle) || searchTitle.includes(dbTitle) ||
+              dbOriginalTitle.includes(searchTitle) || searchTitle.includes(dbOriginalTitle)) {
+            movieFound = dbMovie;
+            break;
+          }
+        }
       }
 
-      // Capturar o TMDB ID do output
-      const tmdbIdMatch = addResult.output.match(/TMDB_ID_FOUND: (\d+)/);
-      if (!tmdbIdMatch) {
-        return { success: false, error: 'TMDB ID não encontrado no output do populateMovies.ts' };
+      if (movieFound && movieFound.tmdbId) {
+        tmdbId = movieFound.tmdbId;
+        console.log(`✅ Filme já existe no banco: ${movieFound.title} (${movie.year})`);
+        console.log(`🎯 TMDB ID encontrado: ${tmdbId}`);
+        console.log(`⏭️  Pulando Etapa 1 (filme já adicionado anteriormente)`);
+      } else {
+        // Etapa 1: Adicionar filme
+        console.log(`📥 Etapa 1: Adicionando filme ao banco...`);
+        const addResult = await this.runScript('populateMovies.ts', [`--title=${movie.title}`, `--year=${movie.year.toString()}`]);
+        
+        if (!addResult.success) {
+          return { success: false, error: `Falha ao adicionar filme: ${addResult.error}` };
+        }
+
+        // Capturar o TMDB ID do output
+        const tmdbIdMatch = addResult.output.match(/TMDB_ID_FOUND: (\d+)/);
+        if (!tmdbIdMatch) {
+          return { success: false, error: 'TMDB ID não encontrado no output do populateMovies.ts' };
+        }
+        tmdbId = parseInt(tmdbIdMatch[1]);
+        console.log(`🎯 TMDB ID capturado: ${tmdbId}`);
       }
-      const tmdbId = parseInt(tmdbIdMatch[1]);
-      console.log(`🎯 TMDB ID capturado: ${tmdbId}`);
+
+      if (!tmdbId) {
+        return { success: false, error: 'TMDB ID não disponível para continuar o processamento' };
+      }
 
       // Determinar o AI Provider automaticamente se necessário
       let finalAiProvider = movie.aiProvider;

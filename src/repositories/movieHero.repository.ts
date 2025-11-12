@@ -11,7 +11,6 @@ import {
   EmotionalTag, 
   CastMember, 
   Trailer, 
-  Quote, 
   OscarAward, 
   SimilarMovie,
   MovieQueryResult 
@@ -112,10 +111,6 @@ export class MovieHeroRepository {
         params: [movieId]
       },
       {
-        text: this.getQuotesQuery(),
-        params: [movieId]
-      },
-      {
         text: this.getOscarWinsQuery(),
         params: [movieId]
       },
@@ -140,7 +135,6 @@ export class MovieHeroRepository {
       mainCastResult,
       fullCastResult,
       mainTrailerResult,
-      quotesResult,
       oscarWinsResult,
       oscarNominationsResult,
       similarMoviesResult
@@ -155,7 +149,6 @@ export class MovieHeroRepository {
       mainCast: this.mapCast(mainCastResult.rows),
       fullCast: this.mapCast(fullCastResult.rows),
       mainTrailer: this.mapTrailer(mainTrailerResult.rows),
-      quotes: this.mapQuotes(quotesResult.rows),
       oscarWins: this.mapOscarAwards(oscarWinsResult.rows),
       oscarNominations: this.mapOscarAwards(oscarNominationsResult.rows),
       similarMovies: this.mapSimilarMovies(similarMoviesResult.rows)
@@ -253,20 +246,6 @@ export class MovieHeroRepository {
       WHERE mt."movieId" = $1
         AND mt."isMain" = true
       LIMIT 1
-    `;
-  }
-
-  private getQuotesQuery(): string {
-    return `
-      SELECT 
-        q.id,
-        q.text,
-        q.author,
-        q.vehicle,
-        q.url
-      FROM "Quote" q
-      WHERE q."movieId" = $1
-      ORDER BY q.id ASC
     `;
   }
 
@@ -386,16 +365,6 @@ export class MovieHeroRepository {
       language: row.language,
       isMain: row.isMain
     };
-  }
-
-  private mapQuotes(rows: any[]): Quote[] {
-    return rows.map(row => ({
-      id: row.id,
-      text: row.text,
-      author: row.author,
-      vehicle: row.vehicle,
-      url: row.url
-    }));
   }
 
   private mapOscarAwards(rows: any[]): OscarAward[] {

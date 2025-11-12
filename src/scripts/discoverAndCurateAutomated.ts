@@ -571,8 +571,9 @@ async function generateReflectionForMovie(movie: any, option: any): Promise<stri
     .flatMap(ms => ms.subSentiment.keywords)
     .filter((value, index, self) => self.indexOf(value) === index) || [];
 
-  // Buscar dados do TMDB para obter sinopse
-  const tmdbMovie = await searchMovie(movie.title, movie.year);
+  // Buscar dados do TMDB para obter sinopse (sem verificar streaming - já foi feito na Etapa 1)
+  // Usar tmdbId diretamente para evitar problemas com títulos traduzidos
+  const tmdbMovie = await searchMovie(undefined, undefined, movie.tmdbId || undefined, true); // skipStreaming: true
   const movieData = tmdbMovie?.movie;
 
   if (!movieData) {

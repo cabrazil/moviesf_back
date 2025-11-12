@@ -168,25 +168,6 @@ router.get('/:id/details', async (req, res) => {
       castResult = { rows: [] };
     }
     
-    let quotesResult;
-    try {
-      quotesResult = await pool.query(`
-        SELECT 
-          q.id,
-          q.text,
-          q.author,
-          q.vehicle,
-          q.url
-        FROM "Quote" q
-        WHERE q."movieId" = $1
-        ORDER BY q.id ASC
-      `, [id]);
-      console.log(`✅ Quotes encontrados: ${quotesResult.rows.length}`);
-    } catch (quotesError) {
-      console.error('❌ Erro ao buscar quotes:', quotesError);
-      quotesResult = { rows: [] };
-    }
-    
     let mainTrailerResult;
     try {
       mainTrailerResult = await pool.query(`
@@ -264,14 +245,7 @@ router.get('/:id/details', async (req, res) => {
         oscarAwards: oscarAwards,
         emotionalTags: emotionalTags,
         mainCast: mainCast,
-        mainTrailer: mainTrailer,
-        quotes: quotesResult.rows.map((row: any) => ({
-          id: row.id,
-          text: row.text,
-          author: row.author,
-          vehicle: row.vehicle,
-          url: row.url
-        }))
+        mainTrailer: mainTrailer
       },
       subscriptionPlatforms
     });

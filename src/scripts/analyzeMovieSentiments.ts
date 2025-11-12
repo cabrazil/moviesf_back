@@ -327,8 +327,8 @@ async function main() {
     }
 
     // --- Nova verificação de imdbRating ---
-    if (movie.imdbRating === null || movie.imdbRating.toNumber() < 5.9) {
-      console.log(`❌ Filme "${movie.title}" (IMDb Rating: ${movie.imdbRating || 'N/A'}) não atende ao requisito de rating mínimo (5.9). Processo interrompido.`);
+    if (movie.imdbRating === null || movie.imdbRating.toNumber() < 5.6) {
+      console.log(`❌ Filme "${movie.title}" (IMDb Rating: ${movie.imdbRating || 'N/A'}) não atende ao requisito de rating mínimo (5.6). Processo interrompido.`);
       return;
     }
     // --- Fim da nova verificação ---
@@ -340,7 +340,7 @@ async function main() {
     const journeyOption = await getJourneyOptionFlow(journeyOptionFlowId);
     if (!journeyOption) return;
 
-    const tmdbMovie = await searchMovie(undefined, undefined, movie.tmdbId || undefined);
+    const tmdbMovie = await searchMovie(undefined, undefined, movie.tmdbId || undefined, true); // skipStreaming: true - não precisa verificar streaming na análise de sentimentos
     if (!tmdbMovie) {
       console.log('❌ Filme não encontrado no TMDB');
       return;

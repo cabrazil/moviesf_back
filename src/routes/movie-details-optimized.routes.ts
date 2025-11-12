@@ -78,7 +78,6 @@ router.get('/:id/details', async (req, res) => {
       platformsResult,
       sentimentsResult,
       castResult,
-      quotesResult,
       mainTrailerResult
     ] = await Promise.all([
       // Plataformas de streaming
@@ -140,23 +139,6 @@ router.get('/:id/details', async (req, res) => {
         LIMIT 10
       `, [id]).catch(err => {
         console.error('❌ Erro ao buscar elenco:', err);
-        return { rows: [] };
-      }),
-      
-      // Quotes (limitado)
-      pool.query(`
-        SELECT 
-          q.id,
-          q.text,
-          q.author,
-          q.vehicle,
-          q.url
-        FROM "Quote" q
-        WHERE q."movieId" = $1
-        ORDER BY q.id ASC
-        LIMIT 5
-      `, [id]).catch(err => {
-        console.error('❌ Erro ao buscar quotes:', err);
         return { rows: [] };
       }),
       
@@ -305,14 +287,7 @@ router.get('/:id/details', async (req, res) => {
         oscarAwards: oscarAwards,
         emotionalTags: emotionalTags,
         mainCast: mainCast,
-        mainTrailer: mainTrailer,
-        quotes: quotesResult.rows.map((row: any) => ({
-          id: row.id,
-          text: row.text,
-          author: row.author,
-          vehicle: row.vehicle,
-          url: row.url
-        }))
+        mainTrailer: mainTrailer
       },
       subscriptionPlatforms,
       performance: {

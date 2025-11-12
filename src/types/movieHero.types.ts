@@ -66,11 +66,11 @@ export interface Trailer {
 }
 
 export interface Quote {
-  id: string;
+  id: number; // serial no banco = Int
   text: string;
-  author: string;
-  vehicle: string;
-  url: string;
+  author: string | null; // nullable no banco
+  vehicle: string | null; // nullable no banco
+  url: string | null; // nullable no banco
 }
 
 export interface OscarAward {
@@ -124,7 +124,6 @@ export interface MovieHeroResponse {
     mainCast: CastMember[];
     fullCast: CastMember[];
     mainTrailer: Trailer | null;
-    quotes: Quote[];
     oscarAwards: OscarAwards | null;
     primaryJourney?: {
       journeyOptionFlowId: number;
@@ -146,7 +145,6 @@ export interface MovieQueryResult {
   mainCast: CastMember[];
   fullCast: CastMember[];
   mainTrailer: Trailer | null;
-  quotes: Quote[];
   oscarWins: OscarAward[];
   oscarNominations: OscarAward[];
   similarMovies: SimilarMovie[];

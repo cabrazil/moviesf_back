@@ -133,7 +133,6 @@ export class MovieHeroService {
         mainCast: processedData.mainCast,
         fullCast: processedData.fullCast,
         mainTrailer: processedData.mainTrailer,
-        quotes: processedData.quotes,
         oscarAwards: processedData.oscarAwards,
         primaryJourney: primaryJourney
       },

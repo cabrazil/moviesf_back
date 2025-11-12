@@ -13,12 +13,14 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   // Converter vote_count para número e validar
   let voteCount: number | null = null;
   
-  // Debug: log completo do objeto movie (apenas em desenvolvimento/produção para debug)
-  if (movie.vote_average && !movie.vote_count) {
-    console.warn(`⚠️ [SSR] Filme ${movie.title} (${slug}): vote_average existe (${movie.vote_average}) mas vote_count está ausente ou null/undefined`);
-    console.warn(`   vote_count value:`, movie.vote_count, `typeof:`, typeof movie.vote_count);
-    console.warn(`   movie keys:`, Object.keys(movie));
-  }
+  // Debug: log SEMPRE (Vercel mostra console.log/warn/error)
+  console.log(`🔍 [SSR] Filme ${movie.title} (${slug}):`, {
+    vote_average: movie.vote_average,
+    vote_count_raw: movie.vote_count,
+    vote_count_type: typeof movie.vote_count,
+    vote_count_null: movie.vote_count == null,
+    vote_count_undefined: movie.vote_count === undefined
+  });
   
   if (movie.vote_count != null && movie.vote_count !== undefined) {
     let parsed: number;
@@ -34,9 +36,14 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     // Validar se é um número válido
     if (!isNaN(parsed) && Number.isFinite(parsed) && parsed > 0) {
       voteCount = parsed;
+      console.log(`✅ [SSR] vote_count processado com sucesso: ${voteCount}`);
     } else {
       console.warn(`⚠️ [SSR] Filme ${movie.title}: vote_count inválido após conversão:`, parsed, `(original:`, movie.vote_count, `)`);
     }
+  } else {
+    console.warn(`⚠️ [SSR] Filme ${movie.title} (${slug}): vote_count está null/undefined`);
+    console.warn(`   vote_count value:`, movie.vote_count, `typeof:`, typeof movie.vote_count);
+    console.warn(`   movie keys disponíveis:`, Object.keys(movie).filter(k => k.includes('vote') || k.includes('rating')));
   }
   
   // Gerar meta tags
@@ -153,6 +160,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
       "worstRating": 0,
       "ratingCount": voteCount
     };
+    console.log(`✅ [SSR] aggregateRating incluído para ${movie.title}: ratingCount=${voteCount}`);
   } else {
     // Log para debug quando aggregateRating NÃO é incluído
     if (movie.vote_average) {
@@ -169,9 +177,16 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   const cleanedSchema = removeUndefined(schema);
   
   // Validação final: garantir que aggregateRating tenha ratingCount se existir
-  if (cleanedSchema.aggregateRating && !cleanedSchema.aggregateRating.ratingCount) {
-    console.error(`❌ [SSR] ERRO CRÍTICO: aggregateRating sem ratingCount para ${movie.title}! Removendo aggregateRating.`);
-    delete cleanedSchema.aggregateRating;
+  if (cleanedSchema.aggregateRating) {
+    if (!cleanedSchema.aggregateRating.ratingCount) {
+      console.error(`❌ [SSR] ERRO CRÍTICO: aggregateRating sem ratingCount para ${movie.title}! Removendo aggregateRating.`);
+      console.error(`   Schema antes da remoção:`, JSON.stringify(cleanedSchema.aggregateRating, null, 2));
+      delete cleanedSchema.aggregateRating;
+    } else {
+      console.log(`✅ [SSR] aggregateRating válido para ${movie.title}: ratingCount=${cleanedSchema.aggregateRating.ratingCount}`);
+    }
+  } else {
+    console.log(`ℹ️ [SSR] aggregateRating NÃO incluído para ${movie.title} (normal se não tiver vote_count válido)`);
   }
   
   // Gerar keywords
