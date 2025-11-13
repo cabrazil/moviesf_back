@@ -24,13 +24,30 @@ const app = express();
 
 // Middlewares
 app.use(cors({
-  origin: [
-    'http://localhost:5173',  // Vite dev server
-    'http://localhost:3333',  // Backend local
-    'http://127.0.0.1:5173',  // Vite dev server (alternativo)
-    'https://moviesf-front.vercel.app',  // Frontend produção
-    'https://vibesfilm.vercel.app'       // Frontend produção (alternativo)
-  ],
+  origin: (origin, callback) => {
+    // Permitir requisições sem origin (apps mobile, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Lista de origens permitidas (web e mobile)
+    const allowedOrigins = [
+      'http://localhost:5173',  // Vite dev server
+      'http://localhost:3333',  // Backend local
+      'http://127.0.0.1:5173',  // Vite dev server (alternativo)
+      'http://localhost:8081',  // Expo dev server (React Native)
+      'http://127.0.0.1:8081',  // Expo dev server (alternativo)
+      'https://moviesf-front.vercel.app',  // Frontend produção
+      'https://vibesfilm.vercel.app'       // Frontend produção (alternativo)
+    ];
+    
+    // Permitir origens da lista ou qualquer origem localhost (desenvolvimento mobile)
+    if (allowedOrigins.includes(origin) || origin?.startsWith('http://localhost:') || origin?.startsWith('http://127.0.0.1:')) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Permitir todas as origens para apps mobile em produção
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
