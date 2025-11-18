@@ -467,12 +467,13 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
     console.log(`✅ Reflexão gerada: "${reflection}"`);
 
     // Criar sugestão com relevanceScore incluído
+    // Nota: relevance será calculado automaticamente pela função updateRelevanceRankingForMovie
     const suggestion = await prisma.movieSuggestionFlow.create({
       data: {
         movieId,
         journeyOptionFlowId: optionId,
         reason: reflection,
-        relevance: 5,
+        relevance: 1, // Valor temporário, será recalculado abaixo
         relevanceScore: relevanceScore,
         createdAt: new Date(),
         updatedAt: new Date()

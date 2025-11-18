@@ -117,7 +117,7 @@ router.get('/:id/similar', async (req, res) => {
         SELECT msf."journeyOptionFlowId"
         FROM "MovieSuggestionFlow" msf
         WHERE msf."movieId" = $1
-        ORDER BY msf."relevanceScore" DESC
+          AND msf.relevance = 1
         LIMIT 1
       )
       SELECT DISTINCT

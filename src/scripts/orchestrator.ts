@@ -259,6 +259,17 @@ class MovieCurationOrchestrator {
         return { success: false, error: 'Filme não encontrado no banco de dados após o processo.' };
       }
 
+      // Atualizar ranking de relevance para garantir consistência após todo o processamento
+      // Isso é importante porque múltiplas sugestões podem ter sido criadas/atualizadas
+      try {
+        const { updateRelevanceRankingForMovie } = await import('../utils/relevanceRanking');
+        await updateRelevanceRankingForMovie(createdMovie.id);
+        console.log(`✅ Ranking de relevance atualizado para o filme`);
+      } catch (rankingError) {
+        console.log(`⚠️ Aviso: Falha ao atualizar ranking de relevance: ${rankingError instanceof Error ? rankingError.message : 'Erro desconhecido'}`);
+        // Não falhar o processo inteiro se o ranking falhar
+      }
+
       console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
       // Log da reflexão sobre o filme (reason) da sugestão específica atualizada
       if (createdMovie.movieSuggestionFlows.length > 0) {
