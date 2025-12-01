@@ -3,13 +3,93 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+/**
+ * Função auxiliar para copiar todos os MovieSentiment de um filme
+ */
+async function copyMovieSentiments(movieId: string) {
+  console.log('\n📊 Iniciando cópia de MovieSentiment...');
+  
+  // Buscar todos os MovieSentiment do filme
+  const existingSentiments = await prisma.movieSentiment.findMany({
+    where: {
+      movieId: movieId
+    }
+  });
 
+  if (existingSentiments.length === 0) {
+    console.log('⚠️ Nenhum MovieSentiment encontrado para este filme.');
+    return;
+  }
+
+  console.log(`📋 Encontrados ${existingSentiments.length} registros de MovieSentiment`);
+  
+  let copiedCount = 0;
+  let updatedCount = 0;
+  let errorCount = 0;
+
+  for (const sentiment of existingSentiments) {
+    try {
+      // Verificar se já existe este MovieSentiment
+      const existing = await prisma.movieSentiment.findUnique({
+        where: {
+          movieId_mainSentimentId_subSentimentId: {
+            movieId: sentiment.movieId,
+            mainSentimentId: sentiment.mainSentimentId,
+            subSentimentId: sentiment.subSentimentId
+          }
+        }
+      });
+
+      if (existing) {
+        // Atualizar registro existente
+        await prisma.movieSentiment.update({
+          where: {
+            movieId_mainSentimentId_subSentimentId: {
+              movieId: sentiment.movieId,
+              mainSentimentId: sentiment.mainSentimentId,
+              subSentimentId: sentiment.subSentimentId
+            }
+          },
+          data: {
+            relevance: sentiment.relevance,
+            explanation: sentiment.explanation
+          }
+        });
+        updatedCount++;
+        console.log(`   ↻ Atualizado: MainSentiment ${sentiment.mainSentimentId}, SubSentiment ${sentiment.subSentimentId}`);
+      } else {
+        // Criar novo registro
+        await prisma.movieSentiment.create({
+          data: {
+            movieId: sentiment.movieId,
+            mainSentimentId: sentiment.mainSentimentId,
+            subSentimentId: sentiment.subSentimentId,
+            relevance: sentiment.relevance,
+            explanation: sentiment.explanation
+          }
+        });
+        copiedCount++;
+        console.log(`   ✓ Copiado: MainSentiment ${sentiment.mainSentimentId}, SubSentiment ${sentiment.subSentimentId}`);
+      }
+    } catch (error: any) {
+      errorCount++;
+      console.error(`   ✗ Erro ao copiar MovieSentiment (Main: ${sentiment.mainSentimentId}, Sub: ${sentiment.subSentimentId}):`, error.message);
+    }
+  }
+
+  console.log('\n📊 Resumo da cópia de MovieSentiment:');
+  console.log(`   ✓ Copiados: ${copiedCount}`);
+  console.log(`   ↻ Atualizados: ${updatedCount}`);
+  console.log(`   ✗ Erros: ${errorCount}`);
+  console.log(`   📊 Total processados: ${existingSentiments.length}`);
+}
 
 interface ScriptArgs {
   title: string;
   year: number;
   journeyOptionFlowId: number;
   baseJourneyOptionFlowId?: number; // ID da sugestão base para copiar dados
+  copyMovieSentiments?: boolean; // Se true, copia todos os MovieSentiment do filme
 }
 
 async function duplicateMovieSuggestion(args: ScriptArgs) {
@@ -103,6 +183,12 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
       console.log(`   Reason: ${updatedSuggestion.reason}`);
       console.log(`   Relevance: ${updatedSuggestion.relevance}`);
       console.log(`   RelevanceScore: ${updatedSuggestion.relevanceScore || 'N/A'}`);
+
+      // Copiar MovieSentiment se solicitado (mesmo quando atualiza sugestão existente)
+      if (args.copyMovieSentiments) {
+        await copyMovieSentiments(movie.id);
+      }
+      
       return;
     }
 
@@ -128,6 +214,11 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
     console.log(`   Reason: ${baseSuggestion.reason}`);
     console.log(`   RelevanceScore: ${newSuggestion.relevanceScore?.toFixed(3) || 'N/A'}`);
 
+    // 5. Copiar registros de MovieSentiment se solicitado
+    if (args.copyMovieSentiments) {
+      await copyMovieSentiments(movie.id);
+    }
+
   } catch (error) {
     console.error('❌ Erro:', error);
     process.exit(1);
@@ -150,22 +241,26 @@ function parseArgs(): ScriptArgs {
       parsed.journeyOptionFlowId = parseInt(arg.split('=')[1]);
     } else if (arg.startsWith('--baseJourneyOptionFlowId=')) {
       parsed.baseJourneyOptionFlowId = parseInt(arg.split('=')[1]);
+    } else if (arg === '--copyMovieSentiments' || arg === '--copy-sentiments') {
+      parsed.copyMovieSentiments = true;
     }
   });
 
   // Validação dos parâmetros obrigatórios
   if (!parsed.title || !parsed.year || !parsed.journeyOptionFlowId) {
-    console.log('❌ Uso: npx ts-node src/scripts/duplicateMovieSuggestion.ts --title="Nome do Filme" --year=2023 --journeyOptionFlowId=25 [--baseJourneyOptionFlowId=10]');
+    console.log('❌ Uso: npx ts-node src/scripts/duplicateMovieSuggestion.ts --title="Nome do Filme" --year=2023 --journeyOptionFlowId=25 [--baseJourneyOptionFlowId=10] [--copyMovieSentiments]');
     console.log('📋 Parâmetros obrigatórios:');
     console.log('   --title: Título do filme');
     console.log('   --year: Ano do filme');
     console.log('   --journeyOptionFlowId: ID do journeyOptionFlow (cria nova sugestão ou atualiza existente)');
     console.log('📋 Parâmetros opcionais:');
     console.log('   --baseJourneyOptionFlowId: ID da sugestão base para copiar dados (padrão: sugestão mais recente)');
+    console.log('   --copyMovieSentiments: Copia todos os registros de MovieSentiment do filme');
     console.log('📝 Comportamento:');
     console.log('   - Se não existir sugestão com o journeyOptionFlowId: cria nova sugestão copiando dados da base');
     console.log('   - Se já existir sugestão com o journeyOptionFlowId: atualiza reason, relevance e relevanceScore');
     console.log('   - O relevanceScore é sempre copiado da sugestão base (sem recálculo)');
+    console.log('   - Com --copyMovieSentiments: copia todos os MovieSentiment do filme (atualiza se já existirem)');
     process.exit(1);
   }
 

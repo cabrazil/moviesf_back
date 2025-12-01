@@ -97,6 +97,7 @@ async function getMovieInfo(title: string, year: number, journeyOptionFlowId: nu
       });
 
       // Mapear tags e remover duplicatas mantendo apenas a primeira ocorrência (mais relevante)
+      // Listar TODOS os subsentimentos relacionados à jornada, não apenas os 4 mais relevantes
       const uniqueTagsMap = new Map<string, TagInfo>();
       for (const ms of movieSentiments) {
         const tagName = ms.subSentiment.name;
@@ -107,10 +108,10 @@ async function getMovieInfo(title: string, year: number, journeyOptionFlowId: nu
           });
         }
       }
-      tags = Array.from(uniqueTagsMap.values()).slice(0, 4);
+      tags = Array.from(uniqueTagsMap.values()); // Removido .slice(0, 4) para listar todos
     }
 
-    // Se não encontrou tags relacionadas à jornada, buscar as 4 mais relevantes do filme
+    // Se não encontrou tags relacionadas à jornada, buscar todas as mais relevantes do filme
     if (tags.length === 0) {
       const movieSentiments = await prisma.movieSentiment.findMany({
         where: {
@@ -125,8 +126,8 @@ async function getMovieInfo(title: string, year: number, journeyOptionFlowId: nu
         },
         orderBy: {
           relevance: 'desc'
-        },
-        take: 4
+        }
+        // Removido take: 4 para buscar todos
       });
 
       // Mapear tags e remover duplicatas mantendo apenas a primeira ocorrência (mais relevante)
@@ -140,7 +141,7 @@ async function getMovieInfo(title: string, year: number, journeyOptionFlowId: nu
           });
         }
       }
-      tags = Array.from(uniqueTagsMapFallback.values()).slice(0, 4);
+      tags = Array.from(uniqueTagsMapFallback.values()); // Removido .slice(0, 4) para listar todos
     }
 
     // Remover duplicatas mantendo apenas a primeira ocorrência (mais relevante)
@@ -152,13 +153,8 @@ async function getMovieInfo(title: string, year: number, journeyOptionFlowId: nu
     }
     tags = Array.from(uniqueTags.values());
 
-    // Ordenar tags alfabeticamente pelo nome
-    tags.sort((a, b) => a.name.localeCompare(b.name));
-
-    // Garantir que temos no máximo 4 tags após remover duplicatas
-    if (tags.length > 4) {
-      tags = tags.slice(0, 4);
-    }
+    // Ordenar tags por relevância (descendente) - manter ordem original que já vem ordenada por relevance desc
+    // Não ordenar alfabeticamente para manter a ordem de relevância
 
     // Formatar e exibir a saída (formato copiável/colável)
     console.log(`Título: ${movie.title} (${movie.year || 'N/A'})`);
