@@ -1,4 +1,7 @@
 /// <reference types="node" />
+// Carregar variáveis de ambiente antes de qualquer uso do Prisma
+import './scripts-helper';
+
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';

@@ -1,5 +1,8 @@
 #!/usr/bin/env ts-node
 
+// Carregar variáveis de ambiente antes de qualquer uso do Prisma
+import './scripts-helper';
+
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 

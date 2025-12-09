@@ -9,56 +9,48 @@ datasource db {
   relationMode = "prisma"
 }
 
-
 model Movie {
-  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title                String                @unique @db.VarChar(255)
-  slug                  String?               @unique @db.VarChar(255)  // NOVO CAMPO
-  year                 Int?
-  director             String?               @db.VarChar(255)
-  genres               String[]
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  description          String?
-  thumbnail            String?
-  original_title       String?
-  vote_average         Decimal?              @db.Decimal(3, 1)
-  vote_count           Int?
-  certification        String?               @db.VarChar(255)
-  adult                Boolean?              @default(false)
-  keywords             String[]
-  genreIds             Int[]
-  runtime              Int?
-  tmdbId               Int?                  @unique
-  imdbRating           Decimal? @db.Decimal(3, 1)
-  rottenTomatoesRating Int?
-  metacriticRating     Int?
-  landingPageHook      String?
-  contentWarnings      String?
-  targetAudienceForLP  String?
-  awardsSummary        String?
-  movieSentiments      MovieSentiment[]
-  movieSuggestionFlows MovieSuggestionFlow[]
-  // NOVA RELAÇÃO: Streaming platforms (mantendo campo antigo para migração segura)
-  platforms            MovieStreamingPlatform[]
-  // NOVA RELAÇÃO: Elenco do filme
-  cast                 MovieCast[]
-  // NOVA RELAÇÃO: Trailers do filme
-  trailers             MovieTrailer[]
-  
-  // NOVAS RELAÇÕES: Premiações detalhadas
-  awardNominations     MovieAwardNomination[]
-  awardWins            MovieAwardWin[]
-  personAwardNominations PersonAwardNomination[] @relation("PersonAwardForMovie")
-  personAwardWins      PersonAwardWin[] @relation("PersonAwardForMovieWin")
-  
-  // NOVAS RELAÇÕES: Críticas do filme
-  quotes               Quote[]
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                  String                   @unique @db.VarChar(255)
+  year                   Int?
+  director               String?                  @db.VarChar(255)
+  genres                 String[]
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  description            String?
+  thumbnail              String?
+  original_title         String?
+  vote_average           Decimal?                 @db.Decimal(3, 1)
+  vote_count             Int?
+  certification          String?                  @db.VarChar(255)
+  adult                  Boolean?                 @default(false)
+  keywords               String[]
+  genreIds               Int[]
+  runtime                Int?
+  tmdbId                 Int?                     @unique
+  imdbRating             Decimal?                 @db.Decimal(3, 1)
+  rottenTomatoesRating   Int?
+  metacriticRating       Int?
+  slug                   String?                  @unique @db.VarChar(255)
+  landingPageHook        String?
+  contentWarnings        String?
+  targetAudienceForLP    String?
+  awardsSummary          String?
+  movieSentiments        MovieSentiment[]
+  movieSuggestionFlows   MovieSuggestionFlow[]
+  platforms              MovieStreamingPlatform[]
+  cast                   MovieCast[]
+  trailers               MovieTrailer[]
+  awardNominations       MovieAwardNomination[]
+  awardWins              MovieAwardWin[]
+  personAwardNominations PersonAwardNomination[]  @relation("PersonAwardForMovie")
+  personAwardWins        PersonAwardWin[]         @relation("PersonAwardForMovieWin")
+  quotes                 Quote[]
 
   @@index([title])
-  @@index([year]) // Consultas por ano são frequentes
-  @@index([tmdbId]) // Integração com TMDB
-  @@index([createdAt]) // Ordenação e filtros temporais
+  @@index([year])
+  @@index([tmdbId])
+  @@index([createdAt])
 }
 
 model Genre {
@@ -98,18 +90,18 @@ model MovieSentiment {
   movieId         String        @db.Uuid
   mainSentimentId Int
   subSentimentId  Int
-  relevance       Decimal?      @db.Decimal(5, 3)
-  explanation     String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  relevance       Decimal?      @db.Decimal(5, 3)
+  explanation     String?
   mainSentiment   MainSentiment @relation(fields: [mainSentimentId], references: [id])
   movie           Movie         @relation(fields: [movieId], references: [id])
   subSentiment    SubSentiment  @relation(fields: [subSentimentId], references: [id])
 
   @@id([movieId, mainSentimentId, subSentimentId])
-  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
-  @@index([mainSentimentId]) // ESSENCIAL: relacionamento com MainSentiment
-  @@index([subSentimentId]) // ESSENCIAL: relacionamento com SubSentiment
+  @@index([movieId])
+  @@index([mainSentimentId])
+  @@index([subSentimentId])
 }
 
 model JourneyFlow {
@@ -133,8 +125,8 @@ model JourneyStepFlow {
   journeyFlow                    JourneyFlow                     @relation(fields: [journeyFlowId], references: [id])
   emotionalIntentionJourneySteps EmotionalIntentionJourneyStep[]
 
-  @@index([journeyFlowId]) // ESSENCIAL: relacionamento
-  @@index([order]) // ESSENCIAL: ordenação dos passos
+  @@index([journeyFlowId])
+  @@index([order])
 }
 
 model JourneyOptionFlow {
@@ -144,14 +136,14 @@ model JourneyOptionFlow {
   text              String
   nextStepId        String?               @db.VarChar(255)
   isEndState        Boolean               @default(false)
-  displayTitle      String?
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
+  displayTitle      String?
   journeyStepFlow   JourneyStepFlow       @relation(fields: [journeyStepFlowId], references: [id])
   movieSuggestions  MovieSuggestionFlow[]
 
-  @@index([journeyStepFlowId]) // ESSENCIAL: relacionamento
-  @@index([nextStepId]) // ESSENCIAL: navegação entre opções
+  @@index([journeyStepFlowId])
+  @@index([nextStepId])
 }
 
 model MovieSuggestionFlow {
@@ -160,15 +152,15 @@ model MovieSuggestionFlow {
   movieId             String            @db.Uuid
   reason              String
   relevance           Int               @default(1)
-  relevanceScore      Decimal?          @db.Decimal(5, 3) // Score de relevância baseado na soma dos subsentimentos
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
+  relevanceScore      Decimal?          @db.Decimal(5, 3)
   journeyOptionFlow   JourneyOptionFlow @relation(fields: [journeyOptionFlowId], references: [id])
   movie               Movie             @relation(fields: [movieId], references: [id])
 
-  @@index([journeyOptionFlowId]) // ESSENCIAL: relacionamento
-  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
-  @@index([relevanceScore]) // ESSENCIAL: ordenação por relevância
+  @@index([journeyOptionFlowId])
+  @@index([movieId])
+  @@index([relevanceScore])
 }
 
 model GenreSubSentiment {
@@ -209,8 +201,8 @@ model EmotionalIntention {
   emotionalIntentionJourneySteps EmotionalIntentionJourneyStep[]
 
   @@unique([mainSentimentId, intentionType])
-  @@index([mainSentimentId]) // ESSENCIAL: relacionamento
-  @@index([intentionType]) // ESSENCIAL: filtros por tipo
+  @@index([mainSentimentId])
+  @@index([intentionType])
 }
 
 model EmotionalIntentionJourneyStep {
@@ -227,9 +219,205 @@ model EmotionalIntentionJourneyStep {
   journeyStepFlow      JourneyStepFlow    @relation(fields: [journeyStepFlowId], references: [id])
 
   @@unique([emotionalIntentionId, journeyStepFlowId])
-  @@index([emotionalIntentionId]) // ESSENCIAL: relacionamento
-  @@index([journeyStepFlowId]) // ESSENCIAL: relacionamento
-  @@index([priority]) // ESSENCIAL: ordenação por prioridade
+  @@index([emotionalIntentionId])
+  @@index([journeyStepFlowId])
+  @@index([priority])
+}
+
+model StreamingPlatform {
+  id                Int                      @id @default(autoincrement())
+  name              String                   @unique @db.VarChar(255)
+  category          PlatformCategory
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @default(now())
+  logoPath          String?                  @db.VarChar(500)
+  baseUrl           String?                  @db.VarChar(500)
+  hasFreeTrial      Boolean                  @default(false)
+  freeTrialDuration String?                  @db.VarChar(100)
+  showFilter        ShowFilterType           @default(SECONDARY)
+  movies            MovieStreamingPlatform[]
+
+  @@index([category])
+  @@index([showFilter])
+}
+
+model MovieStreamingPlatform {
+  movieId             String            @db.Uuid
+  streamingPlatformId Int
+  accessType          AccessType
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @default(now())
+  movie               Movie             @relation(fields: [movieId], references: [id])
+  streamingPlatform   StreamingPlatform @relation(fields: [streamingPlatformId], references: [id])
+
+  @@id([movieId, streamingPlatformId, accessType])
+  @@index([movieId])
+  @@index([streamingPlatformId])
+}
+
+model Actor {
+  id               String                  @id @default(uuid()) @db.Uuid
+  tmdbId           Int                     @unique
+  name             String
+  profilePath      String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @default(now())
+  movies           MovieCast[]
+  awardNominations PersonAwardNomination[]
+  awardWins        PersonAwardWin[]
+
+  @@index([tmdbId])
+  @@index([name])
+  @@map("Actor")
+}
+
+model MovieCast {
+  id            String   @id @default(uuid()) @db.Uuid
+  movieId       String   @db.Uuid
+  actorId       String   @db.Uuid
+  characterName String?
+  order         Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+  movie         Movie    @relation(fields: [movieId], references: [id])
+  actor         Actor    @relation(fields: [actorId], references: [id])
+
+  @@unique([movieId, actorId])
+  @@index([movieId])
+  @@index([actorId])
+  @@map("MovieCast")
+}
+
+model MovieTrailer {
+  id        String   @id @default(uuid()) @db.Uuid
+  movieId   String   @db.Uuid
+  tmdbId    String?
+  key       String
+  name      String?
+  site      String
+  type      String
+  language  String?
+  isMain    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  movie     Movie    @relation(fields: [movieId], references: [id])
+
+  @@unique([movieId, key])
+  @@index([movieId])
+  @@index([tmdbId])
+  @@map("MovieTrailer")
+}
+
+model Award {
+  id                String                  @id @default(uuid()) @db.Uuid
+  name              String                  @unique
+  category          String?
+  url               String?
+  nominations       MovieAwardNomination[]
+  wins              MovieAwardWin[]
+  personNominations PersonAwardNomination[]
+  personWins        PersonAwardWin[]
+  categories        AwardCategory[]
+
+  @@map("Award")
+}
+
+model AwardCategory {
+  id                String                  @id @default(uuid()) @db.Uuid
+  awardId           String                  @db.Uuid
+  name              String
+  award             Award                   @relation(fields: [awardId], references: [id])
+  movieNominations  MovieAwardNomination[]
+  movieWins         MovieAwardWin[]
+  personNominations PersonAwardNomination[]
+  personWins        PersonAwardWin[]
+
+  @@unique([awardId, name])
+  @@map("AwardCategory")
+}
+
+model MovieAwardNomination {
+  id              String        @id @default(uuid()) @db.Uuid
+  movieId         String        @db.Uuid
+  awardId         String        @db.Uuid
+  awardCategoryId String        @db.Uuid
+  year            Int
+  movie           Movie         @relation(fields: [movieId], references: [id])
+  award           Award         @relation(fields: [awardId], references: [id])
+  awardCategory   AwardCategory @relation(fields: [awardCategoryId], references: [id])
+
+  @@unique([movieId, awardId, awardCategoryId, year])
+  @@index([movieId])
+  @@index([year])
+  @@map("MovieAwardNomination")
+}
+
+model MovieAwardWin {
+  id              String        @id @default(uuid()) @db.Uuid
+  movieId         String        @db.Uuid
+  awardId         String        @db.Uuid
+  awardCategoryId String        @db.Uuid
+  year            Int
+  movie           Movie         @relation(fields: [movieId], references: [id])
+  award           Award         @relation(fields: [awardId], references: [id])
+  awardCategory   AwardCategory @relation(fields: [awardCategoryId], references: [id])
+
+  @@unique([movieId, awardId, awardCategoryId, year])
+  @@index([movieId])
+  @@index([year])
+  @@map("MovieAwardWin")
+}
+
+model PersonAwardNomination {
+  id              String        @id @default(uuid()) @db.Uuid
+  personId        String        @db.Uuid
+  awardId         String        @db.Uuid
+  awardCategoryId String        @db.Uuid
+  year            Int
+  forMovieId      String?       @db.Uuid
+  person          Actor         @relation(fields: [personId], references: [id])
+  award           Award         @relation(fields: [awardId], references: [id])
+  awardCategory   AwardCategory @relation(fields: [awardCategoryId], references: [id])
+  forMovie        Movie?        @relation("PersonAwardForMovie", fields: [forMovieId], references: [id])
+
+  @@unique([personId, awardId, awardCategoryId, year])
+  @@index([personId])
+  @@index([forMovieId])
+  @@index([year])
+  @@map("PersonAwardNomination")
+}
+
+model PersonAwardWin {
+  id              String        @id @default(uuid()) @db.Uuid
+  personId        String        @db.Uuid
+  awardId         String        @db.Uuid
+  awardCategoryId String        @db.Uuid
+  year            Int
+  forMovieId      String?       @db.Uuid
+  person          Actor         @relation(fields: [personId], references: [id])
+  award           Award         @relation(fields: [awardId], references: [id])
+  awardCategory   AwardCategory @relation(fields: [awardCategoryId], references: [id])
+  forMovie        Movie?        @relation("PersonAwardForMovieWin", fields: [forMovieId], references: [id])
+
+  @@unique([personId, awardId, awardCategoryId, year])
+  @@index([personId])
+  @@index([forMovieId])
+  @@index([year])
+  @@map("PersonAwardWin")
+}
+
+model Quote {
+  id      Int     @id @default(autoincrement())
+  movieId String  @db.Uuid
+  text    String
+  author  String?
+  vehicle String?
+  url     String? @db.VarChar(500)
+  movie   Movie   @relation(fields: [movieId], references: [id])
+
+  @@index([movieId])
+  @@index([author])
+  @@map("Quote")
 }
 
 enum IntentionType {
@@ -239,297 +427,24 @@ enum IntentionType {
   EXPLORE
 }
 
-// ===============================================
-// NOVAS ESTRUTURAS PARA STREAMING PLATFORMS
-// ===============================================
-
-// Enum para os tipos de serviço de acesso a um filme em uma plataforma
 enum AccessType {
-  INCLUDED_WITH_SUBSCRIPTION // Incluído na assinatura (ex: Netflix, Prime Video com Prime)
-  RENTAL                    // Apenas para aluguel
-  PURCHASE                  // Apenas para compra
-  FREE_WITH_ADS             // Gratuito com anúncios (ex: YouTube, Pluto TV)
-  HYBRID_OR_UNKNOWN         // Quando não sabemos o tipo exato ou plataforma oferece múltiplos tipos
-  OTHER                     // Outros modelos de acesso
+  INCLUDED_WITH_SUBSCRIPTION
+  RENTAL
+  PURCHASE
+  FREE_WITH_ADS
+  OTHER
+  HYBRID_OR_UNKNOWN
 }
 
-// Enum para a categoria principal da plataforma (para filtros de alto nível na UI)
 enum PlatformCategory {
-  SUBSCRIPTION_PRIMARY      // Plataformas primariamente de assinatura (Netflix, HBO Max)
-  RENTAL_PURCHASE_PRIMARY   // Plataformas primariamente de aluguel/compra (Google Play Filmes, Apple TV Loja)
-  FREE_PRIMARY              // Plataformas primariamente gratuitas (Pluto TV, YouTube Free)
-  HYBRID                    // Plataformas que oferecem múltiplos modelos como principal (Amazon Prime Video)
+  SUBSCRIPTION_PRIMARY
+  RENTAL_PURCHASE_PRIMARY
+  FREE_PRIMARY
+  HYBRID
 }
 
-// Enum para controlar visibilidade da plataforma no filtro de seleção do usuário
 enum ShowFilterType {
-  PRIORITY      // Plataformas principais (exibidas primeiro - top 9)
-  SECONDARY     // Outras plataformas (exibidas após expandir)
-  HIDDEN        // Não exibir no filtro (ex: plataformas sem conteúdo ou descontinuadas)
-}
-
-// Nova Model para Plataformas de Streaming (a plataforma em si)
-model StreamingPlatform {
-  id                Int              @id @default(autoincrement())
-  name              String           @unique @db.VarChar(255) // Ex: "Netflix", "Amazon Prime Video", "Apple TV (Loja)", "Apple TV+"
-  category          PlatformCategory // Categoria principal da plataforma (para filtros de alto nível)
-  showFilter        ShowFilterType   @default(SECONDARY) // Visibilidade no filtro de seleção do usuário
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @default(now())
-  baseUrl           String?          @db.VarChar(500) // URL base da plataforma para redirecionamento
-  hasFreeTrial      Boolean          @default(false) // Se a plataforma oferece teste grátis
-  freeTrialDuration String?          @db.VarChar(100) // Duração do teste grátis (ex: '7 dias', '30 dias', '1 mês')
-  logoPath          String?          @db.VarChar(500) // URL da imagem da plataforma (local ou externa)
-  
-  
-  // Relação muitos-para-muitos com filmes, através da tabela de junção
-  movies    MovieStreamingPlatform[]
-
-  // Tabela pequena, apenas índices essenciais
-  @@index([category]) // ESSENCIAL: filtros por categoria
-  @@index([showFilter]) // ESSENCIAL: filtros por visibilidade
-}
-
-// Tabela de Junção para a relação muitos-para-muitos entre Movie e StreamingPlatform
-// Crucial: Agora inclui o tipo de acesso para aquele filme específico naquela plataforma
-model MovieStreamingPlatform {
-  movieId             String           @db.Uuid
-  streamingPlatformId Int
-  accessType          AccessType       // O TIPO DE ACESSO para ESTE filme NESTA plataforma
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @default(now())
-  movie               Movie            @relation(fields: [movieId], references: [id])
-  streamingPlatform   StreamingPlatform @relation(fields: [streamingPlatformId], references: [id])
-
-  // Chave composta para permitir que o mesmo filme esteja na mesma plataforma com diferentes tipos de acesso
-  @@id([movieId, streamingPlatformId, accessType])
-  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
-  @@index([streamingPlatformId]) // ESSENCIAL: relacionamento com StreamingPlatform
-}
-
-// ===============================================
-// ESTRUTURAS PARA ELENCO (CAST)
-// ===============================================
-
-// Tabela para armazenar informações dos atores
-model Actor {
-  id           String      @id @default(uuid()) @db.Uuid // ID interno do seu sistema
-  tmdbId       Int         @unique // ID do ator no TMDB (para referência externa)
-  name         String      // Nome completo do ator
-  profilePath  String?     // Caminho para a imagem do perfil do ator no TMDB (ex: /path/to/image.jpg)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @default(now())
-
-  // Relação com a tabela MovieCast (para os filmes em que atuou)
-  movies       MovieCast[]
-  
-  // NOVAS RELAÇÕES: Premiações de pessoas
-  awardNominations PersonAwardNomination[]
-  awardWins        PersonAwardWin[]
-
-  @@map("Actor") // Nome da tabela no banco
-  @@index([tmdbId]) // ESSENCIAL: integração com TMDB
-  @@index([name]) // ESSENCIAL: busca por nome de ator
-}
-
-// Tabela de associação entre Filmes e Atores (Elenco)
-model MovieCast {
-  id           String    @id @default(uuid()) @db.Uuid // ID interno
-  movieId      String    @db.Uuid // ID do filme
-  actorId      String    @db.Uuid // ID do ator
-  characterName String?   // Nome do personagem que o ator interpretou
-  order        Int       // Ordem de aparição no elenco (para pegar os principais)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @default(now())
-
-  // Relações
-  movie        Movie     @relation(fields: [movieId], references: [id])
-  actor        Actor     @relation(fields: [actorId], references: [id])
-
-  @@unique([movieId, actorId]) // Um ator só atua uma vez em um filme (para um mesmo personagem)
-  @@map("MovieCast") // Nome da tabela no banco
-  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
-  @@index([actorId]) // ESSENCIAL: relacionamento com Actor
-}
-
-// ===============================================
-// ESTRUTURAS PARA TRAILERS
-// ===============================================
-
-// Tabela para armazenar informações dos trailers de filmes
-model MovieTrailer {
-  id          String    @id @default(uuid()) @db.Uuid // ID interno do seu sistema
-  movieId     String    @db.Uuid // ID do filme ao qual o trailer pertence
-  tmdbId      String?   // ID do vídeo no TMDB (se for relevante para referência)
-  key         String    // A chave do vídeo (ex: ID do YouTube)
-  name        String?   // Nome/título do trailer (ex: "Official Trailer", "Teaser")
-  site        String    // Plataforma de hospedagem (ex: "YouTube")
-  type        String    // Tipo do vídeo (ex: "Trailer", "Teaser", "Clip")
-  language    String?   // Idioma do trailer (ex: "en", "pt") - Este campo é CRUCIAL
-  isMain      Boolean   @default(false) // Flag para indicar se é o trailer principal a ser exibido
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
-
-  // Relação com a tabela Movie
-  movie       Movie     @relation(fields: [movieId], references: [id])
-
-  @@unique([movieId, key]) // Um trailer só pode ser associado uma vez a um filme
-  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
-  @@map("MovieTrailer") // Nome da tabela no banco
-  @@index([tmdbId]) // ESSENCIAL: integração com TMDB
-}
-
-// ===============================================
-// ESTRUTURAS PARA PREMIAÇÕES DETALHADAS
-// ===============================================
-
-model Award {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String   @unique // Ex: "Oscar", "Golden Globe Awards"
-  category  String?  // Ex: "Cinema", "Television" (se o prêmio abrange mais de uma mídia)
-  url       String?  // Link oficial do prêmio
-
-  // Relações
-  nominations MovieAwardNomination[]
-  wins        MovieAwardWin[]
-  personNominations PersonAwardNomination[]
-  personWins        PersonAwardWin[]
-  categories  AwardCategory[]
-
-  @@map("Award")
-  // Tabela pequena, sem índices desnecessários
-}
-
-model AwardCategory {
-  id        String   @id @default(uuid()) @db.Uuid
-  awardId   String   @db.Uuid
-  name      String   // Ex: "Melhor Filme", "Melhor Ator", "Melhor Roteiro Original"
-
-  // Relações
-  award     Award    @relation(fields: [awardId], references: [id])
-  movieNominations MovieAwardNomination[]
-  movieWins        MovieAwardWin[]
-  personNominations PersonAwardNomination[]
-  personWins        PersonAwardWin[]
-
-  @@unique([awardId, name]) // Uma categoria é única dentro de um prêmio
-  @@map("AwardCategory")
-  // Tabela pequena, sem índices desnecessários
-}
-
-// Para Indicações de Filmes
-model MovieAwardNomination {
-  id               String        @id @default(uuid()) @db.Uuid
-  movieId          String        @db.Uuid
-  awardId          String        @db.Uuid
-  awardCategoryId  String        @db.Uuid
-  year             Int           // Ano da cerimônia/indicação
-
-  // Relações
-  movie            Movie         @relation(fields: [movieId], references: [id])
-  award            Award         @relation(fields: [awardId], references: [id])
-  awardCategory    AwardCategory @relation(fields: [awardCategoryId], references: [id])
-
-  @@unique([movieId, awardId, awardCategoryId, year]) // Um filme só pode ser indicado uma vez em uma categoria por ano
-  @@map("MovieAwardNomination")
-  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
-  @@index([year]) // ESSENCIAL: consultas por ano
-}
-
-// Para Vitórias de Filmes
-model MovieAwardWin {
-  id               String        @id @default(uuid()) @db.Uuid
-  movieId          String        @db.Uuid
-  awardId          String        @db.Uuid
-  awardCategoryId  String        @db.Uuid
-  year             Int           // Ano da cerimônia/vitória
-
-  // Relações
-  movie            Movie         @relation(fields: [movieId], references: [id])
-  award            Award         @relation(fields: [awardId], references: [id])
-  awardCategory    AwardCategory @relation(fields: [awardCategoryId], references: [id])
-
-  @@unique([movieId, awardId, awardCategoryId, year]) // Um filme só pode ganhar uma vez em uma categoria por ano
-  @@map("MovieAwardWin")
-  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
-  @@index([year]) // ESSENCIAL: consultas por ano
-}
-
-// Para Indicações de Pessoas (Atores, Diretores, etc.)
-model PersonAwardNomination {
-  id               String        @id @default(uuid()) @db.Uuid
-  personId         String        @db.Uuid // Pode ser actorId, directorId, etc.
-  awardId          String        @db.Uuid
-  awardCategoryId  String        @db.Uuid
-  year             Int           // Ano da cerimônia/indicação
-  forMovieId       String?       @db.Uuid // Opcional: para qual filme a pessoa foi indicada
-
-  // Relações
-  person           Actor         @relation(fields: [personId], references: [id])
-  award            Award         @relation(fields: [awardId], references: [id])
-  awardCategory    AwardCategory @relation(fields: [awardCategoryId], references: [id])
-  forMovie         Movie?        @relation("PersonAwardForMovie", fields: [forMovieId], references: [id])
-
-  @@unique([personId, awardId, awardCategoryId, year])
-  @@map("PersonAwardNomination")
-  @@index([personId]) // ESSENCIAL: relacionamento com Actor
-  @@index([forMovieId]) // ESSENCIAL: relacionamento com Movie
-  @@index([year]) // ESSENCIAL: consultas por ano
-}
-
-// Para Vitórias de Pessoas
-model PersonAwardWin {
-  id               String        @id @default(uuid()) @db.Uuid
-  personId         String        @db.Uuid
-  awardId          String        @db.Uuid
-  awardCategoryId  String        @db.Uuid
-  year             Int           // Ano da cerimônia/vitória
-  forMovieId       String?       @db.Uuid // Opcional: para qual filme a pessoa ganhou
-
-  // Relações
-  person           Actor         @relation(fields: [personId], references: [id])
-  award            Award         @relation(fields: [awardId], references: [id])
-  awardCategory    AwardCategory @relation(fields: [awardCategoryId], references: [id])
-  forMovie         Movie?        @relation("PersonAwardForMovieWin", fields: [forMovieId], references: [id])
-
-  @@unique([personId, awardId, awardCategoryId, year])
-  @@map("PersonAwardWin")
-  @@index([personId]) // ESSENCIAL: relacionamento com Actor
-  @@index([forMovieId]) // ESSENCIAL: relacionamento com Movie
-  @@index([year]) // ESSENCIAL: consultas por ano
-}
-
-// Para críticas do filme
-model Quote { 
-  id               Int        @id @default(autoincrement())
-  movieId          String        @db.Uuid
-  text             String
-  author           String?
-  vehicle          String?
-  url              String?        @db.VarChar(500) // URL do veículo que citou a crítica
-  movie            Movie         @relation(fields: [movieId], references: [id])
-
-  @@map("Quote")
-  @@index([movieId]) // ESSENCIAL: relacionamento com Movie
-  @@index([author]) // ESSENCIAL: busca por autor
-}
-
-// Newsletter - Assinantes (Banco do Blog)
-// NOTA: Esta tabela está fisicamente no banco do Blog (BLOG_DATABASE_URL)
-// Mas o modelo precisa estar aqui para o Prisma Client gerar os tipos TypeScript
-model NewsletterSubscription {
-  id            String    @id @default(uuid()) @db.Uuid
-  email         String    @unique @db.VarChar(255)
-  subscribedAt  DateTime  @default(now())
-  isActive      Boolean   @default(true)
-  ipAddress     String?   @db.VarChar(45)
-  userAgent     String?   @db.Text
-  source        String?   @db.VarChar(50)
-  emailSent     Boolean   @default(false)
-  unsubscribedAt DateTime?
-
-  @@map("NewsletterSubscription")
-  @@index([email])
-  @@index([isActive])
-  @@index([subscribedAt])
+  PRIORITY
+  SECONDARY
+  HIDDEN
 }

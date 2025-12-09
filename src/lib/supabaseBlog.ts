@@ -4,12 +4,27 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseBlogUrl = process.env.SUPABASE_BLOG_URL;
 const supabaseBlogKey = process.env.SUPABASE_BLOG_SERVICE_KEY;
 
-if (!supabaseBlogUrl || !supabaseBlogKey) {
-  throw new Error('Variáveis de ambiente do Supabase Blog não configuradas');
+// Criar cliente apenas se variáveis estiverem configuradas
+// Se não estiverem, criar cliente dummy (para compatibilidade durante migração)
+let supabaseBlog: any;
+
+if (supabaseBlogUrl && supabaseBlogKey) {
+  supabaseBlog = createClient(supabaseBlogUrl, supabaseBlogKey);
+} else {
+  // Cliente dummy para evitar erros durante migração para VPS
+  // O código deve usar Prisma ao invés de Supabase
+  console.warn('⚠️ SUPABASE_BLOG_URL e SUPABASE_BLOG_SERVICE_KEY não configurados. Usando Prisma para acesso ao blog.');
+  supabaseBlog = {
+    from: () => ({
+      select: () => ({ eq: () => ({ data: null, error: { message: 'Use Prisma ao invés de Supabase' } }) }),
+      update: () => ({ eq: () => ({ data: null, error: { message: 'Use Prisma ao invés de Supabase' } }) }),
+      insert: () => ({ data: null, error: { message: 'Use Prisma ao invés de Supabase' } }),
+    }),
+  };
 }
 
 // Cliente Supabase para o Blog
-export const supabaseBlog = createClient(supabaseBlogUrl, supabaseBlogKey);
+export { supabaseBlog };
 
 // Tipos TypeScript baseados no schema do blog
 export interface BlogPost {

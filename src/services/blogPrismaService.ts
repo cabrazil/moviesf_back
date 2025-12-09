@@ -2,6 +2,11 @@ import { prismaBlog } from '../prisma';
 import { supabaseBlog } from '../lib/supabaseBlog';
 import { BlogPost, BlogCategory, BlogAuthor, BlogTag, BlogComment } from '../types/blog';
 
+// Verificar se Supabase está configurado (para compatibilidade durante migração)
+const isSupabaseConfigured = () => {
+  return process.env.SUPABASE_BLOG_URL && process.env.SUPABASE_BLOG_SERVICE_KEY;
+};
+
 // Usa a instância singleton do Prisma Client para o blog
 const blogPrisma = prismaBlog;
 
@@ -224,42 +229,36 @@ export class BlogPrismaService {
    */
   async getTags() {
     try {
-      const { data: tags, error } = await supabaseBlog
-        .from('Tag')
-        .select(`
-          id,
-          name,
-          slug,
-          color,
-          blogId,
-          createdAt,
-          updatedAt
-        `)
-        .eq('blogId', this.BLOG_ID)
-        .order('name', { ascending: true });
+      // Usar SQL raw (Prisma Client do blog não tem schema gerado)
+      const query = `
+        SELECT 
+          t.id,
+          t.name,
+          t.slug,
+          t.color,
+          t."blogId",
+          t."createdAt",
+          t."updatedAt",
+          COUNT(DISTINCT att."A") as "articleCount"
+        FROM "Tag" t
+        LEFT JOIN "_ArticleToTag" att ON t.id = att."B"
+        LEFT JOIN "Article" a ON att."A" = a.id AND a.published = true AND a."blogId" = ${this.BLOG_ID}
+        WHERE t."blogId" = ${this.BLOG_ID}
+        GROUP BY t.id, t.name, t.slug, t.color, t."blogId", t."createdAt", t."updatedAt"
+        ORDER BY t.name ASC
+      `;
 
-      if (error) {
-        throw error;
-      }
+      const tags = await blogPrisma.$queryRawUnsafe(query);
 
-      // Buscar contagem de artigos para cada tag
-      const tagsWithCount = await Promise.all(
-        (tags || []).map(async (tag) => {
-          const { count } = await supabaseBlog
-            .from('_ArticleToTag')
-            .select('*', { count: 'exact', head: true })
-            .eq('B', tag.id);
-
-          return {
-            ...tag,
-            articleCount: count || 0
-          };
-        })
-      );
+      // Converter BigInt para Number (PostgreSQL retorna BigInt para COUNT)
+      const tagsFormatted = (tags as any[]).map(tag => ({
+        ...tag,
+        articleCount: tag.articleCount ? Number(tag.articleCount) : 0
+      }));
 
       return {
         success: true,
-        data: tagsWithCount
+        data: tagsFormatted
       };
     } catch (error: any) {
       console.error('Erro ao buscar tags:', error);
@@ -432,37 +431,42 @@ export class BlogPrismaService {
    */
   async getPostComments(articleId: number) {
     try {
-      const { data: comments, error } = await supabaseBlog
-        .from('Comment')
-        .select(`
-          id,
-          content,
-          createdAt,
-          updatedAt,
-          articleId,
-          authorId,
-          userId,
-          approved,
-          parentId,
-          ipAddress,
-          aiGenerated,
-          aiModel,
-          blogId,
-          Author(id, name, image),
-          User(id, name, email)
-        `)
-        .eq('articleId', articleId)
-        .eq('blogId', this.BLOG_ID)
-        .eq('approved', true)
-        .order('createdAt', { ascending: true });
+      // Usar SQL raw (Prisma Client do blog não tem schema gerado)
+      const query = `
+        SELECT 
+          c.id,
+          c.content,
+          c."createdAt",
+          c."updatedAt",
+          c."articleId",
+          c."authorId",
+          c."userId",
+          c.approved,
+          c."parentId",
+          c."ipAddress",
+          c."aiGenerated",
+          c."aiModel",
+          c."blogId",
+          au.id as "author_id",
+          au.name as "author_name",
+          au."imageUrl" as "author_image",
+          u.id as "user_id",
+          u.name as "user_name",
+          u.email as "user_email"
+        FROM "Comment" c
+        LEFT JOIN "Author" au ON c."authorId" = au.id
+        LEFT JOIN "User" u ON c."userId" = u.id
+        WHERE c."articleId" = ${articleId}
+          AND c."blogId" = ${this.BLOG_ID}
+          AND c.approved = true
+        ORDER BY c."createdAt" ASC
+      `;
 
-      if (error) {
-        throw error;
-      }
+      const comments = await blogPrisma.$queryRawUnsafe(query);
 
       return {
         success: true,
-        data: comments || []
+        data: comments
       };
     } catch (error: any) {
       console.error('Erro ao buscar comentários:', error);

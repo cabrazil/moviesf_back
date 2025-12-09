@@ -1,3 +1,6 @@
+// Carregar variáveis de ambiente antes de qualquer uso do Prisma
+import './scripts-helper';
+
 import { PrismaClient, SubSentiment } from '@prisma/client';
 import { searchMovie } from './populateMovies';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';

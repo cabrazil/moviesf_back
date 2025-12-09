@@ -1,12 +1,12 @@
 import { Pool } from 'pg';
+import { getSSLConfig } from './ssl-config';
 
-// Criar pool de conexões otimizado para Supabase
+// Criar pool de conexões otimizado
+const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 const pool = new Pool({
-  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  },
-  // Configurações otimizadas para Supabase
+  connectionString: connectionString,
+  ssl: getSSLConfig(connectionString),
+  // Configurações otimizadas
   max: 10,           // Máximo 10 conexões simultâneas
   min: 2,            // Mínimo 2 conexões
   idleTimeoutMillis: 30000,  // 30 segundos

@@ -1,7 +1,8 @@
-import * as dotenv from 'dotenv';
+import { loadEnvironment, validateEnvironment } from '../src/config/env-loader';
 
-// Carregar variáveis de ambiente do .env
-dotenv.config();
+// Carregar variáveis de ambiente na ordem correta
+loadEnvironment();
+validateEnvironment();
 
 import express from 'express';
 import cors from 'cors';

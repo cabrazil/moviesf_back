@@ -20,21 +20,63 @@ const prisma = new PrismaClient();
  */
 export async function updateRelevanceRankingForMovie(movieId: string): Promise<boolean> {
   try {
-    console.log(`🔄 Atualizando ranking de relevance para filme: ${movieId}`);
+    console.log(`\n🔄 === INICIANDO ATUALIZAÇÃO DE RANKING DE RELEVANCE ===`);
+    console.log(`📋 MovieId: ${movieId}`);
 
-    // Buscar todas as sugestões do filme ordenadas por relevanceScore DESC
-    const suggestions = await prisma.movieSuggestionFlow.findMany({
+    // Buscar todas as sugestões do filme
+    // Vamos ordenar manualmente para garantir que NULLs fiquem no final
+    const allSuggestions = await prisma.movieSuggestionFlow.findMany({
       where: {
         movieId: movieId
       },
-      orderBy: [
-        { relevanceScore: 'desc' },
-        { id: 'asc' } // Critério de desempate: menor ID primeiro
-      ],
       select: {
         id: true,
-        relevanceScore: true
+        relevanceScore: true,
+        journeyOptionFlowId: true
       }
+    });
+
+    // Converter relevanceScore para número (Prisma Decimal precisa ser convertido)
+    const suggestionsWithNumericScore = allSuggestions.map(s => {
+      let numericScore: number | null = null;
+      if (s.relevanceScore !== null && s.relevanceScore !== undefined) {
+        // Prisma Decimal pode ser convertido usando .toNumber() ou Number()
+        if (typeof s.relevanceScore === 'object' && 'toNumber' in s.relevanceScore) {
+          numericScore = (s.relevanceScore as any).toNumber();
+        } else {
+          numericScore = Number(s.relevanceScore);
+        }
+        // Validar se a conversão resultou em um número válido
+        if (numericScore !== null && isNaN(numericScore)) {
+          numericScore = null;
+        }
+      }
+      return {
+        ...s,
+        relevanceScoreNumeric: numericScore
+      };
+    });
+
+    // Ordenar manualmente: primeiro por relevanceScore DESC (NULLs no final), depois por ID ASC
+    const suggestions = suggestionsWithNumericScore.sort((a, b) => {
+      // Se ambos têm score, ordenar por score DESC
+      if (a.relevanceScoreNumeric !== null && b.relevanceScoreNumeric !== null) {
+        if (b.relevanceScoreNumeric !== a.relevanceScoreNumeric) {
+          return b.relevanceScoreNumeric - a.relevanceScoreNumeric;
+        }
+        // Desempate por ID ASC (id é string)
+        return String(a.id).localeCompare(String(b.id));
+      }
+      // Se apenas a tem score, a vem primeiro
+      if (a.relevanceScoreNumeric !== null && b.relevanceScoreNumeric === null) {
+        return -1;
+      }
+      // Se apenas b tem score, b vem primeiro
+      if (a.relevanceScoreNumeric === null && b.relevanceScoreNumeric !== null) {
+        return 1;
+      }
+      // Se ambos são NULL, ordenar por ID ASC (id é string)
+      return String(a.id).localeCompare(String(b.id));
     });
 
     if (suggestions.length === 0) {
@@ -42,9 +84,54 @@ export async function updateRelevanceRankingForMovie(movieId: string): Promise<b
       return false;
     }
 
-    // Atualizar cada sugestão com o novo ranking
-    const updatePromises = suggestions.map((suggestion, index) => {
-      const newRelevance = index + 1; // relevance = 1, 2, 3...
+    // Filtrar apenas sugestões com relevanceScore válido (não NULL)
+    const suggestionsWithScore = suggestions.filter(s => s.relevanceScoreNumeric !== null && s.relevanceScoreNumeric !== undefined);
+    
+    console.log(`📊 Total de sugestões encontradas: ${suggestions.length}`);
+    console.log(`📊 Sugestões com score válido: ${suggestionsWithScore.length}`);
+    
+    if (suggestionsWithScore.length === 0) {
+      console.log(`⚠️ Nenhuma sugestão com relevanceScore válido encontrada para o filme: ${movieId}`);
+      // Mesmo assim, atualizar o relevance para undefined (indicando que não há ranking válido)
+      // Prisma não aceita null para campos Int, então não atualizamos o campo
+      const updatePromises = suggestions.map((suggestion) => {
+        return prisma.movieSuggestionFlow.update({
+          where: { id: suggestion.id },
+          data: { 
+            // Não atualizar relevance se não há score válido (deixar como está ou undefined)
+            updatedAt: new Date()
+          }
+        });
+      });
+      await Promise.all(updatePromises);
+      return false;
+    }
+
+    // Log das sugestões ordenadas antes da atualização
+    console.log(`📋 Sugestões ordenadas por relevanceScore (DESC):`);
+    suggestionsWithScore.forEach((s, idx) => {
+      console.log(`   ${idx + 1}. JourneyFlowId: ${s.journeyOptionFlowId}, Score: ${s.relevanceScoreNumeric} (original: ${s.relevanceScore})`);
+    });
+
+    // Atualizar cada sugestão com o novo ranking baseado no relevanceScore
+    // Maior relevanceScore = relevance 1 (melhor)
+    const updatePromises: (Promise<any> | null)[] = suggestions.map((suggestion, index) => {
+      // Se não tem score, não atualizar o relevance (deixar como está)
+      if (suggestion.relevanceScoreNumeric === null || suggestion.relevanceScoreNumeric === undefined) {
+        // Não atualizar relevance para sugestões sem score
+        return null;
+      }
+      
+      // Para sugestões com score, usar o índice baseado apenas nas que têm score
+      const scoreIndex = suggestionsWithScore.findIndex(s => s.id === suggestion.id);
+      if (scoreIndex === -1) {
+        // Não encontrado na lista de sugestões com score, pular
+        return null;
+      }
+      
+      const newRelevance = scoreIndex + 1; // relevance = 1, 2, 3...
+      
+      console.log(`   Atualizando sugestão JourneyFlowId ${suggestion.journeyOptionFlowId}: relevance ${newRelevance} (score: ${suggestion.relevanceScoreNumeric})`);
       
       return prisma.movieSuggestionFlow.update({
         where: { id: suggestion.id },
@@ -55,10 +142,14 @@ export async function updateRelevanceRankingForMovie(movieId: string): Promise<b
       });
     });
 
-    await Promise.all(updatePromises);
+    // Filtrar atualizações válidas (remover nulls)
+    const validUpdates = updatePromises.filter((p): p is Promise<any> => p !== null);
+    await Promise.all(validUpdates);
 
-    console.log(`✅ Ranking atualizado: ${suggestions.length} sugestões processadas`);
-    console.log(`📊 Melhor jornada (relevance=1): ID ${suggestions[0].id}, Score: ${suggestions[0].relevanceScore || 'N/A'}`);
+    console.log(`✅ Ranking atualizado: ${suggestionsWithScore.length} sugestões com score processadas`);
+    if (suggestionsWithScore.length > 0) {
+      console.log(`📊 Melhor jornada (relevance=1): JourneyFlowId ${suggestionsWithScore[0].journeyOptionFlowId}, Score: ${suggestionsWithScore[0].relevanceScore}`);
+    }
 
     return true;
 

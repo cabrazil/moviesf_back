@@ -6,12 +6,18 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
+n
 node_modules
 dist
 dist-ssr
 *.local
 .env
+.env.local
+.env.development
+.env.production
+!.env.development.example
+!.env.production.example
+var.env
 docker-compose.yml
 10mangos
 

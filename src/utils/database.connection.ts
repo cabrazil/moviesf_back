@@ -4,12 +4,12 @@
  * Gerencia conexões com PostgreSQL de forma eficiente e segura
  */
 
-import * as dotenv from 'dotenv';
 import { Pool, PoolClient } from 'pg';
 import { DatabaseConfig } from '../types/movieHero.types';
+import { loadEnvironment } from '../config/env-loader';
 
 // Carregar variáveis de ambiente ANTES de qualquer uso
-dotenv.config();
+loadEnvironment();
 
 // ===== CONFIGURAÇÃO =====
 
@@ -34,12 +34,14 @@ function getConnectionString(): string {
   return connectionString;
 }
 
+import { getSSLConfig } from './ssl-config';
+
 const databaseConfig: DatabaseConfig = {
   get connectionString() {
     return getConnectionString();
   },
-  ssl: {
-    rejectUnauthorized: false
+  get ssl() {
+    return getSSLConfig(getConnectionString());
   }
 };
 
@@ -74,9 +76,7 @@ class DatabaseConnection {
       
       this.pool = new Pool({
         connectionString: connectionString,
-        ssl: {
-          rejectUnauthorized: false
-        },
+        ssl: getSSLConfig(connectionString),
         // Otimizações de performance
         max: 10,                    // Máximo de conexões no pool (reduzido)
         min: 2,                     // Mínimo de conexões no pool

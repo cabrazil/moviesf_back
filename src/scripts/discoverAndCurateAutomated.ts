@@ -1,9 +1,20 @@
+// Carregar variáveis de ambiente antes de qualquer uso do Prisma
+import './scripts-helper';
+
 import { PrismaClient } from '@prisma/client';
 import { searchMovie } from './populateMovies';
 import { validateMovieSentiments } from './validateMovieSentiments';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 
-const prisma = new PrismaClient();
+// Criar PrismaClient com configurações otimizadas
+const prisma = new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
+    }
+  }
+});
 
 // Determinar provedor de IA baseado em argumentos ou variável de ambiente
 function getAIProvider(): AIProvider {
@@ -119,6 +130,20 @@ async function automatedCuration(
 async function discoverMovieByTmdbId(tmdbId: number) {
   console.log(`\n🎬 === FASE 1: DESCOBRIMENTO DO FILME ===`);
   console.log(`🔍 Buscando filme por TMDB ID: ${tmdbId}...`);
+  
+  // Garantir que Prisma está conectado (com retry)
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      await prisma.$connect();
+      break;
+    } catch (error) {
+      retries--;
+      if (retries === 0) throw error;
+      console.log(`⚠️ Tentando reconectar... (${3 - retries}/3)`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
   
   const movie = await prisma.movie.findUnique({
     where: {

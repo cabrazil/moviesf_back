@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { Pool } from 'pg';
+import { getSSLConfig } from '../utils/ssl-config';
 
 const router = Router();
 
@@ -8,11 +9,10 @@ let globalPool: Pool | null = null;
 
 const getPool = (): Pool => {
   if (!globalPool) {
+    const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
     globalPool = new Pool({
-      connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      },
+      connectionString: connectionString,
+      ssl: getSSLConfig(connectionString),
       // Configurações de pool para melhor performance
       max: 20, // máximo de conexões
       idleTimeoutMillis: 30000, // tempo para fechar conexões idle

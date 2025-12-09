@@ -5,11 +5,11 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   try {
+    const { getSSLConfig } = require('../utils/ssl-config');
+    const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
     const pool = new Pool({
-      connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
+      connectionString: connectionString,
+      ssl: getSSLConfig(connectionString)
     });
 
     const platformsResult = await pool.query(`

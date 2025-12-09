@@ -1,5 +1,8 @@
 
 
+// Carregar variáveis de ambiente antes de qualquer uso do Prisma
+import './scripts-helper';
+
 import { prismaApp as prisma } from '../prisma';
 import fs from 'fs/promises';
 import path from 'path';

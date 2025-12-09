@@ -1,4 +1,7 @@
 /// <reference types="node" />
+// Carregar variáveis de ambiente antes de qualquer uso do Prisma
+import './scripts-helper';
+
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -232,19 +235,78 @@ function parseArgs(): ScriptArgs {
   const args = process.argv.slice(2);
   const parsed: any = {};
 
-  args.forEach(arg => {
+  // Função auxiliar para remover aspas de um valor
+  const removeQuotes = (value: string): string => {
+    if ((value.startsWith('"') && value.endsWith('"')) || 
+        (value.startsWith("'") && value.endsWith("'"))) {
+      return value.slice(1, -1);
+    }
+    return value;
+  };
+
+  // Função auxiliar para extrair valor de argumento
+  const extractValue = (arg: string, prefix: string): string | null => {
+    if (!arg.startsWith(prefix)) return null;
+    return arg.substring(prefix.length);
+  };
+
+  // Processar argumentos, agrupando valores que podem ter espaços
+  let i = 0;
+  while (i < args.length) {
+    const arg = args[i];
+
     if (arg.startsWith('--title=')) {
-      parsed.title = arg.split('=')[1];
-    } else if (arg.startsWith('--year=')) {
-      parsed.year = parseInt(arg.split('=')[1]);
-    } else if (arg.startsWith('--journeyOptionFlowId=')) {
-      parsed.journeyOptionFlowId = parseInt(arg.split('=')[1]);
-    } else if (arg.startsWith('--baseJourneyOptionFlowId=')) {
-      parsed.baseJourneyOptionFlowId = parseInt(arg.split('=')[1]);
-    } else if (arg === '--copyMovieSentiments' || arg === '--copy-sentiments') {
+      let title = extractValue(arg, '--title=');
+      
+      if (title) {
+        // Remover aspas se presentes
+        title = removeQuotes(title);
+        
+        // Se o valor após o = não contém espaços e o próximo argumento não é um parâmetro,
+        // pode ser que o título foi dividido pelo shell/npm
+        if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+          // Título pode estar dividido em múltiplos argumentos
+          const titleParts: string[] = [title];
+          i++;
+          // Coletar todos os argumentos seguintes até encontrar um parâmetro (--xxx)
+          while (i < args.length && !args[i].startsWith('--')) {
+            titleParts.push(removeQuotes(args[i]));
+            i++;
+          }
+          i--; // Ajustar para não pular o próximo argumento na próxima iteração
+          parsed.title = titleParts.join(' ');
+        } else {
+          parsed.title = title;
+        }
+      }
+    } 
+    else if (arg.startsWith('--year=')) {
+      const yearStr = extractValue(arg, '--year=');
+      if (yearStr) {
+        const year = parseInt(removeQuotes(yearStr));
+        if (!isNaN(year)) parsed.year = year;
+      }
+    }
+    else if (arg.startsWith('--journeyOptionFlowId=')) {
+      const idStr = extractValue(arg, '--journeyOptionFlowId=');
+      if (idStr) {
+        const id = parseInt(removeQuotes(idStr));
+        if (!isNaN(id)) parsed.journeyOptionFlowId = id;
+      }
+    }
+    else if (arg.startsWith('--baseJourneyOptionFlowId=')) {
+      const idStr = extractValue(arg, '--baseJourneyOptionFlowId=');
+      if (idStr) {
+        const id = parseInt(removeQuotes(idStr));
+        if (!isNaN(id)) parsed.baseJourneyOptionFlowId = id;
+      }
+    }
+    else if (arg === '--copyMovieSentiments' || arg === '--copy-sentiments') {
       parsed.copyMovieSentiments = true;
     }
-  });
+
+    i++;
+  }
 
   // Validação dos parâmetros obrigatórios
   if (!parsed.title || !parsed.year || !parsed.journeyOptionFlowId) {

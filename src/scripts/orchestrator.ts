@@ -1,4 +1,7 @@
 /// <reference types="node" />
+// Carregar variáveis de ambiente antes de qualquer uso do Prisma
+import './scripts-helper';
+
 import { PrismaClient } from '@prisma/client';
 import { spawn } from 'child_process';
 import path from 'path';
@@ -245,8 +248,11 @@ class MovieCurationOrchestrator {
         console.log(`🔒 Etapa 5: Mantendo campos genéricos existentes (relevanceScore atual: ${shouldUpdateGenericFields.currentScore} ≤ melhor existente: ${shouldUpdateGenericFields.existingScore})`);
       }
 
-      const createdMovie = await prisma.movie.findFirst({ 
-        where: { title: movie.title, year: movie.year },
+      console.log(`\n🎯 === INICIANDO ETAPA 6: ATUALIZAÇÃO DE RANKING DE RELEVANCE ===`);
+      
+      // Buscar filme usando tmdbId (mais confiável que título/ano)
+      const createdMovie = await prisma.movie.findUnique({ 
+        where: { tmdbId: tmdbId },
         include: { 
           movieSuggestionFlows: {
             where: { journeyOptionFlowId: movie.journeyOptionFlowId },
@@ -255,18 +261,80 @@ class MovieCurationOrchestrator {
           }
         }
       });
+      
       if (!createdMovie) {
-        return { success: false, error: 'Filme não encontrado no banco de dados após o processo.' };
+        console.error(`❌ Filme não encontrado no banco de dados (tmdbId: ${tmdbId}).`);
+        // Tentar buscar por título/ano como fallback
+        const fallbackMovie = await prisma.movie.findFirst({ 
+          where: { title: movie.title, year: movie.year }
+        });
+        if (!fallbackMovie) {
+          return { success: false, error: 'Filme não encontrado no banco de dados após o processo.' };
+        }
+        console.log(`⚠️ Filme encontrado via fallback (título/ano): ${fallbackMovie.title} (ID: ${fallbackMovie.id})`);
+        // Usar o filme encontrado via fallback
+        const movieIdForRanking = fallbackMovie.id;
+        console.log(`🔄 Atualizando ranking usando ID do fallback: ${movieIdForRanking}`);
+        try {
+          const { updateRelevanceRankingForMovie } = await import('../utils/relevanceRanking');
+          await updateRelevanceRankingForMovie(movieIdForRanking);
+        } catch (error) {
+          console.error(`❌ Erro ao atualizar ranking:`, error);
+        }
+        // Continuar o fluxo normalmente
+        return { 
+          success: true, 
+          movie: { 
+            title: fallbackMovie.title, 
+            year: fallbackMovie.year || 0, 
+            id: fallbackMovie.id 
+          } 
+        };
       }
 
-      // Atualizar ranking de relevance para garantir consistência após todo o processamento
+      console.log(`📋 Filme encontrado: ${createdMovie.title} (ID: ${createdMovie.id}, tmdbId: ${tmdbId})`);
+
+      // Etapa 6: Atualizar ranking de relevance para garantir consistência após todo o processamento
       // Isso é importante porque múltiplas sugestões podem ter sido criadas/atualizadas
+      // O campo relevance é atualizado baseado no relevanceScore: maior score = relevance 1
+      console.log(`🔄 Etapa 6: Atualizando ranking de relevance baseado em relevanceScore...`);
+      console.log(`📊 MovieId para atualização: ${createdMovie.id}`);
+      
       try {
         const { updateRelevanceRankingForMovie } = await import('../utils/relevanceRanking');
-        await updateRelevanceRankingForMovie(createdMovie.id);
-        console.log(`✅ Ranking de relevance atualizado para o filme`);
+        console.log(`📦 Função updateRelevanceRankingForMovie importada com sucesso`);
+        const rankingUpdated = await updateRelevanceRankingForMovie(createdMovie.id);
+        console.log(`📊 Resultado da atualização: ${rankingUpdated ? 'SUCESSO' : 'FALHOU'}`);
+        
+        if (rankingUpdated) {
+          // Verificar o resultado para confirmar
+          const allSuggestions = await prisma.movieSuggestionFlow.findMany({
+            where: { movieId: createdMovie.id },
+            select: {
+              id: true,
+              relevance: true,
+              relevanceScore: true,
+              journeyOptionFlowId: true
+            },
+            orderBy: [
+              { relevance: 'asc' },
+              { relevanceScore: 'desc' }
+            ]
+          });
+          
+          console.log(`✅ Ranking de relevance atualizado para o filme`);
+          if (allSuggestions.length > 0) {
+            console.log(`📊 Resumo do ranking:`);
+            allSuggestions.forEach((sug, idx) => {
+              console.log(`   ${idx + 1}. Relevance: ${sug.relevance}, Score: ${sug.relevanceScore || 'N/A'}, JourneyFlowId: ${sug.journeyOptionFlowId}`);
+            });
+          }
+        } else {
+          console.log(`⚠️ Aviso: Atualização de ranking retornou false (pode não haver sugestões com relevanceScore)`);
+        }
       } catch (rankingError) {
-        console.log(`⚠️ Aviso: Falha ao atualizar ranking de relevance: ${rankingError instanceof Error ? rankingError.message : 'Erro desconhecido'}`);
+        console.error(`❌ Erro ao atualizar ranking de relevance:`, rankingError);
+        console.log(`⚠️ Continuando processo apesar do erro no ranking...`);
         // Não falhar o processo inteiro se o ranking falhar
       }
 
@@ -648,11 +716,31 @@ Se não houver alertas significativos, responda apenas com:
   }
 
   private async runScript(scriptName: string, args: string[]): Promise<{ success: boolean; output: string; error?: string }> {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
+      // Fechar conexões do Prisma antes de executar processo filho
+      // Isso libera conexões para o processo filho
+      try {
+        await prisma.$disconnect();
+      } catch (error) {
+        // Ignorar erros de desconexão
+      }
+      
       const scriptPath = path.join(this.scriptsPath, scriptName);
+      
+      // Passar variáveis de ambiente explicitamente para o processo filho
+      const env = {
+        ...process.env,
+        NODE_ENV: process.env.NODE_ENV || 'development',
+        DATABASE_URL: process.env.DATABASE_URL,
+        DIRECT_URL: process.env.DIRECT_URL,
+        BLOG_DATABASE_URL: process.env.BLOG_DATABASE_URL,
+        BLOG_DIRECT_URL: process.env.BLOG_DIRECT_URL,
+      };
+      
       const child = spawn('npx', ['ts-node', scriptPath, ...args], {
         stdio: 'pipe',
-        cwd: path.dirname(this.scriptsPath)
+        cwd: path.dirname(this.scriptsPath),
+        env: env
       });
 
       let output = '';
@@ -671,7 +759,14 @@ Se não houver alertas significativos, responda apenas com:
         errorOutput += data.toString();
       });
 
-      child.on('close', (code) => {
+      child.on('close', async (code) => {
+        // Reconectar Prisma após processo filho terminar
+        try {
+          await prisma.$connect();
+        } catch (error) {
+          // Ignorar erros de reconexão, será reconectado automaticamente na próxima query
+        }
+        
         if (code === 0) {
           resolve({ success: true, output });
         } else {
@@ -684,14 +779,96 @@ Se não houver alertas significativos, responda apenas com:
 
 function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
   const parsed: Partial<MovieToProcess> = {};
-  for (const arg of args) {
-    if (arg.startsWith('--title=')) parsed.title = arg.split('=')[1];
-    else if (arg.startsWith('--year=')) parsed.year = parseInt(arg.split('=')[1]);
-    else if (arg.startsWith('--journeyOptionFlowId=')) parsed.journeyOptionFlowId = parseInt(arg.split('=')[1]);
-    else if (arg.startsWith('--analysisLens=')) parsed.analysisLens = parseInt(arg.split('=')[1]);
-    else if (arg.startsWith('--journeyValidation=')) parsed.journeyValidation = parseInt(arg.split('=')[1]);
-    else if (arg.startsWith('--ai-provider=')) parsed.aiProvider = arg.split('=')[1] as 'openai' | 'gemini' | 'deepseek' | 'auto';
+  
+  // Função auxiliar para remover aspas de um valor
+  const removeQuotes = (value: string): string => {
+    if ((value.startsWith('"') && value.endsWith('"')) || 
+        (value.startsWith("'") && value.endsWith("'"))) {
+      return value.slice(1, -1);
+    }
+    return value;
+  };
+  
+  // Função auxiliar para extrair valor de argumento
+  const extractValue = (arg: string, prefix: string): string | null => {
+    if (!arg.startsWith(prefix)) return null;
+    return arg.substring(prefix.length);
+  };
+  
+  // Processar argumentos, agrupando valores que podem ter espaços
+  let i = 0;
+  while (i < args.length) {
+    const arg = args[i];
+    
+    if (arg.startsWith('--title=')) {
+      let title = extractValue(arg, '--title=');
+      
+      if (title) {
+        // Remover aspas se presentes
+        title = removeQuotes(title);
+        
+        // Se o valor após o = não contém espaços e o próximo argumento não é um parâmetro,
+        // pode ser que o título foi dividido pelo shell/npm
+        // Exemplo: --title=O Exterminador do Futuro vira ["--title=O", "Exterminador", "do", "Futuro"]
+        if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+          // Título pode estar dividido em múltiplos argumentos
+          const titleParts: string[] = [title];
+          i++;
+          // Coletar todos os argumentos seguintes até encontrar um parâmetro (--xxx)
+          while (i < args.length && !args[i].startsWith('--')) {
+            titleParts.push(removeQuotes(args[i]));
+            i++;
+          }
+          i--; // Ajustar para não pular o próximo argumento na próxima iteração
+          parsed.title = titleParts.join(' ');
+        } else {
+          parsed.title = title;
+        }
+      }
+    } 
+    else if (arg.startsWith('--year=')) {
+      const yearStr = extractValue(arg, '--year=');
+      if (yearStr) {
+        const year = parseInt(removeQuotes(yearStr));
+        if (!isNaN(year)) parsed.year = year;
+      }
+    }
+    else if (arg.startsWith('--journeyOptionFlowId=')) {
+      const idStr = extractValue(arg, '--journeyOptionFlowId=');
+      if (idStr) {
+        const id = parseInt(removeQuotes(idStr));
+        if (!isNaN(id)) parsed.journeyOptionFlowId = id;
+      }
+    }
+    else if (arg.startsWith('--analysisLens=')) {
+      const lensStr = extractValue(arg, '--analysisLens=');
+      if (lensStr) {
+        const lens = parseInt(removeQuotes(lensStr));
+        if (!isNaN(lens)) parsed.analysisLens = lens;
+      }
+    }
+    else if (arg.startsWith('--journeyValidation=')) {
+      const validationStr = extractValue(arg, '--journeyValidation=');
+      if (validationStr) {
+        const validation = parseInt(removeQuotes(validationStr));
+        if (!isNaN(validation)) parsed.journeyValidation = validation;
+      }
+    }
+    else if (arg.startsWith('--ai-provider=')) {
+      const provider = extractValue(arg, '--ai-provider=');
+      if (provider) {
+        parsed.aiProvider = removeQuotes(provider) as 'openai' | 'gemini' | 'deepseek' | 'auto';
+      }
+    }
+    
+    i++;
   }
+  
+  // Log para debug (apenas em desenvolvimento)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📋 Argumentos parseados:', parsed);
+  }
+  
   return parsed;
 }
 
@@ -699,6 +876,12 @@ async function main() {
   const orchestrator = new MovieCurationOrchestrator();
   try {
     const args = process.argv.slice(2);
+    
+    // Log de debug para ver argumentos recebidos
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Argumentos recebidos do processo:', args);
+    }
+    
     const approveNewSubSentiments = args.includes('--approve-new-subsentiments');
     const filteredArgs = args.filter(arg => arg !== '--approve-new-subsentiments');
 

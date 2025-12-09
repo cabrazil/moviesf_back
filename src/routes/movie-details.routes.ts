@@ -14,11 +14,11 @@ router.get('/:id/details', async (req, res) => {
     
     console.log(`🔍 Buscando filme por UUID: ${id}`);
     
+    const { getSSLConfig } = require('../utils/ssl-config');
+    const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
     const pool = new Pool({
-      connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
+      connectionString: connectionString,
+      ssl: getSSLConfig(connectionString)
     });
     
     const movieResult = await pool.query(`
