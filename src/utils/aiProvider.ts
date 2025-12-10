@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export type AIProvider = 'openai' | 'gemini' | 'deepseek';
 
@@ -79,8 +80,10 @@ class AIProviderManager {
     maxTokens: number
   ): Promise<AIResponse> {
     try {
+      const modelToUse = this.config.model || 'gpt-4-turbo';
+      
       const response = await axios.post<OpenAIResponse>('https://api.openai.com/v1/chat/completions', {
-        model: this.config.model || 'gpt-4-turbo',
+        model: modelToUse,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -96,12 +99,21 @@ class AIProviderManager {
 
       const content = response.data.choices[0].message.content;
       return { content, success: true };
-    } catch (error) {
-      console.error('Erro na API OpenAI:', error);
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const errorMessage = error?.response?.data?.error?.message || error?.message;
+      const modelUsed = this.config.model || 'gpt-4-turbo';
+      
+      console.error(`Erro na API OpenAI (modelo: ${modelUsed}):`, {
+        status,
+        message: errorMessage,
+        error: error?.response?.data
+      });
+      
       return {
         content: '',
         success: false,
-        error: `Erro OpenAI: ${error instanceof Error ? error.message : String(error)}`
+        error: `Erro OpenAI (${status || 'N/A'}): ${errorMessage || 'Erro desconhecido'}`
       };
     }
   }
@@ -138,15 +150,58 @@ class AIProviderManager {
     }
   }
 
+  /**
+   * Extrai JSON de uma string que pode conter markdown ou texto adicional.
+   * Se não encontrar JSON válido, retorna o texto original (útil para texto puro como hooks e warnings).
+   */
+  private extractJSONFromResponse(text: string): string {
+    // Tentar encontrar JSON dentro de markdown code blocks
+    const markdownJsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (markdownJsonMatch) {
+      try {
+        // Validar se é JSON válido
+        JSON.parse(markdownJsonMatch[1]);
+        return markdownJsonMatch[1];
+      } catch {
+        // Se não for JSON válido, continuar procurando
+      }
+    }
+    
+    // Tentar encontrar JSON direto (pode estar no início ou meio do texto)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        // Validar se é JSON válido
+        JSON.parse(jsonMatch[0]);
+        return jsonMatch[0];
+      } catch {
+        // Se não for JSON válido, pode ser texto que contém chaves mas não é JSON
+        // Retornar texto original para preservar conteúdo de hooks/warnings
+      }
+    }
+    
+    // Se não encontrou JSON válido, retornar o texto original
+    // Isso é importante para hooks e warnings que são texto puro
+    return text;
+  }
+
   private async generateGeminiResponse(
     systemPrompt: string,
     userPrompt: string,
     temperature: number,
     maxTokens: number
   ): Promise<AIResponse> {
-    try {
-      // Prompt otimizado específico para Gemini
-      const enhancedSystemPrompt = `
+    // Verificar se esperamos JSON (análise de sentimentos) ou texto puro (hooks, warnings)
+    const expectsJSON = systemPrompt.includes('suggestedSubSentiments') || 
+                        systemPrompt.includes('JSON') || 
+                        userPrompt.includes('suggestedSubSentiments') ||
+                        userPrompt.includes('JSON válido');
+    
+    let enhancedSystemPrompt: string;
+    
+    if (expectsJSON) {
+      // Prompt otimizado para análise de sentimentos (JSON obrigatório)
+      enhancedSystemPrompt = `
 ${systemPrompt}
 
 INSTRUÇÕES ESPECÍFICAS PARA ANÁLISE PRECISA:
@@ -162,8 +217,12 @@ INSTRUÇÕES ESPECÍFICAS PARA ANÁLISE PRECISA:
 4. Use vocabulário técnico cinematográfico preciso e específico
 5. Foque na ESSÊNCIA emocional do filme para a jornada do usuário
 
-FORMATO DE RESPOSTA OBRIGATÓRIO:
-Responda SEMPRE com um JSON válido no formato exato:
+FORMATO DE RESPOSTA OBRIGATÓRIO - CRÍTICO:
+⚠️ IMPORTANTE: Responda APENAS com JSON válido, SEM markdown, SEM texto adicional, SEM explicações.
+⚠️ NÃO use blocos de código markdown (três backticks seguidos).
+⚠️ NÃO adicione texto antes ou depois do JSON.
+⚠️ Responda DIRETAMENTE com o JSON puro no formato exato abaixo:
+
 {
   "suggestedSubSentiments": [
     {
@@ -175,87 +234,180 @@ Responda SEMPRE com um JSON válido no formato exato:
   ]
 }
 `;
+    } else {
+      // Prompt para texto puro (hooks, warnings, etc.) - sem instruções rígidas de JSON
+      enhancedSystemPrompt = `
+${systemPrompt}
 
-      // Combinar prompts otimizados
-      const combinedPrompt = `${enhancedSystemPrompt}\n\n${userPrompt}`;
+INSTRUÇÕES IMPORTANTES:
+⚠️ Responda APENAS com o texto solicitado, SEM markdown, SEM blocos de código, SEM JSON.
+⚠️ NÃO use formatação markdown (três backticks seguidos).
+⚠️ NÃO adicione explicações ou texto adicional.
+⚠️ Responda DIRETAMENTE com o conteúdo solicitado.
+`;
+    }
+
+    // Combinar prompts otimizados
+    const combinedPrompt = `${enhancedSystemPrompt}\n\n${userPrompt}`;
+    
+    const modelToUse = this.config.model || 'gemini-2.5-flash';
+    
+    console.log(`🤖 Tentando Gemini com biblioteca oficial (modelo: ${modelToUse})...`);
+
+    // Verificar se a chave de API está disponível
+    if (!process.env.GEMINI_API_KEY) {
+      console.error('❌ GEMINI_API_KEY não encontrada nas variáveis de ambiente');
+      return {
+        content: '',
+        success: false,
+        error: 'GEMINI_API_KEY não configurada'
+      };
+    }
+
+    try {
+      // Inicializar a biblioteca oficial do Google
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       
-      const response = await axios.post<GeminiResponse>(
-        `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model || 'gemini-1.5-flash'}:generateContent`,
-        {
-          contents: [{
-            parts: [{
-              text: combinedPrompt
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.2,           // Mais determinístico
-            maxOutputTokens: 1500,      // Aumentado para JSON completo
-            topP: 0.8,                  // Menos restritivo para permitir criatividade
-            topK: 20,                   // Menos restritivo 
-            candidateCount: 1           // Uma resposta apenas
-            // Removido stopSequences que estava cortando o JSON
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          params: {
-            key: process.env.GEMINI_API_KEY
-          }
+      // Obter o modelo
+      const model = genAI.getGenerativeModel({ 
+        model: modelToUse,
+        generationConfig: {
+          temperature: 0.2,           // Mais determinístico
+          maxOutputTokens: expectsJSON ? 2500 : 1500,  // Mais tokens para JSON (análise de sentimentos)
+          topP: 0.8,                  // Menos restritivo para permitir criatividade
+          topK: 20                    // Menos restritivo 
         }
-      );
+      });
 
-      const content = response.data.candidates[0].content.parts[0].text;
+      // Log apenas em desenvolvimento para debug detalhado
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔍 Usando biblioteca oficial @google/generative-ai`);
+        console.log(`📏 Tamanho do prompt: ${combinedPrompt.length} caracteres`);
+      }
+
+      // Gerar conteúdo usando a biblioteca oficial
+      const result = await model.generateContent(combinedPrompt);
+      const response = await result.response;
+      
+      if (!response || !response.text) {
+        throw new Error('Resposta vazia - nenhum texto retornado');
+      }
+
+      let content = response.text();
+      
+      // Extrair JSON se vier em markdown ou com texto adicional
+      content = this.extractJSONFromResponse(content);
+      
       return {
         content,
         success: true
       };
-    } catch (error) {
-      console.error('Erro na API Gemini:', error);
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Erro desconhecido';
+      const status = error?.status || error?.response?.status;
       
-      // Verificar se é erro 503 (Service Unavailable)
-      if (error && typeof error === 'object' && 'response' in error && (error as any).response?.status === 503) {
-        console.log('🔄 Erro 503 detectado - Tentando fallback para OpenAI...');
-        
-        // Fallback para OpenAI se disponível
-        if (process.env.OPENAI_API_KEY) {
-          try {
-            console.log('🔄 Usando OpenAI como fallback...');
-            const openaiResult = await this.generateContentWithOpenAI(userPrompt, systemPrompt);
-            if (openaiResult.success) {
-              console.log('✅ Fallback para OpenAI bem-sucedido');
-              return openaiResult;
-            }
-          } catch (fallbackError) {
-            console.error('❌ Fallback para OpenAI também falhou:', fallbackError);
-          }
-        }
+      // Log do erro
+      if (status === 429 || errorMessage.includes('429') || errorMessage.includes('quota')) {
+        console.error(`Erro 429 (Quota excedida) na API Gemini`);
+      } else if (status === 503 || errorMessage.includes('503') || errorMessage.includes('unavailable')) {
+        console.error(`Erro 503 (Service Unavailable) na API Gemini`);
+      } else if (status === 404 || errorMessage.includes('404') || errorMessage.includes('not found')) {
+        console.error(`Erro 404 (Modelo não encontrado): ${modelToUse}`);
+      } else {
+        console.error(`Erro na API Gemini:`, errorMessage);
       }
-      
-      return {
-        content: '',
-        success: false,
-        error: `Erro Gemini: ${error instanceof Error ? error.message : String(error)}`
-      };
+
+    // Fallback 1: DeepSeek se disponível (forçar modelo correto)
+    if (process.env.DEEPSEEK_API_KEY) {
+      try {
+        console.log('🔄 Erro persistente no Gemini - tentando fallback para DeepSeek (modelo: deepseek-chat)...');
+        const deepseekResult = await this.generateDeepSeekResponse(systemPrompt, userPrompt, temperature, maxTokens, 'deepseek-chat');
+        if (deepseekResult.success) {
+          console.log('✅ Fallback para DeepSeek bem-sucedido (modelo: deepseek-chat)');
+          return deepseekResult;
+        } else {
+          console.warn('⚠️ Fallback DeepSeek retornou erro:', deepseekResult.error);
+        }
+      } catch (fallbackError: any) {
+        console.error('❌ Fallback para DeepSeek falhou:', fallbackError?.message || fallbackError);
+      }
     }
+    
+    // Fallback 2: OpenAI como último recurso
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        console.log('🔄 DeepSeek falhou - tentando fallback final para OpenAI (modelo: gpt-4-turbo)...');
+        const openaiResult = await this.generateOpenAIResponse(systemPrompt, userPrompt, temperature, maxTokens);
+        if (openaiResult.success) {
+          console.log('✅ Fallback para OpenAI bem-sucedido (modelo: gpt-4-turbo)');
+          return openaiResult;
+        } else {
+          console.warn('⚠️ Fallback OpenAI retornou erro:', openaiResult.error);
+        }
+      } catch (fallbackError: any) {
+        console.error('❌ Fallback para OpenAI também falhou:', fallbackError?.message || fallbackError);
+      }
+    }
+    
+    return {
+      content: '',
+      success: false,
+      error: 'Erro Gemini: falha após tentar biblioteca oficial, fallback DeepSeek e fallback OpenAI.'
+    };
   }
 
   private async generateDeepSeekResponse(
     systemPrompt: string,
     userPrompt: string,
     temperature: number,
-    maxTokens: number
+    maxTokens: number,
+    forcedModel?: string
   ): Promise<AIResponse> {
     try {
+      // Usar modelo forçado se fornecido, senão usar o do config, senão usar padrão
+      // Isso corrige o bug onde fallback do Gemini tentava usar 'gemini-2.5-flash' no DeepSeek
+      const modelToUse = forcedModel || this.config.model || 'deepseek-chat';
+      
+      // Log do modelo sendo usado (apenas se for diferente do esperado)
+      if (forcedModel && forcedModel !== this.config.model) {
+        console.log(`📌 Usando modelo forçado para DeepSeek: ${modelToUse} (config original: ${this.config.model})`);
+      }
+      
+      // Validar e limitar maxTokens (alguns modelos têm limites)
+      const safeMaxTokens = Math.min(maxTokens, 4000); // Limite seguro para DeepSeek
+      
+      // Validar tamanho do prompt (alguns modelos têm limite de contexto)
+      const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+      if (combinedPrompt.length > 100000) {
+        console.warn('⚠️ Prompt muito longo para DeepSeek, truncando...');
+        const truncatedUserPrompt = userPrompt.substring(0, 50000);
+        const response = await axios.post<DeepSeekResponse>('https://api.deepseek.com/v1/chat/completions', {
+          model: modelToUse,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: truncatedUserPrompt }
+          ],
+          temperature,
+          max_tokens: safeMaxTokens
+        }, {
+          headers: {
+            'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const content = response.data.choices[0].message.content;
+        return { content, success: true };
+      }
+
       const response = await axios.post<DeepSeekResponse>('https://api.deepseek.com/v1/chat/completions', {
-        model: this.config.model || 'deepseek-chat',
+        model: modelToUse,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
         temperature,
-        max_tokens: maxTokens
+        max_tokens: safeMaxTokens
       }, {
         headers: {
           'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
@@ -263,14 +415,27 @@ Responda SEMPRE com um JSON válido no formato exato:
         }
       });
 
+      if (!response.data.choices || response.data.choices.length === 0) {
+        throw new Error('Resposta vazia - nenhuma escolha retornada');
+      }
+
       const content = response.data.choices[0].message.content;
       return { content, success: true };
-    } catch (error) {
-      console.error('Erro na API DeepSeek:', error);
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message || error?.message;
+      
+      const modelUsed = forcedModel || this.config.model || 'deepseek-chat';
+      console.error(`Erro na API DeepSeek (modelo: ${modelUsed}):`, {
+        status,
+        message: errorMessage,
+        error: error?.response?.data
+      });
+      
       return {
         content: '',
         success: false,
-        error: `Erro DeepSeek: ${error instanceof Error ? error.message : String(error)}`
+        error: `Erro DeepSeek (${status || 'N/A'}): ${errorMessage || 'Erro desconhecido'}`
       };
     }
   }
@@ -282,9 +447,9 @@ export function createAIProvider(config: AIConfig): AIProviderManager {
 
 export function getDefaultConfig(provider: AIProvider): AIConfig {
   const modelMap = {
-    'openai': 'gpt-4-turbo',
-    'gemini': 'gemini-1.5-flash',
-    'deepseek': 'deepseek-chat'
+    openai: 'gpt-4-turbo',
+    gemini: 'gemini-2.5-flash',
+    deepseek: 'deepseek-chat'
   };
 
   return {

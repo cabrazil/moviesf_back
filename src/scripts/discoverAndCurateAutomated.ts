@@ -22,8 +22,8 @@ function getAIProvider(): AIProvider {
   const providerArg = args.find(arg => arg.startsWith('--ai-provider='));
   const provider = providerArg ? providerArg.split('=')[1] as AIProvider : process.env.AI_PROVIDER as AIProvider;
   
-  // Validar e retornar apenas openai ou deepseek (padrão: openai)
-  if (provider === 'deepseek' || provider === 'openai') {
+  // Validar e retornar apenas openai, deepseek ou gemini (padrão: openai)
+  if (provider === 'deepseek' || provider === 'openai' || provider === 'gemini') {
     return provider;
   }
   

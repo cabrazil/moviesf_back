@@ -21,7 +21,6 @@ const prisma = new PrismaClient();
 export async function updateRelevanceRankingForMovie(movieId: string): Promise<boolean> {
   try {
     console.log(`\n🔄 === INICIANDO ATUALIZAÇÃO DE RANKING DE RELEVANCE ===`);
-    console.log(`📋 MovieId: ${movieId}`);
 
     // Buscar todas as sugestões do filme
     // Vamos ordenar manualmente para garantir que NULLs fiquem no final
@@ -131,8 +130,6 @@ export async function updateRelevanceRankingForMovie(movieId: string): Promise<b
       
       const newRelevance = scoreIndex + 1; // relevance = 1, 2, 3...
       
-      console.log(`   Atualizando sugestão JourneyFlowId ${suggestion.journeyOptionFlowId}: relevance ${newRelevance} (score: ${suggestion.relevanceScoreNumeric})`);
-      
       return prisma.movieSuggestionFlow.update({
         where: { id: suggestion.id },
         data: { 
@@ -145,11 +142,6 @@ export async function updateRelevanceRankingForMovie(movieId: string): Promise<b
     // Filtrar atualizações válidas (remover nulls)
     const validUpdates = updatePromises.filter((p): p is Promise<any> => p !== null);
     await Promise.all(validUpdates);
-
-    console.log(`✅ Ranking atualizado: ${suggestionsWithScore.length} sugestões com score processadas`);
-    if (suggestionsWithScore.length > 0) {
-      console.log(`📊 Melhor jornada (relevance=1): JourneyFlowId ${suggestionsWithScore[0].journeyOptionFlowId}, Score: ${suggestionsWithScore[0].relevanceScore}`);
-    }
 
     return true;
 

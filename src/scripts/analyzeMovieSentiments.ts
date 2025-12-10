@@ -15,8 +15,8 @@ function getAIProvider(): AIProvider {
   const providerArg = args.find(arg => arg.startsWith('--ai-provider='));
   const provider = providerArg ? providerArg.split('=')[1] as AIProvider : process.env.AI_PROVIDER as AIProvider;
   
-  // Validar e retornar apenas openai ou deepseek (padrão: openai)
-  if (provider === 'deepseek' || provider === 'openai') {
+  // Validar e retornar apenas openai, deepseek ou gemini (padrão: openai)
+  if (provider === 'deepseek' || provider === 'openai' || provider === 'gemini') {
     return provider;
   }
   
@@ -201,7 +201,15 @@ ${existingSubSentimentsFormatted.length > 0 ? existingSubSentimentsFormatted.joi
 `;
 
   try {
-    const provider = getAIProvider();
+    let provider = getAIProvider();
+    
+    // Estratégia híbrida: Gemini tem limitações de quota na FASE 2 (análise de sentimentos)
+    // Usar DeepSeek automaticamente para análise de sentimentos quando provider = gemini
+    if (provider === 'gemini') {
+      console.log('ℹ️ Usando DeepSeek para análise de sentimentos (Gemini tem limitações de quota nesta fase)');
+      provider = 'deepseek';
+    }
+    
     const config = getDefaultConfig(provider);
     const aiProvider = createAIProvider(config);
     
@@ -209,7 +217,7 @@ ${existingSubSentimentsFormatted.length > 0 ? existingSubSentimentsFormatted.joi
     
     const response = await aiProvider.generateResponse(systemPrompt, prompt, {
       temperature: 0.5,
-      maxTokens: 600
+      maxTokens: 1200  // Aumentado de 600 para 1200 para evitar JSON truncado
     });
 
     if (!response.success) {
@@ -221,20 +229,111 @@ ${existingSubSentimentsFormatted.length > 0 ? existingSubSentimentsFormatted.joi
     console.log(`\nResposta do ${provider.toUpperCase()}:`);
     console.log(content);
 
+    /**
+     * Tenta reparar JSON truncado fechando chaves e colchetes abertos
+     */
+    function repairTruncatedJSON(jsonString: string): string {
+      let repaired = jsonString.trim();
+      
+      // Remover markdown se presente
+      const markdownMatch = repaired.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (markdownMatch) {
+        repaired = markdownMatch[1].trim();
+      }
+      
+      // Encontrar o início do JSON (primeira {)
+      const jsonStart = repaired.indexOf('{');
+      if (jsonStart === -1) {
+        return repaired; // Não é JSON válido
+      }
+      repaired = repaired.substring(jsonStart);
+      
+      // Contar chaves e colchetes abertos vs fechados
+      let openBraces = 0;
+      let openBrackets = 0;
+      let inString = false;
+      let escapeNext = false;
+      
+      for (let i = 0; i < repaired.length; i++) {
+        const char = repaired[i];
+        
+        if (escapeNext) {
+          escapeNext = false;
+          continue;
+        }
+        
+        if (char === '\\') {
+          escapeNext = true;
+          continue;
+        }
+        
+        if (char === '"' && !escapeNext) {
+          inString = !inString;
+          continue;
+        }
+        
+        if (!inString) {
+          if (char === '{') openBraces++;
+          if (char === '}') openBraces--;
+          if (char === '[') openBrackets++;
+          if (char === ']') openBrackets--;
+        }
+      }
+      
+      // Fechar strings abertas (se houver)
+      if (inString) {
+        repaired += '"';
+      }
+      
+      // Fechar colchetes abertos
+      while (openBrackets > 0) {
+        repaired += ']';
+        openBrackets--;
+      }
+      
+      // Fechar chaves abertas
+      while (openBraces > 0) {
+        repaired += '}';
+        openBraces--;
+      }
+      
+      return repaired;
+    }
+
     try {
       // Regex para extrair o JSON de dentro de um bloco de código Markdown
-      const jsonRegex = /```json\n([\s\S]*?)\n```/;
+      const jsonRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
       const match = content.match(jsonRegex);
 
+      let jsonString: string;
       if (match && match[1]) {
-        return JSON.parse(match[1]);
+        jsonString = match[1].trim();
       } else {
         // Se não houver markdown, tenta fazer o parse do conteúdo inteiro
-        return JSON.parse(content);
+        jsonString = content.trim();
+      }
+      
+      // Tentar parse direto primeiro
+      try {
+        return JSON.parse(jsonString);
+      } catch (directParseError) {
+        // Se falhar, tentar reparar JSON truncado
+        console.log('⚠️ JSON pode estar truncado, tentando reparar...');
+        const repaired = repairTruncatedJSON(jsonString);
+        
+        try {
+          return JSON.parse(repaired);
+        } catch (repairedParseError) {
+          // Se ainda falhar, logar erro detalhado
+          console.error(`Erro ao fazer parse da resposta JSON da ${provider}:`, directParseError);
+          console.error('JSON original:', jsonString.substring(0, 500) + (jsonString.length > 500 ? '...' : ''));
+          console.error('JSON reparado:', repaired.substring(0, 500) + (repaired.length > 500 ? '...' : ''));
+          throw repairedParseError;
+        }
       }
     } catch (jsonError) {
       console.error(`Erro ao fazer parse da resposta JSON da ${provider}:`, jsonError);
-      console.error('Resposta recebida:', content);
+      console.error('Resposta recebida (primeiros 500 chars):', content.substring(0, 500) + (content.length > 500 ? '...' : ''));
       return { suggestedSubSentiments: [] };
     }
   } catch (error) {

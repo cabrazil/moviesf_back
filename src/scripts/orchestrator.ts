@@ -16,7 +16,7 @@ interface MovieToProcess {
   journeyOptionFlowId: number;
   analysisLens: number;
   journeyValidation: number;
-  aiProvider?: 'openai' | 'deepseek';
+  aiProvider?: 'openai' | 'deepseek' | 'gemini';
 }
 
 interface ProcessingResult {
@@ -277,38 +277,13 @@ class MovieCurationOrchestrator {
       // Isso é importante porque múltiplas sugestões podem ter sido criadas/atualizadas
       // O campo relevance é atualizado baseado no relevanceScore: maior score = relevance 1
       console.log(`🔄 Etapa 6: Atualizando ranking de relevance baseado em relevanceScore...`);
-      console.log(`📊 MovieId para atualização: ${createdMovie.id}`);
       
       try {
         const { updateRelevanceRankingForMovie } = await import('../utils/relevanceRanking');
-        console.log(`📦 Função updateRelevanceRankingForMovie importada com sucesso`);
         const rankingUpdated = await updateRelevanceRankingForMovie(createdMovie.id);
         console.log(`📊 Resultado da atualização: ${rankingUpdated ? 'SUCESSO' : 'FALHOU'}`);
         
-        if (rankingUpdated) {
-          // Verificar o resultado para confirmar
-          const allSuggestions = await prisma.movieSuggestionFlow.findMany({
-            where: { movieId: createdMovie.id },
-            select: {
-              id: true,
-              relevance: true,
-              relevanceScore: true,
-              journeyOptionFlowId: true
-            },
-            orderBy: [
-              { relevance: 'asc' },
-              { relevanceScore: 'desc' }
-            ]
-          });
-          
-          console.log(`✅ Ranking de relevance atualizado para o filme`);
-          if (allSuggestions.length > 0) {
-            console.log(`📊 Resumo do ranking:`);
-            allSuggestions.forEach((sug, idx) => {
-              console.log(`   ${idx + 1}. Relevance: ${sug.relevance}, Score: ${sug.relevanceScore || 'N/A'}, JourneyFlowId: ${sug.journeyOptionFlowId}`);
-            });
-          }
-        } else {
+        if (!rankingUpdated) {
           console.log(`⚠️ Aviso: Atualização de ranking retornou false (pode não haver sugestões com relevanceScore)`);
         }
       } catch (rankingError) {
@@ -318,11 +293,6 @@ class MovieCurationOrchestrator {
       }
 
       console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
-      // Log da reflexão sobre o filme (reason) da sugestão específica atualizada
-      if (createdMovie.movieSuggestionFlows.length > 0) {
-        const updatedSuggestion = createdMovie.movieSuggestionFlows[0];
-        console.log(`💭 Reflexão sobre o filme: ${updatedSuggestion.reason}`);
-      }
       return { 
         success: true, 
         movie: { 
@@ -438,9 +408,9 @@ class MovieCurationOrchestrator {
         });
       }
 
-      // Configurar IA Provider (validar apenas openai ou deepseek)
+      // Configurar IA Provider (validar openai, deepseek ou gemini)
       let provider: AIProvider = 'openai';
-      if (aiProvider === 'deepseek' || aiProvider === 'openai') {
+      if (aiProvider === 'deepseek' || aiProvider === 'openai' || aiProvider === 'gemini') {
         provider = aiProvider as AIProvider;
       } else if (aiProvider) {
         console.warn(`⚠️ Provider '${aiProvider}' não suportado nesta função. Usando 'openai' como padrão.`);
@@ -626,9 +596,9 @@ Exemplo de saída esperada (sem numeração ou quebras de linha):
 Se não houver alertas significativos, responda apenas com:
 "Atenção: nenhum alerta de conteúdo significativo."`;
 
-      // Configurar IA Provider (validar apenas openai ou deepseek)
+      // Configurar IA Provider (validar openai, deepseek ou gemini)
       let provider: AIProvider = 'openai';
-      if (aiProvider === 'deepseek' || aiProvider === 'openai') {
+      if (aiProvider === 'deepseek' || aiProvider === 'openai' || aiProvider === 'gemini') {
         provider = aiProvider as AIProvider;
       } else if (aiProvider) {
         console.warn(`⚠️ Provider '${aiProvider}' não suportado nesta função. Usando 'openai' como padrão.`);
@@ -849,11 +819,11 @@ function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
       const provider = extractValue(arg, '--ai-provider=');
       if (provider) {
         const cleanProvider = removeQuotes(provider);
-        // Validar apenas openai ou deepseek
-        if (cleanProvider === 'openai' || cleanProvider === 'deepseek') {
-          parsed.aiProvider = cleanProvider as 'openai' | 'deepseek';
+        const allowed = ['openai', 'deepseek', 'gemini'];
+        if (allowed.includes(cleanProvider)) {
+          parsed.aiProvider = cleanProvider as MovieToProcess['aiProvider'];
         } else {
-          console.warn(`⚠️ Provider '${cleanProvider}' não suportado. Use 'openai' ou 'deepseek'. Usando 'openai' como padrão.`);
+          console.warn(`⚠️ Provider '${cleanProvider}' não suportado. Use 'openai', 'deepseek' ou 'gemini'. Usando 'openai' como padrão.`);
           parsed.aiProvider = 'openai';
         }
       }
@@ -888,7 +858,7 @@ async function main() {
       console.log(`\nUso: npx ts-node orchestrator.ts --title="Título" --year=2023 --journeyOptionFlowId=81 --analysisLens=14 --journeyValidation=15`);
       console.log(`\nFlags opcionais:`);
       console.log(`   --approve-new-subsentiments: Aprova automaticamente a criação de novos subsentimentos sugeridos pela IA.`);
-      console.log(`   --ai-provider=openai|deepseek: Escolhe o provedor de IA (padrão: openai).`);
+      console.log(`   --ai-provider=openai|deepseek|gemini: Escolhe o provedor de IA (padrão: openai).`);
       return;
     }
 
