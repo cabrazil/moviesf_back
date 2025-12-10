@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { spawn } from 'child_process';
 import path from 'path';
 import { writeFileSync } from 'fs';
-import { selectOptimalAIProvider, createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
+import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 
 const prisma = new PrismaClient();
 
@@ -16,7 +16,7 @@ interface MovieToProcess {
   journeyOptionFlowId: number;
   analysisLens: number;
   journeyValidation: number;
-  aiProvider?: 'openai' | 'gemini' | 'deepseek' | 'auto';
+  aiProvider?: 'openai' | 'deepseek';
 }
 
 interface ProcessingResult {
@@ -132,30 +132,9 @@ class MovieCurationOrchestrator {
         return { success: false, error: 'TMDB ID não disponível para continuar o processamento' };
       }
 
-      // Determinar o AI Provider automaticamente se necessário
-      let finalAiProvider = movie.aiProvider;
-      if (movie.aiProvider === 'auto') {
-        // Buscar informações do filme para decisão automática
-        const movieData = await prisma.movie.findUnique({ 
-          where: { tmdbId: tmdbId }
-        });
-
-        if (movieData) {
-          const context = {
-            genres: movieData.genres || [],
-            keywords: movieData.keywords || [],
-            analysisLens: movie.analysisLens,
-            isComplexDrama: movieData.genres?.some((g: string) => g.toLowerCase().includes('drama')) || false
-          };
-
-          finalAiProvider = selectOptimalAIProvider(context);
-          console.log(`🤖 AI Provider selecionado automaticamente: ${finalAiProvider.toUpperCase()}`);
-          console.log(`📊 Baseado em: Gêneros [${context.genres?.join(', ')}], Lente ${movie.analysisLens}`);
-        } else {
-          finalAiProvider = 'gemini'; // Fallback para economia
-          console.log(`⚠️ Dados do filme não encontrados, usando Gemini como fallback`);
-        }
-      }
+      // Usar o AI Provider especificado ou padrão (openai)
+      const finalAiProvider = movie.aiProvider || 'openai';
+      console.log(`🤖 AI Provider configurado: ${finalAiProvider.toUpperCase()}`);
 
       // Etapa 2: Analisar sentimentos
       console.log(`🧠 Etapa 2: Analisando sentimentos...`);
@@ -459,10 +438,16 @@ class MovieCurationOrchestrator {
         });
       }
 
-      // Configurar IA Provider
-      const provider = aiProvider as AIProvider || 'openai';
+      // Configurar IA Provider (validar apenas openai ou deepseek)
+      let provider: AIProvider = 'openai';
+      if (aiProvider === 'deepseek' || aiProvider === 'openai') {
+        provider = aiProvider as AIProvider;
+      } else if (aiProvider) {
+        console.warn(`⚠️ Provider '${aiProvider}' não suportado nesta função. Usando 'openai' como padrão.`);
+      }
       const config = getDefaultConfig(provider);
       const ai = createAIProvider(config);
+      console.log(`🤖 Gerando conteúdo com provider: ${provider.toUpperCase()}`);
 
       // PROMPT 1: Gerar targetAudienceForLP
       const targetAudiencePrompt = 'Para o filme \'' + movie.title + '\' (' + movie.year + '), com gêneros: ' + (movie.genres?.join(', ') || 'N/A') + ', palavras-chave principais: ' + (movie.keywords?.slice(0, 10).join(', ') || 'N/A') + ', e sinopse: ' + (movie.description || 'N/A') + '.' + sentimentContext + '\n\nFormule uma única frase concisa (máximo 25 palavras) que descreva o principal **benefício emocional ou experiência** que este filme oferece ao espectador, com base nos subsentimentos identificados. Esta frase deve se encaixar perfeitamente após \'Este filme é ideal para quem busca...\'. Foque no **impacto emocional e na síntese das qualidades**, evitando listar termos separados com barras. Não inclua JSON, formatação de lista, quebras de linha ou aspas. O resultado deve sintetizar as características emocionais em uma frase fluída.\n\nExemplo de saída esperada para \'Os Descendentes\':\n\'uma profunda reflexão sobre o crescimento pessoal e aceitação do destino, em meio a paisagens deslumbrantes e desafios familiares.\'\n\nIMPORTANTE: Responda APENAS com o texto da frase, sem aspas, sem formatação JSON ou markdown.';
@@ -641,10 +626,16 @@ Exemplo de saída esperada (sem numeração ou quebras de linha):
 Se não houver alertas significativos, responda apenas com:
 "Atenção: nenhum alerta de conteúdo significativo."`;
 
-      // Configurar IA Provider
-      const provider = aiProvider as AIProvider || 'openai';
+      // Configurar IA Provider (validar apenas openai ou deepseek)
+      let provider: AIProvider = 'openai';
+      if (aiProvider === 'deepseek' || aiProvider === 'openai') {
+        provider = aiProvider as AIProvider;
+      } else if (aiProvider) {
+        console.warn(`⚠️ Provider '${aiProvider}' não suportado nesta função. Usando 'openai' como padrão.`);
+      }
       const config = getDefaultConfig(provider);
       const ai = createAIProvider(config);
+      console.log(`🤖 Gerando conteúdo com provider: ${provider.toUpperCase()}`);
 
       // Gerar texto com IA
       const systemPrompt = "Você é um especialista em análise de conteúdo cinematográfico que identifica alertas importantes para espectadores.";
@@ -857,7 +848,14 @@ function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
     else if (arg.startsWith('--ai-provider=')) {
       const provider = extractValue(arg, '--ai-provider=');
       if (provider) {
-        parsed.aiProvider = removeQuotes(provider) as 'openai' | 'gemini' | 'deepseek' | 'auto';
+        const cleanProvider = removeQuotes(provider);
+        // Validar apenas openai ou deepseek
+        if (cleanProvider === 'openai' || cleanProvider === 'deepseek') {
+          parsed.aiProvider = cleanProvider as 'openai' | 'deepseek';
+        } else {
+          console.warn(`⚠️ Provider '${cleanProvider}' não suportado. Use 'openai' ou 'deepseek'. Usando 'openai' como padrão.`);
+          parsed.aiProvider = 'openai';
+        }
       }
     }
     
@@ -890,7 +888,7 @@ async function main() {
       console.log(`\nUso: npx ts-node orchestrator.ts --title="Título" --year=2023 --journeyOptionFlowId=81 --analysisLens=14 --journeyValidation=15`);
       console.log(`\nFlags opcionais:`);
       console.log(`   --approve-new-subsentiments: Aprova automaticamente a criação de novos subsentimentos sugeridos pela IA.`);
-      console.log(`   --ai-provider=openai|gemini|deepseek|auto: Escolhe o provedor de IA (padrão: openai, auto=seleção automática baseada no filme).`);
+      console.log(`   --ai-provider=openai|deepseek: Escolhe o provedor de IA (padrão: openai).`);
       return;
     }
 

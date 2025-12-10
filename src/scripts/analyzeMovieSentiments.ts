@@ -15,7 +15,13 @@ function getAIProvider(): AIProvider {
   const providerArg = args.find(arg => arg.startsWith('--ai-provider='));
   const provider = providerArg ? providerArg.split('=')[1] as AIProvider : process.env.AI_PROVIDER as AIProvider;
   
-  return provider === 'gemini' ? 'gemini' : 'openai';
+  // Validar e retornar apenas openai ou deepseek (padrão: openai)
+  if (provider === 'deepseek' || provider === 'openai') {
+    return provider;
+  }
+  
+  // Fallback para openai se provider inválido ou não especificado
+  return 'openai';
 }
 
 interface ThemeConfig {
