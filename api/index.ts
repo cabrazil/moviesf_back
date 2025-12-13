@@ -38,8 +38,11 @@ app.use(cors({
       'http://127.0.0.1:5173',  // Vite dev server (alternativo)
       'http://localhost:8081',  // Expo dev server (React Native)
       'http://127.0.0.1:8081',  // Expo dev server (alternativo)
-      'https://moviesf-front.vercel.app',  // Frontend produção
-      'https://vibesfilm.vercel.app'       // Frontend produção (alternativo)
+      'https://moviesf-front.vercel.app',  // Frontend produção (Vercel)
+      'https://vibesfilm.vercel.app',       // Frontend produção (Vercel alternativo)
+      'https://cbrazil.com',                // Frontend staging (Coolify)
+      'https://www.cbrazil.com',            // Frontend staging (Coolify www)
+      'https://api-vibes.cbrazil.com'       // Backend staging (Coolify)
     ];
     
     // Permitir origens da lista ou qualquer origem localhost (desenvolvimento mobile)

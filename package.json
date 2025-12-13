@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only api/index.ts",
     "build": "prisma generate && tsc -p tsconfig.build.json",
-    "start": "node dist/server.js",
+    "start": "node dist/api/index.js",
     "env:dev": "node scripts/setup-and-run.js development dev",
     "env:prod": "node scripts/setup-and-run.js production dev",
     "env:setup:dev": "./scripts/setup-env.sh development",
@@ -32,6 +32,8 @@
     "db:backup": "ts-node prisma/scripts/backup-database.ts",
     "db:restore": "ts-node prisma/scripts/restore-database.ts",
     "db:reset": "ts-node src/scripts/resetDatabase.ts",
+    "populate:movies": "ts-node src/scripts/populateMovies.ts",
+    "studio:prod": "./src/scripts/start-remote-studio.sh",
     "db:reset-data": "ts-node src/scripts/resetData.ts",
     "db:reset-with-schema": "ts-node src/scripts/resetWithSchema.ts",
     "db:backup-supabase": "ts-node src/scripts/backupSupabase.ts"

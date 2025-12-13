@@ -81,7 +81,7 @@ class AIProviderManager {
   ): Promise<AIResponse> {
     try {
       const modelToUse = this.config.model || 'gpt-4-turbo';
-      
+
       const response = await axios.post<OpenAIResponse>('https://api.openai.com/v1/chat/completions', {
         model: modelToUse,
         messages: [
@@ -103,13 +103,13 @@ class AIProviderManager {
       const status = error?.response?.status;
       const errorMessage = error?.response?.data?.error?.message || error?.message;
       const modelUsed = this.config.model || 'gpt-4-turbo';
-      
+
       console.error(`Erro na API OpenAI (modelo: ${modelUsed}):`, {
         status,
         message: errorMessage,
         error: error?.response?.data
       });
-      
+
       return {
         content: '',
         success: false,
@@ -166,7 +166,7 @@ class AIProviderManager {
         // Se não for JSON válido, continuar procurando
       }
     }
-    
+
     // Tentar encontrar JSON direto (pode estar no início ou meio do texto)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -179,7 +179,7 @@ class AIProviderManager {
         // Retornar texto original para preservar conteúdo de hooks/warnings
       }
     }
-    
+
     // Se não encontrou JSON válido, retornar o texto original
     // Isso é importante para hooks e warnings que são texto puro
     return text;
@@ -192,13 +192,13 @@ class AIProviderManager {
     maxTokens: number
   ): Promise<AIResponse> {
     // Verificar se esperamos JSON (análise de sentimentos) ou texto puro (hooks, warnings)
-    const expectsJSON = systemPrompt.includes('suggestedSubSentiments') || 
-                        systemPrompt.includes('JSON') || 
-                        userPrompt.includes('suggestedSubSentiments') ||
-                        userPrompt.includes('JSON válido');
-    
+    const expectsJSON = systemPrompt.includes('suggestedSubSentiments') ||
+      systemPrompt.includes('JSON') ||
+      userPrompt.includes('suggestedSubSentiments') ||
+      userPrompt.includes('JSON válido');
+
     let enhancedSystemPrompt: string;
-    
+
     if (expectsJSON) {
       // Prompt otimizado para análise de sentimentos (JSON obrigatório)
       enhancedSystemPrompt = `
@@ -249,9 +249,9 @@ INSTRUÇÕES IMPORTANTES:
 
     // Combinar prompts otimizados
     const combinedPrompt = `${enhancedSystemPrompt}\n\n${userPrompt}`;
-    
+
     const modelToUse = this.config.model || 'gemini-2.5-flash';
-    
+
     console.log(`🤖 Tentando Gemini com biblioteca oficial (modelo: ${modelToUse})...`);
 
     // Verificar se a chave de API está disponível
@@ -267,9 +267,9 @@ INSTRUÇÕES IMPORTANTES:
     try {
       // Inicializar a biblioteca oficial do Google
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      
+
       // Obter o modelo
-      const model = genAI.getGenerativeModel({ 
+      const model = genAI.getGenerativeModel({
         model: modelToUse,
         generationConfig: {
           temperature: 0.2,           // Mais determinístico
@@ -288,16 +288,16 @@ INSTRUÇÕES IMPORTANTES:
       // Gerar conteúdo usando a biblioteca oficial
       const result = await model.generateContent(combinedPrompt);
       const response = await result.response;
-      
+
       if (!response || !response.text) {
         throw new Error('Resposta vazia - nenhum texto retornado');
       }
 
       let content = response.text();
-      
+
       // Extrair JSON se vier em markdown ou com texto adicional
       content = this.extractJSONFromResponse(content);
-      
+
       return {
         content,
         success: true
@@ -305,7 +305,7 @@ INSTRUÇÕES IMPORTANTES:
     } catch (error: any) {
       const errorMessage = error?.message || 'Erro desconhecido';
       const status = error?.status || error?.response?.status;
-      
+
       // Log do erro
       if (status === 429 || errorMessage.includes('429') || errorMessage.includes('quota')) {
         console.error(`Erro 429 (Quota excedida) na API Gemini`);
@@ -317,43 +317,44 @@ INSTRUÇÕES IMPORTANTES:
         console.error(`Erro na API Gemini:`, errorMessage);
       }
 
-    // Fallback 1: DeepSeek se disponível (forçar modelo correto)
-    if (process.env.DEEPSEEK_API_KEY) {
-      try {
-        console.log('🔄 Erro persistente no Gemini - tentando fallback para DeepSeek (modelo: deepseek-chat)...');
-        const deepseekResult = await this.generateDeepSeekResponse(systemPrompt, userPrompt, temperature, maxTokens, 'deepseek-chat');
-        if (deepseekResult.success) {
-          console.log('✅ Fallback para DeepSeek bem-sucedido (modelo: deepseek-chat)');
-          return deepseekResult;
-        } else {
-          console.warn('⚠️ Fallback DeepSeek retornou erro:', deepseekResult.error);
+      // Fallback 1: DeepSeek se disponível (forçar modelo correto)
+      if (process.env.DEEPSEEK_API_KEY) {
+        try {
+          console.log('🔄 Erro persistente no Gemini - tentando fallback para DeepSeek (modelo: deepseek-chat)...');
+          const deepseekResult = await this.generateDeepSeekResponse(systemPrompt, userPrompt, temperature, maxTokens, 'deepseek-chat');
+          if (deepseekResult.success) {
+            console.log('✅ Fallback para DeepSeek bem-sucedido (modelo: deepseek-chat)');
+            return deepseekResult;
+          } else {
+            console.warn('⚠️ Fallback DeepSeek retornou erro:', deepseekResult.error);
+          }
+        } catch (fallbackError: any) {
+          console.error('❌ Fallback para DeepSeek falhou:', fallbackError?.message || fallbackError);
         }
-      } catch (fallbackError: any) {
-        console.error('❌ Fallback para DeepSeek falhou:', fallbackError?.message || fallbackError);
       }
-    }
-    
-    // Fallback 2: OpenAI como último recurso
-    if (process.env.OPENAI_API_KEY) {
-      try {
-        console.log('🔄 DeepSeek falhou - tentando fallback final para OpenAI (modelo: gpt-4-turbo)...');
-        const openaiResult = await this.generateOpenAIResponse(systemPrompt, userPrompt, temperature, maxTokens);
-        if (openaiResult.success) {
-          console.log('✅ Fallback para OpenAI bem-sucedido (modelo: gpt-4-turbo)');
-          return openaiResult;
-        } else {
-          console.warn('⚠️ Fallback OpenAI retornou erro:', openaiResult.error);
+
+      // Fallback 2: OpenAI como último recurso
+      if (process.env.OPENAI_API_KEY) {
+        try {
+          console.log('🔄 DeepSeek falhou - tentando fallback final para OpenAI (modelo: gpt-4-turbo)...');
+          const openaiResult = await this.generateOpenAIResponse(systemPrompt, userPrompt, temperature, maxTokens);
+          if (openaiResult.success) {
+            console.log('✅ Fallback para OpenAI bem-sucedido (modelo: gpt-4-turbo)');
+            return openaiResult;
+          } else {
+            console.warn('⚠️ Fallback OpenAI retornou erro:', openaiResult.error);
+          }
+        } catch (fallbackError: any) {
+          console.error('❌ Fallback para OpenAI também falhou:', fallbackError?.message || fallbackError);
         }
-      } catch (fallbackError: any) {
-        console.error('❌ Fallback para OpenAI também falhou:', fallbackError?.message || fallbackError);
       }
+
+      return {
+        content: '',
+        success: false,
+        error: 'Erro Gemini: falha após tentar biblioteca oficial, fallback DeepSeek e fallback OpenAI.'
+      };
     }
-    
-    return {
-      content: '',
-      success: false,
-      error: 'Erro Gemini: falha após tentar biblioteca oficial, fallback DeepSeek e fallback OpenAI.'
-    };
   }
 
   private async generateDeepSeekResponse(
@@ -367,15 +368,15 @@ INSTRUÇÕES IMPORTANTES:
       // Usar modelo forçado se fornecido, senão usar o do config, senão usar padrão
       // Isso corrige o bug onde fallback do Gemini tentava usar 'gemini-2.5-flash' no DeepSeek
       const modelToUse = forcedModel || this.config.model || 'deepseek-chat';
-      
+
       // Log do modelo sendo usado (apenas se for diferente do esperado)
       if (forcedModel && forcedModel !== this.config.model) {
         console.log(`📌 Usando modelo forçado para DeepSeek: ${modelToUse} (config original: ${this.config.model})`);
       }
-      
+
       // Validar e limitar maxTokens (alguns modelos têm limites)
       const safeMaxTokens = Math.min(maxTokens, 4000); // Limite seguro para DeepSeek
-      
+
       // Validar tamanho do prompt (alguns modelos têm limite de contexto)
       const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
       if (combinedPrompt.length > 100000) {
@@ -395,7 +396,7 @@ INSTRUÇÕES IMPORTANTES:
             'Content-Type': 'application/json'
           }
         });
-        
+
         const content = response.data.choices[0].message.content;
         return { content, success: true };
       }
@@ -424,14 +425,14 @@ INSTRUÇÕES IMPORTANTES:
     } catch (error: any) {
       const status = error?.response?.status;
       const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message || error?.message;
-      
+
       const modelUsed = forcedModel || this.config.model || 'deepseek-chat';
       console.error(`Erro na API DeepSeek (modelo: ${modelUsed}):`, {
         status,
         message: errorMessage,
         error: error?.response?.data
       });
-      
+
       return {
         content: '',
         success: false,
@@ -470,53 +471,53 @@ interface MovieContext {
 
 export function selectOptimalAIProvider(context: MovieContext): AIProvider {
   const { genres = [], keywords = [], analysisLens, isComplexDrama } = context;
-  
+
   // Converter para lowercase para comparação
   const lowerGenres = genres.map(g => g.toLowerCase());
   const lowerKeywords = keywords.map(k => k.toLowerCase());
-  
+
   // OpenAI necessário para casos complexos
   const complexIndicators = [
     'coming-of-age', 'chegando à maioridade', 'adolescente', 'autodescoberta',
     'thriller psicológico', 'suspense psicológico', 'psicológico',
     'drama complexo', 'trauma', 'depressão', 'saúde mental'
   ];
-  
-  const isComplex = complexIndicators.some(indicator => 
+
+  const isComplex = complexIndicators.some(indicator =>
     lowerKeywords.includes(indicator) || lowerGenres.includes(indicator)
   );
-  
+
   // Coming-of-age sempre OpenAI
   if (isComplex || isComplexDrama) {
     return 'openai';
   }
-  
+
   // Gemini excelente para estes gêneros
   const geminiOptimalGenres = [
-    'romance', 'comédia romântica', 'família', 'animação', 
+    'romance', 'comédia romântica', 'família', 'animação',
     'comédia', 'aventura', 'ação'
   ];
-  
-  const isGeminiOptimal = geminiOptimalGenres.some(genre => 
+
+  const isGeminiOptimal = geminiOptimalGenres.some(genre =>
     lowerGenres.includes(genre) || lowerKeywords.includes(genre)
   );
-  
+
   if (isGeminiOptimal) {
     return 'gemini';
   }
-  
+
   // Lógica por lente de análise
   switch (analysisLens) {
     case 13: // Feliz - Gemini bom para conteúdo positivo
     case 17: // Animado - Gemini bom para energia
       return 'gemini';
-    
+
     case 14: // Triste - Depende do contexto
       return isComplex ? 'openai' : 'gemini';
-    
+
     case 16: // Ansioso - OpenAI melhor para suspense
       return 'openai';
-    
+
     default:
       return 'gemini'; // Default para economia
   }

@@ -6,7 +6,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-n
 node_modules
 dist
 dist-ssr
@@ -20,6 +19,7 @@ dist-ssr
 var.env
 docker-compose.yml
 10mangos
+generated_articles/
 
 # Scripts
 sql/*
