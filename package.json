@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only api/index.ts",
-    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "build": "npx prisma generate && npx prisma generate --schema=./prisma/blog/schema.prisma && tsc -p tsconfig.build.json",
     "start": "node dist/api/index.js",
     "env:dev": "node scripts/setup-and-run.js development dev",
     "env:prod": "node scripts/setup-and-run.js production dev",
