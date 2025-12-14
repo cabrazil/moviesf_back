@@ -26,6 +26,5 @@ RUN npm prune --production
 # Expor porta
 EXPOSE 3333
 
-# Comando para iniciar o servidor
-CMD ["npm", "start"]
+
 

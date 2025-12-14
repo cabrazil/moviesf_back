@@ -30,7 +30,7 @@ app.use(cors({
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // Lista de origens permitidas (web e mobile)
     const allowedOrigins = [
       'http://localhost:5173',  // Vite dev server
@@ -42,9 +42,10 @@ app.use(cors({
       'https://vibesfilm.vercel.app',       // Frontend produção (Vercel alternativo)
       'https://cbrazil.com',                // Frontend staging (Coolify)
       'https://www.cbrazil.com',            // Frontend staging (Coolify www)
-      'https://api-vibes.cbrazil.com'       // Backend staging (Coolify)
+      'https://api-vibes.cbrazil.com',      // Backend staging (Coolify)
+      'https://app-vibes.cbrazil.com'       // Frontend produção (Dokploy)
     ];
-    
+
     // Permitir origens da lista ou qualquer origem localhost (desenvolvimento mobile)
     if (allowedOrigins.includes(origin) || origin?.startsWith('http://localhost:') || origin?.startsWith('http://127.0.0.1:')) {
       callback(null, true);
@@ -55,8 +56,8 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
+    'Content-Type',
+    'Authorization',
     'X-Requested-With',
     'x-csrf-token',
     'X-CSRF-Token'
