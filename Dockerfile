@@ -18,7 +18,7 @@ RUN npm ci && npm cache clean --force
 COPY . .
 
 # Gerar Prisma Client e fazer build
-RUN npx prisma generate && npm run build
+RUN npx prisma generate && npx prisma generate --schema=./prisma/blog/schema.prisma && npm run build
 
 # Remover devDependencies após build (opcional, para reduzir tamanho)
 RUN npm prune --production
