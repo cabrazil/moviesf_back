@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaClient as BlogPrismaClient } from '@prisma/client-blog';
 import { loadEnvironment } from './config/env-loader';
 
 // Carregar variáveis de ambiente na ordem correta
@@ -23,10 +24,10 @@ if (process.env.NODE_ENV !== 'development') globalForPrismaApp.prismaApp = prism
 
 // --- Blog Prisma Client (Singleton) ---
 const globalForPrismaBlog = globalThis as unknown as {
-  prismaBlog: PrismaClient | undefined
+  prismaBlog: BlogPrismaClient | undefined
 }
 
-export const prismaBlog = globalForPrismaBlog.prismaBlog ?? new PrismaClient({
+export const prismaBlog = globalForPrismaBlog.prismaBlog ?? new BlogPrismaClient({
   log: ['error'],
   datasources: {
     db: {

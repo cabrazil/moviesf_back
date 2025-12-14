@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/@prisma/client-blog"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("BLOG_DATABASE_URL")
+}
+
+model NewsletterSubscription {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String    @unique @db.VarChar(255)
+  subscribedAt    DateTime  @default(now())
+  isActive        Boolean   @default(true)
+  ipAddress       String?   @db.VarChar(45)
+  userAgent       String?   @db.Text
+  source          String?   @db.VarChar(50)
+  emailSent       Boolean   @default(false)
+  unsubscribedAt  DateTime?
+}

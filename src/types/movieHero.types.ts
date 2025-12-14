@@ -162,7 +162,7 @@ export interface MovieHeroError {
 
 export interface DatabaseConfig {
   connectionString: string;
-  ssl: {
+  ssl: boolean | {
     rejectUnauthorized: boolean;
   };
 }
