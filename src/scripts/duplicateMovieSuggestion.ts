@@ -3,6 +3,7 @@
 import './scripts-helper';
 
 import { PrismaClient } from '@prisma/client';
+import { updateRelevanceRankingForMovie } from '../utils/relevanceRanking';
 
 const prisma = new PrismaClient();
 
@@ -11,7 +12,7 @@ const prisma = new PrismaClient();
  */
 async function copyMovieSentiments(movieId: string) {
   console.log('\n📊 Iniciando cópia de MovieSentiment...');
-  
+
   // Buscar todos os MovieSentiment do filme
   const existingSentiments = await prisma.movieSentiment.findMany({
     where: {
@@ -25,7 +26,7 @@ async function copyMovieSentiments(movieId: string) {
   }
 
   console.log(`📋 Encontrados ${existingSentiments.length} registros de MovieSentiment`);
-  
+
   let copiedCount = 0;
   let updatedCount = 0;
   let errorCount = 0;
@@ -118,7 +119,7 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
     // 2. Obter o registro base na MovieSuggestionFlow
     console.log('🔍 Buscando sugestão base...');
     let baseSuggestion;
-    
+
     if (args.baseJourneyOptionFlowId) {
       // Buscar sugestão específica pelo journeyOptionFlowId
       baseSuggestion = await prisma.movieSuggestionFlow.findFirst({
@@ -127,11 +128,11 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
           journeyOptionFlowId: args.baseJourneyOptionFlowId
         }
       });
-      
+
       if (!baseSuggestion) {
         throw new Error(`Nenhuma sugestão encontrada para o filme ${args.title} com journeyOptionFlowId ${args.baseJourneyOptionFlowId}`);
       }
-      
+
       console.log(`✅ Sugestão base encontrada (ID: ${baseSuggestion.id}, JourneyOptionFlowId: ${args.baseJourneyOptionFlowId})`);
     } else {
       // Buscar a sugestão mais recente como padrão
@@ -163,7 +164,7 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
     if (existingWithNewFlow) {
       console.log(`⚠️ Já existe uma sugestão para este filme com journeyOptionFlowId ${args.journeyOptionFlowId}`);
       console.log(`📊 Sugestão existente ID: ${existingWithNewFlow.id}`);
-      
+
       // 3.1. Atualizar os campos reason, relevance e relevanceScore da sugestão base
       console.log('📝 Atualizando sugestão existente...');
       const updatedSuggestion = await prisma.movieSuggestionFlow.update({
@@ -176,7 +177,7 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
           relevanceScore: baseSuggestion.relevanceScore // Copia o relevanceScore da sugestão base
         }
       });
-      
+
       console.log('🎉 Sugestão atualizada com sucesso!');
       console.log('📊 Resumo da atualização:');
       console.log(`   Filme: ${movie.title} (${movie.year})`);
@@ -191,7 +192,21 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
       if (args.copyMovieSentiments) {
         await copyMovieSentiments(movie.id);
       }
-      
+
+      // 6. Reorganizar ranking de relevance (mesmo na atualização)
+      console.log('🔄 Reorganizando ranking de relevance...');
+      const relevanceUpdated = await updateRelevanceRankingForMovie(movie.id);
+      if (relevanceUpdated) {
+        console.log('✅ Ranking de relevance atualizado com sucesso!');
+
+        // Mostrar estado final
+        const finalState = await prisma.movieSuggestionFlow.findUnique({ where: { id: existingWithNewFlow.id } });
+        console.log(`📊 Estado FINAL da sugestão:`);
+        console.log(`   Relevance: ${finalState?.relevance} (Pós-reorganização)`);
+      } else {
+        console.log('⚠️ Falha ao atualizar ranking de relevance (ou sem necessidade).');
+      }
+
       return;
     }
 
@@ -222,6 +237,20 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
       await copyMovieSentiments(movie.id);
     }
 
+    // 6. Reorganizar ranking de relevance
+    console.log('🔄 Reorganizando ranking de relevance...');
+    const relevanceUpdated = await updateRelevanceRankingForMovie(movie.id);
+    if (relevanceUpdated) {
+      console.log('✅ Ranking de relevance atualizado com sucesso!');
+
+      // Mostrar estado final
+      const finalState = await prisma.movieSuggestionFlow.findUnique({ where: { id: newSuggestion.id } });
+      console.log(`📊 Estado FINAL da sugestão:`);
+      console.log(`   Relevance: ${finalState?.relevance} (Pós-reorganização)`);
+    } else {
+      console.log('⚠️ Falha ao atualizar ranking de relevance (ou sem necessidade).');
+    }
+
   } catch (error) {
     console.error('❌ Erro:', error);
     process.exit(1);
@@ -237,8 +266,8 @@ function parseArgs(): ScriptArgs {
 
   // Função auxiliar para remover aspas de um valor
   const removeQuotes = (value: string): string => {
-    if ((value.startsWith('"') && value.endsWith('"')) || 
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))) {
       return value.slice(1, -1);
     }
     return value;
@@ -257,11 +286,11 @@ function parseArgs(): ScriptArgs {
 
     if (arg.startsWith('--title=')) {
       let title = extractValue(arg, '--title=');
-      
+
       if (title) {
         // Remover aspas se presentes
         title = removeQuotes(title);
-        
+
         // Se o valor após o = não contém espaços e o próximo argumento não é um parâmetro,
         // pode ser que o título foi dividido pelo shell/npm
         if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
@@ -279,7 +308,7 @@ function parseArgs(): ScriptArgs {
           parsed.title = title;
         }
       }
-    } 
+    }
     else if (arg.startsWith('--year=')) {
       const yearStr = extractValue(arg, '--year=');
       if (yearStr) {

@@ -14,12 +14,12 @@ function getAIProvider(): AIProvider {
   const args = process.argv.slice(2);
   const providerArg = args.find(arg => arg.startsWith('--ai-provider='));
   const provider = providerArg ? providerArg.split('=')[1] as AIProvider : process.env.AI_PROVIDER as AIProvider;
-  
+
   // Validar e retornar apenas openai, deepseek ou gemini (padrão: openai)
   if (provider === 'deepseek' || provider === 'openai' || provider === 'gemini') {
     return provider;
   }
-  
+
   // Fallback para openai se provider inválido ou não especificado
   return 'openai';
 }
@@ -138,11 +138,11 @@ async function analyzeMovieWithAI(
   const existingSubSentiments = await prisma.subSentiment.findMany({
     where: { mainSentimentId: mainSentimentId },
   });
-  
+
   // 2. Construir lista formatada com nomes e keywords para melhor contexto
   const existingSubSentimentsFormatted = existingSubSentiments.map(ss => {
-    const keywordsStr = ss.keywords && ss.keywords.length > 0 
-      ? ` (keywords: ${ss.keywords.slice(0, 5).join(', ')})` 
+    const keywordsStr = ss.keywords && ss.keywords.length > 0
+      ? ` (keywords: ${ss.keywords.slice(0, 5).join(', ')})`
       : '';
     return `- ${ss.name}${keywordsStr}`;
   });
@@ -202,19 +202,19 @@ ${existingSubSentimentsFormatted.length > 0 ? existingSubSentimentsFormatted.joi
 
   try {
     let provider = getAIProvider();
-    
+
     // Estratégia híbrida: Gemini tem limitações de quota na FASE 2 (análise de sentimentos)
     // Usar DeepSeek automaticamente para análise de sentimentos quando provider = gemini
     if (provider === 'gemini') {
       console.log('ℹ️ Usando DeepSeek para análise de sentimentos (Gemini tem limitações de quota nesta fase)');
       provider = 'deepseek';
     }
-    
+
     const config = getDefaultConfig(provider);
     const aiProvider = createAIProvider(config);
-    
+
     const systemPrompt = 'Você é um especialista em análise de filmes, focado em aspectos emocionais e sentimentais. Sua tarefa é avaliar filmes para jornadas emocionais específicas e retornar um JSON válido.';
-    
+
     const response = await aiProvider.generateResponse(systemPrompt, prompt, {
       temperature: 0.5,
       maxTokens: 1200  // Aumentado de 600 para 1200 para evitar JSON truncado
@@ -234,44 +234,44 @@ ${existingSubSentimentsFormatted.length > 0 ? existingSubSentimentsFormatted.joi
      */
     function repairTruncatedJSON(jsonString: string): string {
       let repaired = jsonString.trim();
-      
+
       // Remover markdown se presente
       const markdownMatch = repaired.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
       if (markdownMatch) {
         repaired = markdownMatch[1].trim();
       }
-      
+
       // Encontrar o início do JSON (primeira {)
       const jsonStart = repaired.indexOf('{');
       if (jsonStart === -1) {
         return repaired; // Não é JSON válido
       }
       repaired = repaired.substring(jsonStart);
-      
+
       // Contar chaves e colchetes abertos vs fechados
       let openBraces = 0;
       let openBrackets = 0;
       let inString = false;
       let escapeNext = false;
-      
+
       for (let i = 0; i < repaired.length; i++) {
         const char = repaired[i];
-        
+
         if (escapeNext) {
           escapeNext = false;
           continue;
         }
-        
+
         if (char === '\\') {
           escapeNext = true;
           continue;
         }
-        
+
         if (char === '"' && !escapeNext) {
           inString = !inString;
           continue;
         }
-        
+
         if (!inString) {
           if (char === '{') openBraces++;
           if (char === '}') openBraces--;
@@ -279,24 +279,24 @@ ${existingSubSentimentsFormatted.length > 0 ? existingSubSentimentsFormatted.joi
           if (char === ']') openBrackets--;
         }
       }
-      
+
       // Fechar strings abertas (se houver)
       if (inString) {
         repaired += '"';
       }
-      
+
       // Fechar colchetes abertos
       while (openBrackets > 0) {
         repaired += ']';
         openBrackets--;
       }
-      
+
       // Fechar chaves abertas
       while (openBraces > 0) {
         repaired += '}';
         openBraces--;
       }
-      
+
       return repaired;
     }
 
@@ -312,7 +312,7 @@ ${existingSubSentimentsFormatted.length > 0 ? existingSubSentimentsFormatted.joi
         // Se não houver markdown, tenta fazer o parse do conteúdo inteiro
         jsonString = content.trim();
       }
-      
+
       // Tentar parse direto primeiro
       try {
         return JSON.parse(jsonString);
@@ -320,7 +320,7 @@ ${existingSubSentimentsFormatted.length > 0 ? existingSubSentimentsFormatted.joi
         // Se falhar, tentar reparar JSON truncado
         console.log('⚠️ JSON pode estar truncado, tentando reparar...');
         const repaired = repairTruncatedJSON(jsonString);
-        
+
         try {
           return JSON.parse(repaired);
         } catch (repairedParseError) {
@@ -381,21 +381,21 @@ function findBestMatch(
   for (const dbSub of dbSubSentiments) {
     let currentScore = 0;
     const dbSubName = dbSub.name.toLowerCase().trim();
-    
+
     // 1. MATCH EXATO DE NOME (peso máximo)
     if (suggestionName === dbSubName) {
       currentScore += 50;
     }
-    
+
     // 2. MATCH PARCIAL DE NOME (uma contém a outra)
     if (suggestionName.includes(dbSubName) || dbSubName.includes(suggestionName)) {
       currentScore += 8;
     }
-    
+
     // 3. MATCH POR PALAVRAS COMUNS NO NOME
     const nameWords = dbSubName.split(/[^a-zA-Z0-9áàâãéêíóôõúç]+/).filter(w => w.length > 2);
     const suggestionNameWords = suggestionName.split(/[^a-zA-Z0-9áàâãéêíóôõúç]+/).filter(w => w.length > 2);
-    
+
     let commonNameWords = 0;
     for (const dbWord of nameWords) {
       // Verificar match direto
@@ -411,7 +411,7 @@ function findBestMatch(
         }
       }
     }
-    
+
     if (nameWords.length > 0) {
       currentScore += (commonNameWords / Math.max(nameWords.length, suggestionNameWords.length)) * 10;
     }
@@ -456,7 +456,7 @@ function findBestMatch(
     console.log(`\n  -> Match encontrado para "${suggestion.name}": "${bestMatch?.name}" com score ${maxScore.toFixed(2)}`);
     return bestMatch;
   }
-  
+
   console.log(`\n  -> Nenhum match adequado encontrado para "${suggestion.name}" (melhor score: ${maxScore.toFixed(2)}, threshold: 3.0)`);
   return null;
 }
@@ -519,7 +519,7 @@ async function main() {
     }
     // --- Fim da nova verificação ---
 
-    
+
 
     console.log(`\n=== Analisando filme: ${movie.title} (${movie.year}) ===`);
     console.log(`TMDB ID: ${movie.tmdbId} | UUID: ${movie.id}\n`);
@@ -550,9 +550,9 @@ async function main() {
       // MELHORIA: SEMPRE tentar matching primeiro, mesmo quando isNew=true
       // A IA pode marcar como novo incorretamente, então validamos sempre
       console.log(`\n🔍 Validando sugestão: "${suggestion.name}" (IA marcou como ${suggestion.isNew ? 'NOVO' : 'EXISTENTE'})`);
-      
+
       const bestMatch = findBestMatch(suggestion, allSubSentiments);
-      
+
       if (bestMatch) {
         if (bestMatch.mainSentimentId === mainSentimentId) {
           console.log(`✅ Match encontrado: IA "${suggestion.name}" -> BD "${bestMatch.name}" (ID: ${bestMatch.id})`);
@@ -566,28 +566,28 @@ async function main() {
       } else {
         // Se não encontrou match, tentar matching mais agressivo antes de criar novo
         console.log(`⚠️ Match inicial não encontrado para "${suggestion.name}". Tentando matching semântico mais agressivo...`);
-        
+
         // Matching agressivo: verificar se alguma palavra principal do nome existe em algum subsentimento
         const suggestionWords = suggestion.name.toLowerCase().split(/[^a-zA-Z0-9áàâãéêíóôõúç]+/).filter(w => w.length > 3);
         let aggressiveMatch: SubSentiment | null = null;
-        
+
         for (const dbSub of allSubSentiments) {
           const dbSubName = dbSub.name.toLowerCase();
           const dbSubText = `${dbSubName} ${dbSub.keywords.join(' ')}`;
-          
+
           // Verificar se pelo menos 1 palavra principal está presente
-          const matchingWords = suggestionWords.filter(word => 
-            dbSubText.includes(word) || 
+          const matchingWords = suggestionWords.filter(word =>
+            dbSubText.includes(word) ||
             dbSub.keywords.some(kw => kw.toLowerCase().includes(word))
           );
-          
+
           if (matchingWords.length > 0 && dbSub.mainSentimentId === mainSentimentId) {
             aggressiveMatch = dbSub;
             console.log(`✅ Match semântico agressivo encontrado: "${suggestion.name}" -> "${dbSub.name}" (palavras comuns: ${matchingWords.join(', ')})`);
             break;
           }
         }
-        
+
         if (aggressiveMatch) {
           validatedSubSentiments.push({ suggestion, dbMatch: aggressiveMatch });
         } else {
@@ -633,49 +633,57 @@ async function main() {
       // Gerar inserts para subsentimentos existentes
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
         if (dbMatch) {
-          // Escapar caracteres problemáticos para SQL
+          // Escapar caracteres problemáticos para SQL (ordem importa!)
           const explanation = suggestion.explanation
-            .replace(/'/g, "''")           // Escapar aspas simples 
-            .replace(/\\/g, "\\\\")        // Escapar barras invertidas
-            .replace(/\n/g, "\\n")         // Escapar quebras de linha
-            .replace(/\r/g, "\\r")         // Escapar retorno de carro
-            .replace(/\t/g, "\\t");        // Escapar tabs
-          
+            .replace(/\\/g, "\\\\")        // Escapar barras invertidas PRIMEIRO
+            .replace(/'/g, "''")           // Escapar aspas simples (SQL padrão)
+            .replace(/\n/g, " ")           // Substituir quebras de linha por espaço
+            .replace(/\r/g, "")            // Remover retorno de carro
+            .replace(/\t/g, " ")           // Substituir tabs por espaço
+            .replace(/\0/g, "");           // Remover caracteres nulos
+
+          const subSentimentName = dbMatch.name.replace(/'/g, "''"); // Escapar nome para SQL
+
           sqlInserts.push(
             `-- Match: IA "${suggestion.name}" -> BD "${dbMatch.name}"`,
-            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt") VALUES ('${movie.id}', ${mainSentimentId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW()) ON CONFLICT ("movieId", "mainSentimentId", "subSentimentId") DO UPDATE SET "relevance" = EXCLUDED."relevance", "explanation" = EXCLUDED."explanation", "updatedAt" = NOW();`,
-            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt") VALUES (${journeyOptionFlowId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(2)}, NOW(), NOW()) ON CONFLICT ("journeyOptionFlowId", "subSentimentId") DO UPDATE SET "weight" = EXCLUDED."weight", "updatedAt" = NOW();`
+            `-- Verificação de Unicidade Semântica: Remove duplicatas com menor relevância`,
+            `DELETE FROM "MovieSentiment" ms USING "SubSentiment" ss WHERE ms."subSentimentId" = ss.id AND ms."movieId" = '${movie.id}' AND ss.name = '${subSentimentName}' AND ms.relevance < ${suggestion.relevance.toFixed(3)};`,
+            `-- Insere apenas se não existir conceito com relevância igual ou maior`,
+            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt") SELECT '${movie.id}', ${mainSentimentId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW() WHERE NOT EXISTS (SELECT 1 FROM "MovieSentiment" ms JOIN "SubSentiment" ss ON ms."subSentimentId" = ss.id WHERE ms."movieId" = '${movie.id}' AND ss.name = '${subSentimentName}');`,
+            `-- Deduplicação Semântica em JourneyOptionFlowSubSentiment: Remove SubSentiments com mesmo nome mas IDs diferentes`,
+            `DELETE FROM "JourneyOptionFlowSubSentiment" jofs USING "SubSentiment" ss WHERE jofs."subSentimentId" = ss.id AND jofs."journeyOptionFlowId" = ${journeyOptionFlowId} AND ss.name = '${subSentimentName}' AND jofs."weight" < ${suggestion.relevance.toFixed(2)};`,
+            `-- Insere ou atualiza, garantindo que apenas um SubSentiment com este nome exista na jornada`,
+            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt") SELECT ${journeyOptionFlowId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(2)}, NOW(), NOW() WHERE NOT EXISTS (SELECT 1 FROM "JourneyOptionFlowSubSentiment" jofs2 JOIN "SubSentiment" ss2 ON jofs2."subSentimentId" = ss2.id WHERE jofs2."journeyOptionFlowId" = ${journeyOptionFlowId} AND ss2.name = '${subSentimentName}') ON CONFLICT ("journeyOptionFlowId", "subSentimentId") DO UPDATE SET "weight" = EXCLUDED."weight", "updatedAt" = NOW();`
           );
         }
       });
+
 
       // Gerar inserts para novos subsentimentos
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
         if (!dbMatch) {
           const subSentimentName = suggestion.name.replace(/'/g, "''"); // Escapar aspas simples
-          
-          // Escapar caracteres problemáticos para SQL
+
+          // Escapar caracteres problemáticos para SQL (ordem importa!)
           const explanation = suggestion.explanation
-            .replace(/'/g, "''")           // Escapar aspas simples 
-            .replace(/\\/g, "\\\\")        // Escapar barras invertidas
-            .replace(/\n/g, "\\n")         // Escapar quebras de linha
-            .replace(/\r/g, "\\r")         // Escapar retorno de carro
-            .replace(/\t/g, "\\t");        // Escapar tabs
+            .replace(/\\/g, "\\\\")        // Escapar barras invertidas PRIMEIRO
+            .replace(/'/g, "''")           // Escapar aspas simples (SQL padrão)
+            .replace(/\n/g, " ")           // Substituir quebras de linha por espaço
+            .replace(/\r/g, "")            // Remover retorno de carro
+            .replace(/\t/g, " ")           // Substituir tabs por espaço
+            .replace(/\0/g, "");           // Remover caracteres nulos
           sqlInserts.push(
             `-- Novo SubSentiment: "${suggestion.name}"`,
-            `WITH new_sub AS (`,
-            `  INSERT INTO "SubSentiment" ("name", "mainSentimentId", "keywords", "createdAt", "updatedAt")`,
-            `  VALUES ('${subSentimentName}', ${mainSentimentId}, ARRAY['${subSentimentName.toLowerCase()}'], NOW(), NOW())`,
-            `  RETURNING id`,
-            `)`,
-            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt")`,
-            `SELECT '${movie.id}', ${mainSentimentId}, id, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW() FROM new_sub;`,
-            ``,
-            `WITH new_sub AS (`,
-            `  SELECT id FROM "SubSentiment" WHERE name = '${subSentimentName}' AND "mainSentimentId" = ${mainSentimentId} LIMIT 1`,
-            `)`,
-            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt")`,
-            `SELECT ${journeyOptionFlowId}, id, ${suggestion.relevance.toFixed(2)}, NOW(), NOW() FROM new_sub;`
+            `-- Criar SubSentiment se não existir`,
+            `INSERT INTO "SubSentiment" ("name", "mainSentimentId", "keywords", "createdAt", "updatedAt") VALUES ('${subSentimentName}', ${mainSentimentId}, ARRAY['${subSentimentName.toLowerCase()}'], NOW(), NOW()) ON CONFLICT ("name", "mainSentimentId") DO NOTHING;`,
+            `-- Verificação de Unicidade Semântica: Remove duplicatas com menor relevância`,
+            `DELETE FROM "MovieSentiment" ms USING "SubSentiment" ss WHERE ms."subSentimentId" = ss.id AND ms."movieId" = '${movie.id}' AND ss.name = '${subSentimentName}' AND ms.relevance < ${suggestion.relevance.toFixed(3)};`,
+            `-- Insere apenas se não existir conceito com relevância igual ou maior`,
+            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt") SELECT '${movie.id}', ${mainSentimentId}, ss.id, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW() FROM "SubSentiment" ss WHERE ss.name = '${subSentimentName}' AND ss."mainSentimentId" = ${mainSentimentId} AND NOT EXISTS (SELECT 1 FROM "MovieSentiment" ms2 JOIN "SubSentiment" ss2 ON ms2."subSentimentId" = ss2.id WHERE ms2."movieId" = '${movie.id}' AND ss2.name = '${subSentimentName}');`,
+            `-- Deduplicação Semântica em JourneyOptionFlowSubSentiment: Remove SubSentiments com mesmo nome mas IDs diferentes`,
+            `DELETE FROM "JourneyOptionFlowSubSentiment" jofs USING "SubSentiment" ss WHERE jofs."subSentimentId" = ss.id AND jofs."journeyOptionFlowId" = ${journeyOptionFlowId} AND ss.name = '${subSentimentName}' AND jofs."weight" < ${suggestion.relevance.toFixed(2)};`,
+            `-- Insere ou atualiza, garantindo que apenas um SubSentiment com este nome exista na jornada`,
+            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt") SELECT ${journeyOptionFlowId}, ss.id, ${suggestion.relevance.toFixed(2)}, NOW(), NOW() FROM "SubSentiment" ss WHERE ss.name = '${subSentimentName}' AND ss."mainSentimentId" = ${mainSentimentId} AND NOT EXISTS (SELECT 1 FROM "JourneyOptionFlowSubSentiment" jofs2 JOIN "SubSentiment" ss2 ON jofs2."subSentimentId" = ss2.id WHERE jofs2."journeyOptionFlowId" = ${journeyOptionFlowId} AND ss2.name = '${subSentimentName}') ON CONFLICT ("journeyOptionFlowId", "subSentimentId") DO UPDATE SET "weight" = EXCLUDED."weight", "updatedAt" = NOW();`
           );
         }
       });

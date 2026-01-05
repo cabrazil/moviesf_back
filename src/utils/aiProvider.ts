@@ -273,9 +273,9 @@ INSTRUÇÕES IMPORTANTES:
         model: modelToUse,
         generationConfig: {
           temperature: 0.2,           // Mais determinístico
-          maxOutputTokens: expectsJSON ? 2500 : 1500,  // Mais tokens para JSON (análise de sentimentos)
-          topP: 0.8,                  // Menos restritivo para permitir criatividade
-          topK: 20                    // Menos restritivo 
+          maxOutputTokens: maxTokens, // Usar o parametro passado (default 2000 ou o que vier do script)
+          topP: 0.8,
+          topK: 20
         }
       });
 
@@ -283,6 +283,7 @@ INSTRUÇÕES IMPORTANTES:
       if (process.env.NODE_ENV === 'development') {
         console.log(`🔍 Usando biblioteca oficial @google/generative-ai`);
         console.log(`📏 Tamanho do prompt: ${combinedPrompt.length} caracteres`);
+        console.log(`🎫 Max Tokens solicitados: ${maxTokens}`);
       }
 
       // Gerar conteúdo usando a biblioteca oficial

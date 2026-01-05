@@ -21,12 +21,12 @@ function getAIProvider(): AIProvider {
   const args = process.argv.slice(2);
   const providerArg = args.find(arg => arg.startsWith('--ai-provider='));
   const provider = providerArg ? providerArg.split('=')[1] as AIProvider : process.env.AI_PROVIDER as AIProvider;
-  
+
   // Validar e retornar apenas openai, deepseek ou gemini (padrão: openai)
   if (provider === 'deepseek' || provider === 'openai' || provider === 'gemini') {
     return provider;
   }
-  
+
   // Fallback para openai se provider inválido ou não especificado
   return 'openai';
 }
@@ -66,7 +66,7 @@ interface SentimentAnalysisResult {
 
 // ===== FUNÇÃO PRINCIPAL AUTOMATIZADA =====
 async function automatedCuration(
-  tmdbId: number, 
+  tmdbId: number,
   targetSentimentId: number,
   journeyOptionFlowId: number,
   intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE' = 'PROCESS'
@@ -83,15 +83,15 @@ async function automatedCuration(
 
     // FASE 1.5: Seleção automática da intenção emocional
     const emotionalIntention = await selectEmotionalIntentionAutomated(
-      targetSentimentId, 
-      movie.genres, 
+      targetSentimentId,
+      movie.genres,
       intentionType,
       journeyOptionFlowId
     );
 
     // FASE 2: Análise de sentimentos
     const sentimentAnalysis = await analyzeMovieSentiments(movie.id, targetSentimentId);
-    
+
     if (!sentimentAnalysis.success) {
       console.log(`❌ Análise de sentimentos falhou: ${sentimentAnalysis.message}`);
       return { success: false, error: sentimentAnalysis.message };
@@ -99,12 +99,12 @@ async function automatedCuration(
 
     // FASE 3: Curadoria e validação da jornada (automatizada)
     const curationResult = await curateAndValidateJourneyAutomated(
-      movie.id, 
-      sentimentAnalysis, 
+      movie.id,
+      sentimentAnalysis,
       journeyOptionFlowId,
       emotionalIntention
     );
-    
+
     if (!curationResult.success) {
       console.log(`❌ Curadoria falhou: ${curationResult.message}`);
       return { success: false, error: curationResult.message };
@@ -136,7 +136,7 @@ async function automatedCuration(
 async function discoverMovieByTmdbId(tmdbId: number) {
   console.log(`\n🎬 === FASE 1: DESCOBRIMENTO DO FILME ===`);
   console.log(`🔍 Buscando filme por TMDB ID: ${tmdbId}...`);
-  
+
   // Garantir que Prisma está conectado (com retry)
   let retries = 3;
   while (retries > 0) {
@@ -150,7 +150,7 @@ async function discoverMovieByTmdbId(tmdbId: number) {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
-  
+
   const movie = await prisma.movie.findUnique({
     where: {
       tmdbId: tmdbId
@@ -166,17 +166,17 @@ async function discoverMovieByTmdbId(tmdbId: number) {
 }
 
 async function selectEmotionalIntentionAutomated(
-  mainSentimentId: number, 
-  movieGenres: string[], 
+  mainSentimentId: number,
+  movieGenres: string[],
   intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE',
   journeyOptionFlowId?: number
 ): Promise<EmotionalIntention | undefined> {
   console.log(`\n🎭 === FASE 1.5: SELEÇÃO AUTOMÁTICA DA INTENÇÃO EMOCIONAL ===`);
-  
+
   // Se temos journeyOptionFlowId, mostrar que está sendo usado
   if (journeyOptionFlowId) {
     console.log(`🎯 Usando journeyOptionFlowId fornecido: ${journeyOptionFlowId}`);
-    
+
     // Buscar informações da jornada para mostrar detalhes
     const journeyOption = await prisma.journeyOptionFlow.findUnique({
       where: { id: journeyOptionFlowId },
@@ -192,7 +192,7 @@ async function selectEmotionalIntentionAutomated(
         }
       }
     });
-    
+
     if (journeyOption) {
       console.log(`📋 Jornada selecionada: ${journeyOption.journeyStepFlow?.journeyFlow?.mainSentiment?.name || 'Nome não disponível'}`);
       console.log(`🎭 Sentimento da jornada: ${journeyOption.journeyStepFlow?.journeyFlow?.mainSentiment?.name || 'Sentimento não disponível'}`);
@@ -201,13 +201,13 @@ async function selectEmotionalIntentionAutomated(
     } else {
       console.log(`⚠️ JourneyOptionFlow ID ${journeyOptionFlowId} não encontrado`);
     }
-    
+
     return undefined; // Retornar undefined para usar a jornada específica
   }
-  
+
   // Se não temos journeyOptionFlowId, fazer seleção automática
   console.log(`🧠 Selecionando intenção emocional para o sentimento ID: ${mainSentimentId}`);
-  
+
   const mainSentiment = await prisma.mainSentiment.findUnique({
     where: { id: mainSentimentId }
   });
@@ -220,7 +220,7 @@ async function selectEmotionalIntentionAutomated(
   console.log(`📊 Sentimento encontrado: ${mainSentiment.name}`);
 
   const selectedIntention = await prisma.emotionalIntention.findFirst({
-    where: { 
+    where: {
       mainSentimentId: mainSentimentId,
       intentionType: intentionType
     }
@@ -240,16 +240,16 @@ async function selectEmotionalIntentionAutomated(
 }
 
 async function curateAndValidateJourneyAutomated(
-  movieId: string, 
-  sentimentAnalysis: SentimentAnalysisResult, 
+  movieId: string,
+  sentimentAnalysis: SentimentAnalysisResult,
   journeyOptionFlowId: number,
   emotionalIntention?: EmotionalIntention
 ): Promise<{ success: boolean; journeyPath?: JourneyPath; message?: string }> {
   console.log(`\n🎯 === FASE 3: CURADORIA E VALIDAÇÃO DA JORNADA (AUTOMATIZADA) ===`);
-  
+
   try {
     let mainSentimentId: number;
-    
+
     if (emotionalIntention) {
       mainSentimentId = emotionalIntention.mainSentimentId;
       const intentionSentiment = await prisma.mainSentiment.findUnique({
@@ -260,7 +260,7 @@ async function curateAndValidateJourneyAutomated(
       const mainSentiment = await prisma.mainSentiment.findFirst({
         where: { name: sentimentAnalysis.mainSentiment }
       });
-      
+
       if (mainSentiment) {
         mainSentimentId = mainSentiment.id;
         console.log(`🎭 Usando sentimento detectado na análise: ${sentimentAnalysis.mainSentiment} (ID: ${mainSentimentId})`);
@@ -273,7 +273,7 @@ async function curateAndValidateJourneyAutomated(
 
     // Criar jornada simplificada com a opção específica
     const journeyPath = await createAutomatedJourneyPath(mainSentimentId, journeyOptionFlowId, emotionalIntention);
-    
+
     // Validar compatibilidade
     const movieDetails = await prisma.movie.findUnique({
       where: { id: movieId }
@@ -286,15 +286,20 @@ async function curateAndValidateJourneyAutomated(
 
       if (option) {
         console.log(`🔍 Validando opção: "${option.text}"`);
-        
+
         // Verificar se há subsentimentos associados
-        const optionSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
+        const optionSubSentimentRels = await prisma.journeyOptionFlowSubSentiment.findMany({
           where: { journeyOptionFlowId: journeyOptionFlowId }
+        });
+
+        const optionSubSentimentIds = optionSubSentimentRels.map(rel => rel.subSentimentId);
+        const optionSubSentiments = await prisma.subSentiment.findMany({
+          where: { id: { in: optionSubSentimentIds } }
         });
 
         const movieSubSentiments = await prisma.movieSentiment.findMany({
           where: { movieId: movieId },
-          include: { 
+          include: {
             subSentiment: {
               include: {
                 mainSentiment: true
@@ -306,10 +311,12 @@ async function curateAndValidateJourneyAutomated(
         console.log(`📊 SubSentiments da opção: ${optionSubSentiments.length}`);
         console.log(`📊 SubSentiments do filme: ${movieSubSentiments.length}`);
 
-        const compatibleSubSentiments = movieSubSentiments.filter(mss => 
-          optionSubSentiments.some(jofss => 
-            jofss.subSentimentId === mss.subSentimentId && jofss.weight.toNumber() >= 0.5
-          )
+        // COMPARAÇÃO SEMÂNTICA: Match por NOME, não por ID
+        const compatibleSubSentiments = movieSubSentiments.filter(mss =>
+          optionSubSentiments.some(optSub => {
+            const rel = optionSubSentimentRels.find(r => r.subSentimentId === optSub.id);
+            return optSub.name === mss.subSentiment.name && rel && rel.weight.toNumber() >= 0.5;
+          })
         );
 
         if (compatibleSubSentiments.length > 0) {
@@ -332,14 +339,14 @@ async function curateAndValidateJourneyAutomated(
 }
 
 async function createAutomatedJourneyPath(
-  mainSentimentId: number, 
-  journeyOptionFlowId: number, 
+  mainSentimentId: number,
+  journeyOptionFlowId: number,
   emotionalIntention?: EmotionalIntention
 ): Promise<JourneyPath> {
-  const mainSentiment = await prisma.mainSentiment.findUnique({ 
-    where: { id: mainSentimentId } 
+  const mainSentiment = await prisma.mainSentiment.findUnique({
+    where: { id: mainSentimentId }
   });
-  
+
   const journeyFlow = await prisma.journeyFlow.findFirst({
     where: { mainSentimentId }
   });
@@ -364,7 +371,7 @@ async function createAutomatedJourneyPath(
 async function analyzeMovieSentiments(movieId: string, targetSentimentId?: number): Promise<SentimentAnalysisResult> {
   console.log(`\n🧠 === FASE 2: ANÁLISE DE SENTIMENTOS ===`);
   console.log(`📊 Analisando sentimentos para: "${movieId}"`);
-  
+
   // Buscar sentimentos já existentes
   const existingMovieSentiments = await prisma.movieSentiment.findMany({
     where: { movieId },
@@ -379,7 +386,7 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
 
   if (existingMovieSentiments.length > 0) {
     console.log(`✅ Filme já possui ${existingMovieSentiments.length} sentimentos analisados`);
-    
+
     const targetMainSentiment = await prisma.mainSentiment.findUnique({
       where: { id: targetSentimentId }
     });
@@ -402,7 +409,7 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
 
 async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Promise<boolean> {
   console.log(`\n🎯 === FASE 4: POPULAÇÃO DA SUGESTÃO ===`);
-  
+
   try {
     const lastStep = journeyPath.steps[journeyPath.steps.length - 1];
     const optionId = lastStep.optionId;
@@ -417,7 +424,7 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
 
     if (existingSuggestion) {
       console.log(`✅ Sugestão já existe (ID: ${existingSuggestion.id}) - Atualizando reflexão...`);
-      
+
       // Buscar informações do filme
       const movie = await prisma.movie.findUnique({
         where: { id: movieId }
@@ -451,7 +458,7 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
       // Atualizar a sugestão existente
       await prisma.movieSuggestionFlow.update({
         where: { id: existingSuggestion.id },
-        data: { 
+        data: {
           reason: reflection,
           relevanceScore: relevanceScore,
           updatedAt: new Date()
@@ -463,7 +470,7 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
       console.log(`✅ Sugestão atualizada (ID: ${existingSuggestion.id})`);
       console.log(`📝 Opção: ${option.text}`);
       console.log(`🎬 Filme: ${movie.title} (${movie.year})`);
-      
+
       return true;
     }
 
@@ -517,7 +524,7 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
     console.log(`📝 Opção: ${option.text}`);
     console.log(`🎬 Filme: ${movie.title} (${movie.year})`);
     console.log(`📊 Relevance Score: ${relevanceScore?.toFixed(3) || 'N/A'}`);
-    
+
     return true;
 
   } catch (error) {
@@ -527,58 +534,116 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
 }
 
 // Função para calcular o relevanceScore baseado nos matches de subsentimentos
+// Nova fórmula: Intensidade × √Abrangência + Bônus
 async function calculateRelevanceScore(movieId: string, journeyOptionFlowId: number): Promise<number | null> {
   try {
-    // Buscar os subsentimentos associados à opção da jornada
-    const optionSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
-      where: { journeyOptionFlowId: journeyOptionFlowId }
-    });
-
-    // Buscar os subsentimentos do filme
-    const movieSubSentiments = await prisma.movieSentiment.findMany({
-      where: { movieId: movieId }
-    });
-
-    // Buscar detalhes dos subsentimentos separadamente
-    const subSentimentIds = [...new Set([
-      ...optionSubSentiments.map(oss => oss.subSentimentId),
-      ...movieSubSentiments.map(mss => mss.subSentimentId)
-    ])];
-
-    const subSentiments = await prisma.subSentiment.findMany({
-      where: { id: { in: subSentimentIds } }
-    });
-
-    let totalRelevanceScore = 0;
-    let matchCount = 0;
-
-    // Para cada subsentimento da opção, verificar se há match no filme
-    for (const optionSub of optionSubSentiments) {
-      const movieMatch = movieSubSentiments.find(movieSub => 
-        movieSub.subSentimentId === optionSub.subSentimentId
-      );
-
-      if (movieMatch) {
-        // Se há match, somar a relevância (weight) do subsentimento da opção
-        totalRelevanceScore += optionSub.weight.toNumber();
-        matchCount++;
-        
-        // Buscar o nome do subsentimento
-        const subSentiment = subSentiments.find(ss => ss.id === optionSub.subSentimentId);
-        const subSentimentName = subSentiment?.name || `ID ${optionSub.subSentimentId}`;
-        
-        console.log(`🎯 Match encontrado: ${subSentimentName} (Relevância: ${optionSub.weight.toNumber()})`);
+    // PASSO 1: NORMALIZAÇÃO - Buscar SubSentiments esperados
+    const expectedSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
+      where: {
+        journeyOptionFlowId: journeyOptionFlowId
+      },
+      select: {
+        subSentimentId: true
       }
+    });
+
+    const subSentimentIds = expectedSubSentiments.map(item => item.subSentimentId);
+
+    if (subSentimentIds.length === 0) {
+      console.log(`⚠️ Jornada ${journeyOptionFlowId} não tem SubSentiments configurados`);
+      return 0;
     }
 
-    // Retornar o score total se houver pelo menos um match
-    if (matchCount > 0) {
-      console.log(`📊 Relevance Score calculado: ${totalRelevanceScore.toFixed(3)} (${matchCount} matches)`);
-      return totalRelevanceScore;
+    // Buscar os nomes dos SubSentiments para criar Set de nomes únicos
+    const subSentiments = await prisma.subSentiment.findMany({
+      where: {
+        id: {
+          in: subSentimentIds
+        }
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    });
+
+    // Criar Set de nomes únicos para definir o denominador real
+    const uniqueExpectedNames = new Set<string>();
+    subSentiments.forEach(ss => {
+      uniqueExpectedNames.add(ss.name);
+    });
+
+    const totalUniqueExpected = uniqueExpectedNames.size;
+
+    // PASSO 2: MAPEAMENTO SEMÂNTICO - Buscar TODOS os sentimentos do filme
+    const allMovieSentiments = await prisma.movieSentiment.findMany({
+      where: {
+        movieId: movieId
+      },
+      include: {
+        subSentiment: true
+      }
+    });
+
+    // Filtrar apenas os que têm nome correspondente aos esperados
+    const movieSentiments = allMovieSentiments.filter(ms =>
+      uniqueExpectedNames.has(ms.subSentiment.name)
+    );
+
+    // Regra de Conflito: Para cada nome, manter apenas a MAIOR relevância
+    const uniqueMatches = new Map<string, number>();
+
+    movieSentiments.forEach(ms => {
+      const name = ms.subSentiment.name;
+      const relevance = Number(ms.relevance);
+
+      if (!uniqueMatches.has(name) || uniqueMatches.get(name)! < relevance) {
+        uniqueMatches.set(name, relevance);
+      }
+
+      // Log do match
+      console.log(`🎯 Match encontrado: ${name} (Relevância: ${relevance.toFixed(3)})`);
+    });
+
+    // PASSO 3: CÁLCULO - Nova fórmula de Intensidade × Abrangência
+    if (uniqueMatches.size === 0 || totalUniqueExpected === 0) {
+      console.log(`⚠️ Nenhum match de subsentimento encontrado para o filme`);
+      return 0;
     }
 
-    console.log(`⚠️ Nenhum match de subsentimento encontrado para o filme`);
-    return null;
+    const matchCount = uniqueMatches.size;
+    const relevances = Array.from(uniqueMatches.values());
+    const average = relevances.reduce((sum, r) => sum + r, 0) / matchCount;
+
+    // INTENSIDADE: (Média)^1.5 × 10
+    const intensity = Math.pow(average, 1.5) * 10;
+
+    // ABRANGÊNCIA: Raiz quadrada da razão de cobertura
+    const coverageRatio = matchCount / totalUniqueExpected;
+    const sqrtCoverage = Math.sqrt(coverageRatio);
+
+    // SCORE BASE: Intensidade × √Abrangência
+    let score = intensity * sqrtCoverage;
+
+    // BÔNUS: +0.5 se cobertura >= 50%
+    let bonus = 0;
+    if (coverageRatio >= 0.5) {
+      bonus = 0.5;
+      score += bonus;
+    }
+
+    // Aplicar teto de 10.0
+    score = Math.min(score, 10.0);
+
+    // Arredondar para 3 casas decimais
+    const relevanceScore = Math.round(score * 1000) / 1000;
+
+    console.log(`📊 Relevance Score calculado: ${relevanceScore}`);
+    console.log(`   Matches: ${matchCount}/${totalUniqueExpected} nomes únicos | Cobertura: ${(coverageRatio * 100).toFixed(1)}%`);
+    console.log(`   Intensidade: ${intensity.toFixed(3)} × √Cobertura: ${sqrtCoverage.toFixed(3)}${bonus > 0 ? ` + Bônus: ${bonus}` : ''}`);
+    console.log(`   Média: ${average.toFixed(3)}`);
+
+    return relevanceScore;
 
   } catch (error) {
     console.error('Erro ao calcular relevance score:', error);
@@ -644,9 +709,9 @@ RESPONDA APENAS COM O TEXTO DA JUSTIFICATIVA, SEM JSON OU FORMATAÇÃO ESPECIAL.
     const provider = getAIProvider();
     const config = getDefaultConfig(provider);
     const aiProvider = createAIProvider(config);
-    
+
     const systemPrompt = 'Você é um especialista em recomendação de filmes baseada em jornadas emocionais. Escreva justificativas concisas e específicas que expliquem como um filme atende à necessidade emocional específica do usuário. IMPORTANTE: Responda APENAS com o texto da justificativa, sem formatação JSON ou markdown.';
-    
+
     const response = await aiProvider.generateResponse(systemPrompt, prompt, {
       temperature: 0.6,
       maxTokens: 100
@@ -667,7 +732,7 @@ RESPONDA APENAS COM O TEXTO DA JUSTIFICATIVA, SEM JSON OU FORMATAÇÃO ESPECIAL.
 function getIntentionLabel(intentionType: string): string {
   const labels = {
     'PROCESS': 'PROCESSAR',
-    'TRANSFORM': 'TRANSFORMAR', 
+    'TRANSFORM': 'TRANSFORMAR',
     'MAINTAIN': 'MANTER',
     'EXPLORE': 'EXPLORAR'
   };
@@ -678,7 +743,7 @@ function getIntentionLabel(intentionType: string): string {
 async function main() {
   try {
     const args = process.argv.slice(2);
-    
+
     if (args.length < 4) {
       console.log("🎬 === SISTEMA DE CURAÇÃO AUTOMÁTICA DE FILMES ===");
       console.log("Uso: npx ts-node discoverAndCurateAutomated.ts \"Nome do Filme\" ano sentimentoId journeyOptionFlowId [intentionType]");
@@ -692,9 +757,9 @@ async function main() {
     const intentionType = (args[3] as any) || 'PROCESS';
 
     const result = await automatedCuration(
-      tmdbId, 
-      targetSentimentId, 
-      journeyOptionFlowId, 
+      tmdbId,
+      targetSentimentId,
+      journeyOptionFlowId,
       intentionType
     );
 

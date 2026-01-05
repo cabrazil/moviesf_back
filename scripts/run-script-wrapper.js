@@ -46,8 +46,8 @@ envContent.split('\n').forEach(line => {
     if (match) {
       const key = match[1].trim();
       let value = match[2].trim();
-      if ((value.startsWith('"') && value.endsWith('"')) || 
-          (value.startsWith("'") && value.endsWith("'"))) {
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1);
       }
       envVars[key] = value;
@@ -62,8 +62,17 @@ if (scriptArgs.length > 0) {
 }
 console.log('');
 
+// Sanitize args for shell execution
+const sanitizedArgs = scriptArgs.map(arg => {
+  if (arg.includes(' ') || arg.includes('"') || arg.includes("'")) {
+    // Simplistic quoting for common cases
+    return `"${arg.replace(/"/g, '\\"')}"`;
+  }
+  return arg;
+});
+
 // Executar ts-node com variáveis de ambiente
-const proc = spawn('npx', ['ts-node', scriptPath, ...scriptArgs], {
+const proc = spawn('npx', ['ts-node', scriptPath, ...sanitizedArgs], {
   env: {
     ...process.env,
     NODE_ENV: env,

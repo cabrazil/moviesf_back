@@ -12,6 +12,7 @@ interface CLIArgs {
   title: string;
   year?: number;
   aiProvider?: 'openai' | 'deepseek' | 'gemini';
+  model?: string;
 }
 
 function parseArgs(): CLIArgs {
@@ -24,6 +25,8 @@ function parseArgs(): CLIArgs {
       args.year = parseInt(arg.split('=')[1]);
     } else if (arg.startsWith('--ai-provider=')) {
       args.aiProvider = arg.split('=')[1] as any;
+    } else if (arg.startsWith('--model=')) {
+      args.model = arg.split('=')[1];
     }
   });
 
@@ -124,12 +127,17 @@ Você é um redator sênior do blog "Vibesfilm", especializado em crítica de ci
 Sua tarefa é escrever um artigo de blog profundo, envolvente e otimizado para SEO sobre o filme: "${movie.title}" (${movie.year}).
 
 **REFERÊNCIA DE ESTILO (CRUCIAL):**
-O tom deve ser inteligente, analítico, mas acessível. Evite listas de tópicos secas. Use parágrafos narrativos que conduzam o leitor.
-Inspire-se no estilo de Jordan Peele ou críticos que misturam análise social/psicológica com cinema.
+O tom deve ser **empático, direto e conversacional**. Escreva como se estivesse recomendando o filme para um amigo próximo, olho no olho.
+Evite o estilo "crítico de cinema acadêmico". Busque a conexão emocional real. Use frases mais curtas e diretas.
+Inspire-se em cronistas que falam sobre sentimentos do cotidiano, com simplicidade e profundidade.
 
 **REGRAS DE OURO:**
-1. **EVITE HIPÉRBOLES:** Corte adjetivos vazios como "magistral", "sublime", "incrível". Em vez de dizer "atuação magistral", descreva *como* o ator transmite a emoção (ex: "com um olhar contido", "através de silêncios pesados").
-2. **VOCABULÁRIO VARIADO:** Não repita a palavra "Vibe" excessivamente. Alterne com "Atmosfera", "Tom", "Sentimento", "Clima", "Energia".
+1. **EVITE HIPÉRBOLES:** Corte adjetivos vazios como "magistral", "sublime". Descreva a emoção real.
+2. **LINGUAGEM ACESSÍVEL (ZERO JARGÃO):** PROIBIDO usar termos como "exaustão existencial", "resiliência do espírito humano", "figura enigmática", "juxtaposição", "onírico".
+   - Em vez de "exaustão existencial", diga "aquele cansaço de quem não aguenta mais".
+   - Em vez de "resiliência", diga "a força para continuar".
+   - Fale a língua das pessoas comuns. Seja humano, não um dicionário.
+3. **VOCABULÁRIO VARIADO:** Não repita a palavra "Vibe" excessivamente.
 
 **DADOS DO FILME:**
 - Diretor: ${movie.director || 'Não informado'}
@@ -174,9 +182,11 @@ Nesta seção, faça a **Análise Conceitual e Semântica**.
 ## A Atmosfera Dominante [Use variações: "O Clima", "A Emoção Central", "A Vibe"]
 Comece com um parágrafo introdutório (2-3 frases) que descreva a sensação geral que permeia o filme, destacando qual é a emoção primária (ex: Melancolia, Tensão, Euforia).
 SOMENTE DEPOIS deste parágrafo, pule uma linha e escreva a frase exata: "Tags Emocionais Chave que definem esta experiência são:"
-Depois, liste 3 **Tags Emocionais Chave** que definem a experiência, usando H3 ou Negrito para o nome da tag, seguido de um parágrafo explicativo (não use apenas uma frase curta).
+Depois, liste 3 **Tags Emocionais Chave** que definem a experiência.
+⚠️ **REGRA CRÍTICA:** Você **OBRIGATORIAMENTE** deve escolher essas tags da lista fornecida na seção "ANÁLISE DE SENTIMENTOS (IA VIBESFILM)". **NÃO INVENTE** novos nomes de sentimentos. Use *exatamente* o nome do SubSentimento fornecido (ex: "Nostalgia Positiva").
+
 Exemplo de formato para as tags:
-**[Nome da Tag (ex: Suspense Crescente)]**: [Parágrafo explicando como essa emoção se manifesta no filme, citando momentos ou sensações específicas].
+**[Nome do SubSentimento EXATO (ex: Nostalgia Positiva)]**: [Parágrafo explicando como essa emoção se manifesta no filme, citando momentos ou sensações específicas].
 
 ## Quando Escolher "${movie.title}"? (Sua Jornada Emocional no Vibesfilm)
 Escreva um parágrafo introdutório convidando o leitor a essa experiência.
@@ -189,7 +199,8 @@ Conclusão emocional. Reforce que o Vibesfilm entende que cinema é mais que ent
 Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /onde-assistir/${movie.title} com texto '${movie.title} (${movie.year})']."
 
 ## Alertas e Cuidados
-Um parágrafo empático contextualizando os alertas de conteúdo ("${movie.contentWarnings}"). Explique a natureza de cenas difíceis, se houver.
+Um parágrafo empático contextualizando os alertas ("${movie.contentWarnings}").
+⚠️ IMPORTANTE: Se o filme for sutil ou introspectivo (como dramas psicológicos), EVITE tom clínico, pathologizante ou excessivamente alarmista. Foque na carga emocional e na intensidade dos sentimentos, não apenas em "gatilhos", a menos que haja violência gráfica ou abuso explícito.
 
 **Rodapé:**
 "Qual é a sua vibe hoje? Descubra seu filme perfeito no Vibesfilm App!"
@@ -197,14 +208,22 @@ Um parágrafo empático contextualizando os alertas de conteúdo ("${movie.conte
 
     // 3. Chamar a IA
     const providerStr = args.aiProvider || 'openai'; // Default
-    const aiProvider = createAIProvider(getDefaultConfig(providerStr as any));
+
+    // Configurar provider com modelo customizado se solicitado
+    const aiConfig = getDefaultConfig(providerStr as any);
+    if (args.model) {
+      console.log(`✨ Usando modelo customizado: ${args.model}`);
+      aiConfig.model = args.model;
+    }
+
+    const aiProvider = createAIProvider(aiConfig);
 
     console.log(`🤖 Gerando artigo com ${providerStr.toUpperCase()}... (Isso pode levar alguns segundos)`);
 
     const response = await aiProvider.generateResponse(
       "Você é um redator sênior do blog Vibesfilm, especialista em cinema e psicologia.",
       prompt,
-      { maxTokens: 2500, temperature: 0.7 }
+      { maxTokens: 4000, temperature: 0.7 }
     );
 
     if (!response.success) {

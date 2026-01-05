@@ -83,6 +83,7 @@ model SubSentiment {
   movieSentiment  MovieSentiment[]
   mainSentiment   MainSentiment    @relation(fields: [mainSentimentId], references: [id])
 
+
   @@index([mainSentimentId])
 }
 
