@@ -138,6 +138,8 @@ class MovieCurationOrchestrator {
 
       // Etapa 2: Analisar sentimentos
       console.log(`🧠 Etapa 2: Analisando sentimentos...`);
+      console.log(`🔄 Executando análise da IA (sempre executa, mesmo se já houver sentimentos)`);
+      console.log(`📝 Novos sentimentos serão adicionados, existentes serão preservados`);
       const analysisArgs = [
         tmdbId.toString(), // Usar tmdbId 
         movie.journeyOptionFlowId.toString(),
@@ -152,6 +154,7 @@ class MovieCurationOrchestrator {
       const analysisResult = await this.runScript('analyzeMovieSentiments.ts', analysisArgs);
       
       if (!analysisResult.success) {
+      console.log(`✅ Análise concluída com sucesso`);
         return { success: false, error: `Falha na análise: ${analysisResult.error}` };
       }
 

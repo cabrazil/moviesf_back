@@ -9,34 +9,6 @@ import * as path from 'path';
 
 const prisma = new PrismaClient();
 
-/**
- * Escapa uma string para uso seguro em SQL
- * Remove caracteres problemáticos e garante que aspas simples estejam balanceadas
- */
-function escapeSQLString(text: string, maxLength: number = 500): string {
-  let escaped = (text || '')
-    .replace(/\\/g, '')              // Remover barras invertidas
-    .replace(/"/g, '')               // Remover aspas duplas
-    .replace(/'/g, "''")             // Escapar aspas simples (SQL padrão)
-    .replace(/`/g, '')               // Remover backticks
-    .replace(/\n/g, " ")             // Substituir quebras de linha por espaço
-    .replace(/\r/g, "")              // Remover retorno de carro
-    .replace(/\t/g, " ")             // Substituir tabs por espaço
-    .replace(/\0/g, "")              // Remover caracteres nulos
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remover caracteres de controle
-    .substring(0, maxLength);        // Limitar tamanho
-
-  // Garantir que não há aspas simples desbalanceadas após substring
-  const singleQuoteCount = (escaped.match(/''/g) || []).length;
-  if (singleQuoteCount % 2 !== 0) {
-    // Se ímpar, remover o último par de aspas simples
-    escaped = escaped.replace(/''$/, '');
-  }
-
-  return escaped;
-}
-
-
 // Determinar provedor de IA baseado em argumentos ou variável de ambiente
 function getAIProvider(): AIProvider {
   const args = process.argv.slice(2);
@@ -161,27 +133,18 @@ async function analyzeMovieWithAI(
     name: string;
     relevance: number;
     explanation: string;
-    type: 'OFFICIAL' | 'SUGGESTION';
-    isNew?: boolean;
-  }>;
-  suggestedSubSentiments?: Array<{  // Compatibilidade
-    name: string;
-    relevance: number;
-    explanation: string;
+    type: 'OFFICIAL' | 'SUGGESTION';  // ← NOVO CAMPO
     isNew?: boolean;
   }>;
 }> {
   // 1. Buscar SubSentiments OFICIAIS da JOF (Lista 1)
-  const officialJofRels = await prisma.journeyOptionFlowSubSentiment.findMany({
+  const officialJofSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
     where: { journeyOptionFlowId: journeyOptionFlowId },
+    include: { subSentiment: true },
     orderBy: { weight: 'desc' }
   });
 
-  const officialIds = officialJofRels.map(rel => rel.subSentimentId);
-
-  const officialSubSentiments = await prisma.subSentiment.findMany({
-    where: { id: { in: officialIds } }
-  });
+  const officialIds = officialJofSubSentiments.map(jof => jof.subSentimentId);
 
   // 2. Buscar SubSentiments da BIBLIOTECA DA LENTE (Lista 2) - excluindo os oficiais
   const librarySubSentiments = await prisma.subSentiment.findMany({
@@ -192,14 +155,12 @@ async function analyzeMovieWithAI(
   });
 
   // 3. Formatar Lista Oficial
-  const officialListFormatted = officialJofRels.map(rel => {
-    const subSentiment = officialSubSentiments.find(ss => ss.id === rel.subSentimentId);
-    if (!subSentiment) return '';
-    const keywordsStr = subSentiment.keywords && subSentiment.keywords.length > 0
-      ? ` (keywords: ${subSentiment.keywords.slice(0, 3).join(', ')})`
+  const officialListFormatted = officialJofSubSentiments.map(jof => {
+    const keywordsStr = jof.subSentiment.keywords && jof.subSentiment.keywords.length > 0
+      ? ` (keywords: ${jof.subSentiment.keywords.slice(0, 3).join(', ')})`
       : '';
-    return `- ${subSentiment.name} (ID: ${subSentiment.id}, Peso: ${rel.weight.toFixed(2)})${keywordsStr}`;
-  }).filter(s => s !== '');
+    return `- ${jof.subSentiment.name} (ID: ${jof.subSentiment.id}, Peso: ${jof.weight.toFixed(2)})${keywordsStr}`;
+  });
 
   // 4. Formatar Biblioteca da Lente
   const libraryListFormatted = librarySubSentiments.map(ss => {
@@ -209,67 +170,57 @@ async function analyzeMovieWithAI(
     return `- ${ss.name} (ID: ${ss.id})${keywordsStr}`;
   });
 
-  // 5. Construir o NOVO prompt com duas listas separadas
+  // 3. Construir o prompt aprimorado com instruções mais enfáticas
   const prompt = `
-Você é um especialista em análise cinematográfica focado em psicologia das emoções. Sua tarefa é avaliar o filme "${movie.title}" para a jornada: "${journeyOptionText}".
+Você é um especialista em análise de filmes com foco em emoções. Sua tarefa é analisar o filme "${movie.title}" para a jornada emocional: "${journeyOptionText}".
 
-**CONTEXTO DO FILME:**
-- Título: ${movie.title} (${movie.year})
-- Sinopse: ${movie.overview}
-- Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
-- Keywords: ${keywords.join(', ')}
+**Filme:** ${movie.title} (${movie.year})
+**Sinopse:** ${movie.overview}
+**Gêneros:** ${movie.genres.map((g: any) => g.name).join(', ')}
+**Palavras-chave:** ${keywords.join(', ')}
 
-**LENTE DE ANÁLISE:** ${mainSentimentName} (ID: ${mainSentimentId})
+**Análise Solicitada:**
+Avalie se o filme se encaixa na opção de jornada: "${journeyOptionText}".
 
-Sua análise deve ser dividida em duas categorias rigorosas:
+**Subsentimentos de "${mainSentimentName}" já existentes:**
+${existingSubSentimentsFormatted.length > 0 ? existingSubSentimentsFormatted.join('\n') : 'Nenhum subsentimento cadastrado para esta categoria.'}
 
----
+**INSTRUÇÕES CRÍTICAS (LEIA COM ATENÇÃO):**
 
-### 1. LISTA OFICIAL DA JORNADA (Prioridade Máxima)
-Estes itens já compõem a métrica desta jornada específica. Tente dar match em até 3 destes itens.
-${officialListFormatted.length > 0 ? officialListFormatted.join('\n') : 'Nenhum subsentimento oficial configurado para esta jornada.'}
+⚠️ **REGRA ABSOLUTA:** Você DEVE SEMPRE tentar reutilizar um subsentimento existente da lista acima antes de sugerir um novo. Subsentimentos muito específicos (como "Angústia Sob Vigilância") NÃO devem ser criados se já existem subsentimentos mais genéricos que podem cobrir a mesma emoção (como "Ansiedade", "Tensão", "Conflito", etc.).
 
-### 2. BIBLIOTECA DA LENTE (Sugestões de Expansão)
-Estes itens existem no banco para o sentimento "${mainSentimentName}", mas NÃO fazem parte desta jornada. Sugira-os apenas se forem MUITO mais precisos que a Lista Oficial.
-${libraryListFormatted.length > 0 ? libraryListFormatted.join('\n') : 'Nenhum outro subsentimento disponível nesta lente.'}
+1. **PRIORIDADE MÁXIMA - REUTILIZAR EXISTENTES:** 
+   - Analise CADA subsentimento existente da lista acima
+   - Se algum deles captura a essência emocional do filme (mesmo que não seja 100% específico), USE-O
+   - Subsentimentos genéricos são MELHORES que específicos demais
+   - Exemplo: Se existe "Ansiedade" e você pensa em "Ansiedade Sob Vigilância", USE "Ansiedade"
 
----
+2. **MATCHING SEMÂNTICO:**
+   - Compare palavras-chave e conceitos, não apenas nomes exatos
+   - Se a explicação de um subsentimento existente se alinha com o filme, USE-O
+   - Palavras relacionadas contam: "angústia" ≈ "ansiedade" ≈ "tensão" ≈ "conflito"
 
-**INSTRUÇÕES DE ANÁLISE:**
+3. **CRIAR NOVO APENAS SE REALMENTE NECESSÁRIO:**
+   - Só sugira um novo subsentimento se NENHUM dos existentes capturar a emoção
+   - Novos subsentimentos devem ser GENÉRICOS e REUTILIZÁVEIS (2-3 palavras)
+   - Evite criar subsentimentos muito específicos que só servem para um filme
+   - Marque com "isNew": true APENAS quando realmente necessário
 
-1. **FOCO NO DENOMINADOR:** O objetivo principal é encontrar matches na "LISTA OFICIAL DA JORNADA". Isso garante que o cálculo de relevância seja consistente com a régua já estabelecida.
+4. **Seja Relevante:** Sugira até 3 subsentimentos que sejam **fortemente** relevantes.
 
-2. **SUGESTÕES PASSIVAS:** Se você encontrar um match perfeito na "BIBLIOTECA DA LENTE", identifique-o. Ele será tratado como uma sugestão para o curador humano adicionar à jornada no futuro.
+5. **Justifique:** Forneça uma explicação clara e concisa para cada sugestão, conectando o filme à jornada.
 
-3. **CRIAÇÃO DE NOVOS:** Evite ao máximo. Só sugira um nome totalmente novo se o conceito for inexistente em ambas as listas acima.
-
-4. **RELEVÂNCIA (0.0 a 1.0):** Atribua a força do sentimento no filme.
-
-5. **MÁXIMO 3 MATCHES:** Priorize qualidade sobre quantidade.
-
-**FORMATO DE SAÍDA (JSON VÁLIDO):**
+**Formato de Saída (JSON VÁLIDO):**
 {
-  "matches": [
+  "suggestedSubSentiments": [
     {
-      "id": 123,
-      "name": "Nome do SubSentiment",
-      "relevance": 0.95,
-      "explanation": "Por que se encaixa neste filme?",
-      "type": "OFFICIAL"
-    },
-    {
-      "id": 456,
-      "name": "Nome do SubSentiment",
-      "relevance": 0.80,
-      "explanation": "Por que é uma boa adição?",
-      "type": "SUGGESTION"
+      "name": "Nome do Subsentimento (Existente ou Novo)",
+      "relevance": 0.9,
+      "explanation": "Explicação concisa da sua escolha.",
+      "isNew": false
     }
   ]
 }
-
-**REGRAS PARA O CAMPO "type":**
-- Use "OFFICIAL" se o ID está na Lista 1
-- Use "SUGGESTION" se o ID está na Lista 2 OU se for um conceito totalmente novo (marque também "isNew": true neste caso)
 `;
 
   try {
@@ -294,7 +245,7 @@ ${libraryListFormatted.length > 0 ? libraryListFormatted.join('\n') : 'Nenhum ou
 
     if (!response.success) {
       console.error(`Erro na API ${provider}:`, response.error);
-      return { matches: [], suggestedSubSentiments: [] };
+      return { suggestedSubSentiments: [] };
     }
 
     const content = response.content;
@@ -387,34 +338,7 @@ ${libraryListFormatted.length > 0 ? libraryListFormatted.join('\n') : 'Nenhum ou
 
       // Tentar parse direto primeiro
       try {
-        const parsedResponse = JSON.parse(jsonString);
-
-        // COMPATIBILIDADE: Converter novo formato (matches) para formato antigo (suggestedSubSentiments)
-        if (parsedResponse.matches && Array.isArray(parsedResponse.matches)) {
-          // Filtrar apenas OFFICIAL para gravação automática
-          const officialMatches = parsedResponse.matches.filter((m: any) => m.type === 'OFFICIAL');
-          const suggestions = parsedResponse.matches.filter((m: any) => m.type === 'SUGGESTION');
-
-          // Converter OFFICIAL para formato antigo
-          parsedResponse.suggestedSubSentiments = officialMatches.map((m: any) => ({
-            name: m.name,
-            relevance: m.relevance,
-            explanation: m.explanation,
-            isNew: m.isNew || false
-          }));
-
-          // Logar SUGGESTIONS separadamente (não serão gravadas)
-          if (suggestions.length > 0) {
-            console.log(`\n💡 SUGESTÕES DA BIBLIOTECA (não serão gravadas automaticamente):`);
-            suggestions.forEach((s: any) => {
-              console.log(`   - ${s.name} (Relevância: ${s.relevance.toFixed(2)}): ${s.explanation}`);
-            });
-          }
-
-          console.log(`\n✅ Matches OFICIAIS para gravação: ${officialMatches.length}`);
-        }
-
-        return parsedResponse;
+        return JSON.parse(jsonString);
       } catch (directParseError) {
         // Se falhar, tentar reparar JSON truncado
         console.log('⚠️ JSON pode estar truncado, tentando reparar...');
@@ -433,11 +357,11 @@ ${libraryListFormatted.length > 0 ? libraryListFormatted.join('\n') : 'Nenhum ou
     } catch (jsonError) {
       console.error(`Erro ao fazer parse da resposta JSON da ${provider}:`, jsonError);
       console.error('Resposta recebida (primeiros 500 chars):', content.substring(0, 500) + (content.length > 500 ? '...' : ''));
-      return { matches: [], suggestedSubSentiments: [] };
+      return { suggestedSubSentiments: [] };
     }
   } catch (error) {
     console.error(`Erro ao analisar filme com ${getAIProvider()}:`, error);
-    return { matches: [], suggestedSubSentiments: [] };
+    return { suggestedSubSentiments: [] };
   }
 }
 
@@ -638,14 +562,14 @@ async function main() {
       return;
     }
 
-    const analysis = await analyzeMovieWithAI(tmdbMovie.movie, keywords, journeyOption.option.text, mainSentimentId, mainSentiment.name, journeyOption.option.id);
+    const analysis = await analyzeMovieWithAI(tmdbMovie.movie, keywords, journeyOption.option.text, mainSentimentId, mainSentiment.name);
 
     console.log('\n🔍 Validando sugestões da IA com o sentimento de destino (Lógica Inteligente)...');
     const validatedSubSentiments: { suggestion: any; dbMatch: SubSentiment | null }[] = [];
 
     const allSubSentiments = await prisma.subSentiment.findMany({ where: { mainSentimentId: mainSentimentId } }); // Needed for matching
 
-    for (const suggestion of (analysis.suggestedSubSentiments || [])) {
+    for (const suggestion of analysis.suggestedSubSentiments) {
       // MELHORIA: SEMPRE tentar matching primeiro, mesmo quando isNew=true
       // A IA pode marcar como novo incorretamente, então validamos sempre
       console.log(`\n🔍 Validando sugestão: "${suggestion.name}" (IA marcou como ${suggestion.isNew ? 'NOVO' : 'EXISTENTE'})`);
@@ -732,9 +656,14 @@ async function main() {
       // Gerar inserts para subsentimentos existentes
       validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
         if (dbMatch) {
-          // Escapar explanation para SQL
-          const explanation = escapeSQLString(suggestion.explanation);
-
+          // Escapar caracteres problemáticos para SQL (ordem importa!)
+          const explanation = suggestion.explanation
+            .replace(/\\/g, "\\\\")        // Escapar barras invertidas PRIMEIRO
+            .replace(/'/g, "''")           // Escapar aspas simples (SQL padrão)
+            .replace(/\n/g, " ")           // Substituir quebras de linha por espaço
+            .replace(/\r/g, "")            // Remover retorno de carro
+            .replace(/\t/g, " ")           // Substituir tabs por espaço
+            .replace(/\0/g, "");           // Remover caracteres nulos
 
           const subSentimentName = dbMatch.name.replace(/'/g, "''"); // Escapar nome para SQL
 
@@ -743,9 +672,11 @@ async function main() {
             `-- Verificação de Unicidade Semântica: Remove duplicatas com menor relevância`,
             `DELETE FROM "MovieSentiment" ms USING "SubSentiment" ss WHERE ms."subSentimentId" = ss.id AND ms."movieId" = '${movie.id}' AND ss.name = '${subSentimentName}' AND ms.relevance < ${suggestion.relevance.toFixed(3)};`,
             `-- Insere apenas se não existir conceito com relevância igual ou maior`,
-            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt") SELECT '${movie.id}', ${mainSentimentId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW() WHERE NOT EXISTS (SELECT 1 FROM "MovieSentiment" ms JOIN "SubSentiment" ss ON ms."subSentimentId" = ss.id WHERE ms."movieId" = '${movie.id}' AND ss.name = '${subSentimentName}');`
-            // ⚠️ REMOVIDO: Não modificar JourneyOptionFlowSubSentiment durante curadoria
-            // A configuração da jornada (DNA) deve ser definida manualmente, não pela IA
+            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt") SELECT '${movie.id}', ${mainSentimentId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW() WHERE NOT EXISTS (SELECT 1 FROM "MovieSentiment" ms JOIN "SubSentiment" ss ON ms."subSentimentId" = ss.id WHERE ms."movieId" = '${movie.id}' AND ss.name = '${subSentimentName}');`,
+            `-- Deduplicação Semântica em JourneyOptionFlowSubSentiment: Remove SubSentiments com mesmo nome mas IDs diferentes`,
+            `DELETE FROM "JourneyOptionFlowSubSentiment" jofs USING "SubSentiment" ss WHERE jofs."subSentimentId" = ss.id AND jofs."journeyOptionFlowId" = ${journeyOptionFlowId} AND ss.name = '${subSentimentName}' AND jofs."weight" < ${suggestion.relevance.toFixed(2)};`,
+            `-- Insere ou atualiza, garantindo que apenas um SubSentiment com este nome exista na jornada`,
+            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt") SELECT ${journeyOptionFlowId}, ${dbMatch.id}, ${suggestion.relevance.toFixed(2)}, NOW(), NOW() WHERE NOT EXISTS (SELECT 1 FROM "JourneyOptionFlowSubSentiment" jofs2 JOIN "SubSentiment" ss2 ON jofs2."subSentimentId" = ss2.id WHERE jofs2."journeyOptionFlowId" = ${journeyOptionFlowId} AND ss2.name = '${subSentimentName}') ON CONFLICT ("journeyOptionFlowId", "subSentimentId") DO UPDATE SET "weight" = EXCLUDED."weight", "updatedAt" = NOW();`
           );
         }
       });
@@ -756,8 +687,14 @@ async function main() {
         if (!dbMatch) {
           const subSentimentName = suggestion.name.replace(/'/g, "''"); // Escapar aspas simples
 
-          // Escapar explanation para SQL
-          const explanation = escapeSQLString(suggestion.explanation);
+          // Escapar caracteres problemáticos para SQL (ordem importa!)
+          const explanation = suggestion.explanation
+            .replace(/\\/g, "\\\\")        // Escapar barras invertidas PRIMEIRO
+            .replace(/'/g, "''")           // Escapar aspas simples (SQL padrão)
+            .replace(/\n/g, " ")           // Substituir quebras de linha por espaço
+            .replace(/\r/g, "")            // Remover retorno de carro
+            .replace(/\t/g, " ")           // Substituir tabs por espaço
+            .replace(/\0/g, "");           // Remover caracteres nulos
           sqlInserts.push(
             `-- Novo SubSentiment: "${suggestion.name}"`,
             `-- Criar SubSentiment se não existir`,
@@ -765,9 +702,11 @@ async function main() {
             `-- Verificação de Unicidade Semântica: Remove duplicatas com menor relevância`,
             `DELETE FROM "MovieSentiment" ms USING "SubSentiment" ss WHERE ms."subSentimentId" = ss.id AND ms."movieId" = '${movie.id}' AND ss.name = '${subSentimentName}' AND ms.relevance < ${suggestion.relevance.toFixed(3)};`,
             `-- Insere apenas se não existir conceito com relevância igual ou maior`,
-            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt") SELECT '${movie.id}', ${mainSentimentId}, ss.id, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW() FROM "SubSentiment" ss WHERE ss.name = '${subSentimentName}' AND ss."mainSentimentId" = ${mainSentimentId} AND NOT EXISTS (SELECT 1 FROM "MovieSentiment" ms2 JOIN "SubSentiment" ss2 ON ms2."subSentimentId" = ss2.id WHERE ms2."movieId" = '${movie.id}' AND ss2.name = '${subSentimentName}');`
-            // ⚠️ REMOVIDO: Não modificar JourneyOptionFlowSubSentiment durante curadoria
-            // A configuração da jornada (DNA) deve ser definida manualmente, não pela IA
+            `INSERT INTO "MovieSentiment" ("movieId", "mainSentimentId", "subSentimentId", "relevance", "explanation", "createdAt", "updatedAt") SELECT '${movie.id}', ${mainSentimentId}, ss.id, ${suggestion.relevance.toFixed(3)}, '${explanation}', NOW(), NOW() FROM "SubSentiment" ss WHERE ss.name = '${subSentimentName}' AND ss."mainSentimentId" = ${mainSentimentId} AND NOT EXISTS (SELECT 1 FROM "MovieSentiment" ms2 JOIN "SubSentiment" ss2 ON ms2."subSentimentId" = ss2.id WHERE ms2."movieId" = '${movie.id}' AND ss2.name = '${subSentimentName}');`,
+            `-- Deduplicação Semântica em JourneyOptionFlowSubSentiment: Remove SubSentiments com mesmo nome mas IDs diferentes`,
+            `DELETE FROM "JourneyOptionFlowSubSentiment" jofs USING "SubSentiment" ss WHERE jofs."subSentimentId" = ss.id AND jofs."journeyOptionFlowId" = ${journeyOptionFlowId} AND ss.name = '${subSentimentName}' AND jofs."weight" < ${suggestion.relevance.toFixed(2)};`,
+            `-- Insere ou atualiza, garantindo que apenas um SubSentiment com este nome exista na jornada`,
+            `INSERT INTO "JourneyOptionFlowSubSentiment" ("journeyOptionFlowId", "subSentimentId", "weight", "createdAt", "updatedAt") SELECT ${journeyOptionFlowId}, ss.id, ${suggestion.relevance.toFixed(2)}, NOW(), NOW() FROM "SubSentiment" ss WHERE ss.name = '${subSentimentName}' AND ss."mainSentimentId" = ${mainSentimentId} AND NOT EXISTS (SELECT 1 FROM "JourneyOptionFlowSubSentiment" jofs2 JOIN "SubSentiment" ss2 ON jofs2."subSentimentId" = ss2.id WHERE jofs2."journeyOptionFlowId" = ${journeyOptionFlowId} AND ss2.name = '${subSentimentName}') ON CONFLICT ("journeyOptionFlowId", "subSentimentId") DO UPDATE SET "weight" = EXCLUDED."weight", "updatedAt" = NOW();`
           );
         }
       });

@@ -386,6 +386,8 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
 
   if (existingMovieSentiments.length > 0) {
     console.log(`✅ Filme já possui ${existingMovieSentiments.length} sentimentos analisados`);
+    console.log(`ℹ️  Nota: A análise foi executada na Etapa 2 do Orchestrator`);
+    console.log(`ℹ️  Novos sentimentos (se houver) foram adicionados automaticamente`);
 
     const targetMainSentiment = await prisma.mainSentiment.findUnique({
       where: { id: targetSentimentId }

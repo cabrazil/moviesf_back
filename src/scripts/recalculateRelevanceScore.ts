@@ -213,24 +213,39 @@ async function recalculateForMovie(
     const totalUniqueExpected = uniqueExpectedNames.size;
 
     // PASSO 2: MAPEAMENTO SEMÂNTICO - Buscar TODOS os sentimentos do filme
-    const allMovieSentiments = await prisma.movieSentiment.findMany({
-      where: {
-        movieId: movieId
-      },
-      include: {
-        subSentiment: true
-      }
-    });
+    // Usar queryRaw com INNER JOIN para evitar registros órfãos automaticamente
+    const allMovieSentiments: Array<{
+      movieId: string;
+      mainSentimentId: number;
+      subSentimentId: number;
+      relevance: any;
+      subSentiment: {
+        id: number;
+        name: string;
+      };
+    }> = await prisma.$queryRaw`
+      SELECT 
+        ms."movieId",
+        ms."mainSentimentId",
+        ms."subSentimentId",
+        ms.relevance,
+        jsonb_build_object('id', ss.id, 'name', ss.name) as "subSentiment"
+      FROM "MovieSentiment" ms
+      INNER JOIN "SubSentiment" ss ON ms."subSentimentId" = ss.id
+      WHERE ms."movieId" = ${movieId}::uuid
+    `;
 
-    // Filtrar apenas os que têm nome correspondente aos esperados
+    // Filtrar apenas os que têm subSentiment válido e nome correspondente aos esperados
     const movieSentiments = allMovieSentiments.filter(ms =>
-      uniqueExpectedNames.has(ms.subSentiment.name)
+      ms.subSentiment && uniqueExpectedNames.has(ms.subSentiment.name)
     );
 
     // Regra de Conflito: Para cada nome, manter apenas a MAIOR relevância
     const uniqueMatches = new Map<string, number>();
 
     movieSentiments.forEach(ms => {
+      if (!ms.subSentiment) return; // Proteção extra
+
       const name = ms.subSentiment.name;
       const relevance = Number(ms.relevance);
 
