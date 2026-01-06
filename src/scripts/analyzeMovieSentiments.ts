@@ -166,6 +166,7 @@ async function analyzeMovieWithAI(
   }>;
   suggestedSubSentiments?: Array<{  // Compatibilidade
     name: string;
+    id?: number;
     relevance: number;
     explanation: string;
     isNew?: boolean;
@@ -179,8 +180,12 @@ async function analyzeMovieWithAI(
 
   const officialIds = officialJofRels.map(rel => rel.subSentimentId);
 
+  // Buscar TODOS os SubSentiments da JOF, independente do MainSentiment
   const officialSubSentiments = await prisma.subSentiment.findMany({
-    where: { id: { in: officialIds } }
+    where: { id: { in: officialIds } },
+    include: {
+      mainSentiment: true  // Incluir para mostrar origem no prompt
+    }
   });
 
   // 2. Buscar SubSentiments da BIBLIOTECA DA LENTE (Lista 2) - excluindo os oficiais
@@ -191,14 +196,21 @@ async function analyzeMovieWithAI(
     }
   });
 
-  // 3. Formatar Lista Oficial
+  // 3. Formatar Lista Oficial (com MainSentiment de origem)
   const officialListFormatted = officialJofRels.map(rel => {
     const subSentiment = officialSubSentiments.find(ss => ss.id === rel.subSentimentId);
     if (!subSentiment) return '';
+
+    // Mostrar MainSentiment de origem para contexto
+    const mainSentimentInfo = (subSentiment as any).mainSentiment
+      ? ` (${(subSentiment as any).mainSentiment.name})`
+      : '';
+
     const keywordsStr = subSentiment.keywords && subSentiment.keywords.length > 0
       ? ` (keywords: ${subSentiment.keywords.slice(0, 3).join(', ')})`
       : '';
-    return `- ${subSentiment.name} (ID: ${subSentiment.id}, Peso: ${rel.weight.toFixed(2)})${keywordsStr}`;
+
+    return `- ${subSentiment.name}${mainSentimentInfo} (ID: ${subSentiment.id}, Peso: ${rel.weight.toFixed(2)})${keywordsStr}`;
   }).filter(s => s !== '');
 
   // 4. Formatar Biblioteca da Lente
@@ -209,7 +221,7 @@ async function analyzeMovieWithAI(
     return `- ${ss.name} (ID: ${ss.id})${keywordsStr}`;
   });
 
-  // 5. Construir o NOVO prompt com duas listas separadas
+  // 5. Construir o NOVO prompt com foco em TODOS os conceitos da JOF
   const prompt = `
 Você é um especialista em análise cinematográfica focado em psicologia das emoções. Sua tarefa é avaliar o filme "${movie.title}" para a jornada: "${journeyOptionText}".
 
@@ -219,33 +231,38 @@ Você é um especialista em análise cinematográfica focado em psicologia das e
 - Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
 - Keywords: ${keywords.join(', ')}
 
-**LENTE DE ANÁLISE:** ${mainSentimentName} (ID: ${mainSentimentId})
+**LENTE DE ANÁLISE PRINCIPAL:** ${mainSentimentName} (ID: ${mainSentimentId})
 
-Sua análise deve ser dividida em duas categorias rigorosas:
+**IMPORTANTE:** Embora a lente principal seja "${mainSentimentName}", você deve identificar ESPECIFICAMENTE se o filme possui os seguintes conceitos emocionais, INDEPENDENTEMENTE da categoria emocional a que pertencem (Triste, Ansioso, Cansado, Calmo, Animado, etc.).
 
 ---
 
-### 1. LISTA OFICIAL DA JORNADA (Prioridade Máxima)
-Estes itens já compõem a métrica desta jornada específica. Tente dar match em até 3 destes itens.
-${officialListFormatted.length > 0 ? officialListFormatted.join('\n') : 'Nenhum subsentimento oficial configurado para esta jornada.'}
+### LISTA OFICIAL DA JORNADA (Conceitos Esperados)
 
-### 2. BIBLIOTECA DA LENTE (Sugestões de Expansão)
-Estes itens existem no banco para o sentimento "${mainSentimentName}", mas NÃO fazem parte desta jornada. Sugira-os apenas se forem MUITO mais precisos que a Lista Oficial.
-${libraryListFormatted.length > 0 ? libraryListFormatted.join('\n') : 'Nenhum outro subsentimento disponível nesta lente.'}
+Identifique se o filme possui estes conceitos. Note que cada conceito pode pertencer a uma categoria emocional diferente (indicada como "categoria"):
+
+**ATENÇÃO:** Ao retornar os matches, use APENAS o nome do conceito (ex: "Superação e Resiliência"), NÃO inclua a categoria no nome.
+
+${officialListFormatted.length > 0 ? officialListFormatted.join('\n') : 'Nenhum subsentimento oficial configurado para esta jornada.'}
 
 ---
 
 **INSTRUÇÕES DE ANÁLISE:**
 
-1. **FOCO NO DENOMINADOR:** O objetivo principal é encontrar matches na "LISTA OFICIAL DA JORNADA". Isso garante que o cálculo de relevância seja consistente com a régua já estabelecida.
+1. **ANÁLISE ABRANGENTE:** Analise o filme com foco principal em "${mainSentimentName}", MAS identifique TODOS os conceitos da lista acima que estão presentes no filme, mesmo que pertençam a outras categorias emocionais.
 
-2. **SUGESTÕES PASSIVAS:** Se você encontrar um match perfeito na "BIBLIOTECA DA LENTE", identifique-o. Ele será tratado como uma sugestão para o curador humano adicionar à jornada no futuro.
+2. **NÃO SE LIMITE À LENTE:** Não restrinja sua análise apenas a "${mainSentimentName}". Se o filme possui "Superação e Resiliência [Triste]", identifique-o mesmo que a lente seja "Animado".
 
-3. **CRIAÇÃO DE NOVOS:** Evite ao máximo. Só sugira um nome totalmente novo se o conceito for inexistente em ambas as listas acima.
+3. **PRIORIZE A LISTA OFICIAL:** Foque em encontrar matches na lista acima. Esses são os conceitos que definem o "DNA" desta jornada.
 
 4. **RELEVÂNCIA (0.0 a 1.0):** Atribua a força do sentimento no filme.
 
-5. **MÁXIMO 3 MATCHES:** Priorize qualidade sobre quantidade.
+7. **EXPLICAÇÕES CONCISAS:** Mantenha cada explicação com entre 2-3 frases (máximo 300 caracteres).
+
+5. **MÁXIMO 10 MATCHES:** Você pode retornar até 10 matches (em vez de 3) para capturar toda a riqueza emocional do filme.
+
+6. **BIBLIOTECA DA LENTE (Opcional):** Se você encontrar um conceito de "${mainSentimentName}" que NÃO está na lista oficial mas é muito relevante, pode sugerir:
+${libraryListFormatted.length > 0 ? libraryListFormatted.slice(0, 5).join('\n') : 'Nenhum outro subsentimento disponível.'}
 
 **FORMATO DE SAÍDA (JSON VÁLIDO):**
 {
@@ -256,20 +273,13 @@ ${libraryListFormatted.length > 0 ? libraryListFormatted.join('\n') : 'Nenhum ou
       "relevance": 0.95,
       "explanation": "Por que se encaixa neste filme?",
       "type": "OFFICIAL"
-    },
-    {
-      "id": 456,
-      "name": "Nome do SubSentiment",
-      "relevance": 0.80,
-      "explanation": "Por que é uma boa adição?",
-      "type": "SUGGESTION"
     }
   ]
 }
 
 **REGRAS PARA O CAMPO "type":**
-- Use "OFFICIAL" se o ID está na Lista 1
-- Use "SUGGESTION" se o ID está na Lista 2 OU se for um conceito totalmente novo (marque também "isNew": true neste caso)
+- Use "OFFICIAL" se o ID está na Lista Oficial da Jornada
+- Use "SUGGESTION" se for da Biblioteca da Lente OU se for um conceito totalmente novo
 `;
 
   try {
@@ -398,6 +408,7 @@ ${libraryListFormatted.length > 0 ? libraryListFormatted.join('\n') : 'Nenhum ou
           // Converter OFFICIAL para formato antigo
           parsedResponse.suggestedSubSentiments = officialMatches.map((m: any) => ({
             name: m.name,
+            id: m.id,
             relevance: m.relevance,
             explanation: m.explanation,
             isNew: m.isNew || false
@@ -643,25 +654,34 @@ async function main() {
     console.log('\n🔍 Validando sugestões da IA com o sentimento de destino (Lógica Inteligente)...');
     const validatedSubSentiments: { suggestion: any; dbMatch: SubSentiment | null }[] = [];
 
-    const allSubSentiments = await prisma.subSentiment.findMany({ where: { mainSentimentId: mainSentimentId } }); // Needed for matching
+    // Buscar TODOS os SubSentiments para validação (não apenas do analysisLens)
+    // Isso permite validar contra SubSentiments de qualquer MainSentiment que estejam na JOF
+    const allSubSentiments = await prisma.subSentiment.findMany();
 
     for (const suggestion of (analysis.suggestedSubSentiments || [])) {
-      // MELHORIA: SEMPRE tentar matching primeiro, mesmo quando isNew=true
-      // A IA pode marcar como novo incorretamente, então validamos sempre
-      console.log(`\n🔍 Validando sugestão: "${suggestion.name}" (IA marcou como ${suggestion.isNew ? 'NOVO' : 'EXISTENTE'})`);
+      console.log(`\n🔍 Validando sugestão: "${suggestion.name}" (IA marcou como ${suggestion.isNew ? 'NOVO' : 'EXISTENTE'})${suggestion.id ? ` com ID ${suggestion.id}` : ''}`);
 
-      const bestMatch = findBestMatch(suggestion, allSubSentiments);
+      let bestMatch: SubSentiment | null = null;
+
+      // Se a IA retornou um ID (match OFFICIAL), confiar nele
+      if (suggestion.id) {
+        bestMatch = allSubSentiments.find(ss => ss.id === suggestion.id) || null;
+        
+        if (bestMatch) {
+          console.log(`✅ Match direto por ID: "${suggestion.name}" -> "${bestMatch.name}" (ID: ${bestMatch.id})`);
+          validatedSubSentiments.push({ suggestion, dbMatch: bestMatch });
+          continue;
+        } else {
+          console.log(`⚠️ ID ${suggestion.id} não encontrado. Tentando matching semântico...`);
+        }
+      }
+
+      // Se não tem ID ou ID não encontrado, fazer matching semântico
+      bestMatch = findBestMatch(suggestion, allSubSentiments);
 
       if (bestMatch) {
-        if (bestMatch.mainSentimentId === mainSentimentId) {
-          console.log(`✅ Match encontrado: IA "${suggestion.name}" -> BD "${bestMatch.name}" (ID: ${bestMatch.id})`);
-          // SEMPRE usar o match encontrado, ignorando a flag isNew da IA
-          validatedSubSentiments.push({ suggestion, dbMatch: bestMatch });
-        } else {
-          console.log(`❌ Descartado: Match "${bestMatch.name}" pertence a outro sentimento (ID: ${bestMatch.mainSentimentId})`);
-          // Se não encontrou match no sentimento correto, tratar como novo apenas se realmente necessário
-          validatedSubSentiments.push({ suggestion, dbMatch: null });
-        }
+        console.log(`✅ Match semântico: IA "${suggestion.name}" -> BD "${bestMatch.name}" (ID: ${bestMatch.id})`);
+        validatedSubSentiments.push({ suggestion, dbMatch: bestMatch });
       } else {
         // Se não encontrou match, tentar matching mais agressivo antes de criar novo
         console.log(`⚠️ Match inicial não encontrado para "${suggestion.name}". Tentando matching semântico mais agressivo...`);
@@ -680,7 +700,7 @@ async function main() {
             dbSub.keywords.some(kw => kw.toLowerCase().includes(word))
           );
 
-          if (matchingWords.length > 0 && dbSub.mainSentimentId === mainSentimentId) {
+          if (matchingWords.length > 0) {
             aggressiveMatch = dbSub;
             console.log(`✅ Match semântico agressivo encontrado: "${suggestion.name}" -> "${dbSub.name}" (palavras comuns: ${matchingWords.join(', ')})`);
             break;
