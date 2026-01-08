@@ -5,9 +5,9 @@
  */
 
 import { movieHeroRepository } from '../repositories/movieHero.repository';
-import { 
-  Movie, 
-  MovieHeroResponse, 
+import {
+  Movie,
+  MovieHeroResponse,
   MovieHeroError,
   StreamingPlatform,
   OscarAwards
@@ -24,7 +24,7 @@ export class MovieHeroService {
 
       // 1. Buscar filme por slug
       const movie = await movieHeroRepository.findMovieBySlug(slug);
-      
+
       if (!movie) {
         throw this.createError('MOVIE_NOT_FOUND', `Filme com slug '${slug}' não encontrado`);
       }
@@ -48,11 +48,11 @@ export class MovieHeroService {
 
     } catch (error) {
       console.error('❌ Erro no serviço Movie Hero:', error);
-      
+
       if (error instanceof Error && 'code' in error) {
         throw error; // Re-throw erros customizados
       }
-      
+
       throw this.createError('INTERNAL_ERROR', 'Erro interno do servidor', error);
     }
   }
@@ -67,14 +67,14 @@ export class MovieHeroService {
     const subscriptionPlatforms = movieData.platforms.filter(
       (p: StreamingPlatform) => p.accessType === 'INCLUDED_WITH_SUBSCRIPTION'
     );
-    
+
     const rentalPurchasePlatforms = movieData.platforms.filter(
       (p: StreamingPlatform) => p.accessType === 'RENTAL' || p.accessType === 'PURCHASE'
     );
 
     // Processar premiações Oscar
     const oscarAwards = this.processOscarAwards(
-      movieData.oscarWins, 
+      movieData.oscarWins,
       movieData.oscarNominations
     );
 
@@ -134,12 +134,12 @@ export class MovieHeroService {
         fullCast: processedData.fullCast,
         mainTrailer: processedData.mainTrailer,
         oscarAwards: processedData.oscarAwards,
-        primaryJourney: primaryJourney
+        primaryJourney: primaryJourney,
+        movieSuggestionFlows: processedData.suggestionFlows
       },
       subscriptionPlatforms: processedData.subscriptionPlatforms,
       rentalPurchasePlatforms: processedData.rentalPurchasePlatforms,
-      similarMovies: processedData.similarMovies,
-      reason: processedData.reason
+      similarMovies: processedData.similarMovies
     };
   }
 
@@ -147,8 +147,8 @@ export class MovieHeroService {
    * Cria erro customizado
    */
   private createError(
-    code: MovieHeroError['code'], 
-    message: string, 
+    code: MovieHeroError['code'],
+    message: string,
     details?: any
   ): MovieHeroError {
     const error = new Error(message) as unknown as MovieHeroError;

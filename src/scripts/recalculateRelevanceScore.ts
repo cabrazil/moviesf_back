@@ -22,7 +22,7 @@ interface RecalculationResult {
  * 
  * Intensidade (Base): (Média das Relevâncias)^1.5 × 10
  * Abrangência (Cobertura): × √(Matches Únicos / Total Únicos Esperados)
- * Bônus: +0.5 se cobertura >= 50%
+ * Bônus por Patamares: Bronze (+0.2), Prata (+0.4), Ouro (+0.6)
  * Teto máximo: 10.0
  * 
  * @param uniqueMatches - Map de nomes únicos de SubSentiments com suas maiores relevâncias
@@ -64,10 +64,25 @@ function calculateRelevanceScore(
   // SCORE BASE: Intensidade × √Abrangência
   let score = intensity * sqrtCoverage;
 
-  // BÔNUS: +0.5 se cobertura >= 50%
+  // BÔNUS POR PATAMARES (Tiers):
+  // Bronze (50-64%): +0.2 (Reconhecimento)
+  // Prata (65-74%):  +0.4 (Forte aderência)
+  // Ouro (75-100%):  +0.6 (Filme definitivo da jornada)
   let bonus = 0;
-  if (coverageRatio >= 0.5) {
-    bonus = 0.5;
+  let tier = '';
+  
+  if (coverageRatio >= 0.75) {
+    bonus = 0.6;
+    tier = 'Ouro';
+  } else if (coverageRatio >= 0.65) {
+    bonus = 0.4;
+    tier = 'Prata';
+  } else if (coverageRatio >= 0.50) {
+    bonus = 0.2;
+    tier = 'Bronze';
+  }
+  
+  if (bonus > 0) {
     score += bonus;
   }
 

@@ -5,19 +5,20 @@
  */
 
 import { dbConnection } from '../utils/database.connection';
-import { 
-  Movie, 
-  StreamingPlatform, 
-  EmotionalTag, 
-  CastMember, 
-  Trailer, 
-  OscarAward, 
+import {
+  Movie,
+  StreamingPlatform,
+  EmotionalTag,
+  CastMember,
+  Trailer,
+  OscarAward,
   SimilarMovie,
-  MovieQueryResult 
+  MovieQueryResult,
+  SuggestionFlow
 } from '../types/movieHero.types';
 
 export class MovieHeroRepository {
-  
+
   /**
    * Busca jornada principal do filme (otimizada)
    */
@@ -34,7 +35,7 @@ export class MovieHeroRepository {
     `;
 
     const result = await dbConnection.query(query, [movieId]);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
@@ -144,7 +145,7 @@ export class MovieHeroRepository {
 
     return {
       platforms: this.mapPlatforms(platformsResult.rows),
-      reason: reasonResult.rows[0]?.reason || null,
+      suggestionFlows: this.mapSuggestionFlows(reasonResult.rows),
       sentiments: this.mapSentiments(sentimentsResult.rows),
       mainCast: this.mapCast(mainCastResult.rows),
       fullCast: this.mapCast(fullCastResult.rows),
@@ -184,10 +185,17 @@ export class MovieHeroRepository {
 
   private getReasonQuery(): string {
     return `
-      SELECT msf.reason
+      SELECT 
+        msf.reason,
+        msf."relevanceScore",
+        ms_main.name as "mainSentimentName"
       FROM "MovieSuggestionFlow" msf
+      LEFT JOIN "JourneyOptionFlow" jof ON msf."journeyOptionFlowId" = jof.id
+      LEFT JOIN "JourneyStepFlow" jsf ON jof."journeyStepFlowId" = jsf.id
+      LEFT JOIN "JourneyFlow" jf ON jsf."journeyFlowId" = jf.id
+      LEFT JOIN "MainSentiment" ms_main ON jf."mainSentimentId" = ms_main.id
       WHERE msf."movieId" = $1
-      LIMIT 1
+      ORDER BY msf."relevanceScore" DESC
     `;
   }
 
@@ -299,7 +307,7 @@ export class MovieHeroRepository {
         SELECT msf."journeyOptionFlowId"
         FROM "MovieSuggestionFlow" msf
         WHERE msf."movieId" = $1
-          AND msf.relevance = 1
+        ORDER BY msf."relevanceScore" DESC
         LIMIT 1
       )
       SELECT DISTINCT
@@ -310,19 +318,34 @@ export class MovieHeroRepository {
         m.slug,
         msf."relevanceScore",
         msf."journeyOptionFlowId",
-        jof."displayTitle",
-        RANDOM() as random_order
+        jof."displayTitle"
       FROM "MovieSuggestionFlow" msf
       JOIN "Movie" m ON msf."movieId" = m.id
       JOIN "JourneyOptionFlow" jof ON msf."journeyOptionFlowId" = jof.id
       JOIN best_journey bj ON msf."journeyOptionFlowId" = bj."journeyOptionFlowId"
       WHERE msf."movieId" != $1
-      ORDER BY msf."relevanceScore" DESC, random_order
+      ORDER BY msf."relevanceScore" DESC
       LIMIT 6
     `;
   }
 
   // ===== MAPPERS =====
+
+  private mapSuggestionFlows(rows: any[]): SuggestionFlow[] {
+    return rows.map(row => ({
+      reason: row.reason,
+      relevance: parseFloat(row.relevanceScore) || 0,
+      journeyOptionFlow: {
+        journeyStepFlow: {
+          journeyFlow: {
+            mainSentiment: {
+              name: row.mainSentimentName || 'A Reflexão'
+            }
+          }
+        }
+      }
+    }));
+  }
 
   private mapPlatforms(rows: any[]): StreamingPlatform[] {
     return rows.map(row => ({
@@ -355,7 +378,7 @@ export class MovieHeroRepository {
 
   private mapTrailer(rows: any[]): Trailer | null {
     if (rows.length === 0) return null;
-    
+
     const row = rows[0];
     return {
       key: row.key,

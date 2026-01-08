@@ -627,10 +627,25 @@ async function calculateRelevanceScore(movieId: string, journeyOptionFlowId: num
     // SCORE BASE: Intensidade × √Abrangência
     let score = intensity * sqrtCoverage;
 
-    // BÔNUS: +0.5 se cobertura >= 50%
+    // BÔNUS POR PATAMARES (Tiers):
+    // Bronze (50-64%): +0.2 (Reconhecimento)
+    // Prata (65-74%):  +0.4 (Forte aderência)
+    // Ouro (75-100%):  +0.6 (Filme definitivo da jornada)
     let bonus = 0;
-    if (coverageRatio >= 0.5) {
-      bonus = 0.5;
+    let tier = '';
+    
+    if (coverageRatio >= 0.75) {
+      bonus = 0.6;
+      tier = 'Ouro';
+    } else if (coverageRatio >= 0.65) {
+      bonus = 0.4;
+      tier = 'Prata';
+    } else if (coverageRatio >= 0.50) {
+      bonus = 0.2;
+      tier = 'Bronze';
+    }
+    
+    if (bonus > 0) {
       score += bonus;
     }
 
@@ -642,7 +657,7 @@ async function calculateRelevanceScore(movieId: string, journeyOptionFlowId: num
 
     console.log(`📊 Relevance Score calculado: ${relevanceScore}`);
     console.log(`   Matches: ${matchCount}/${totalUniqueExpected} nomes únicos | Cobertura: ${(coverageRatio * 100).toFixed(1)}%`);
-    console.log(`   Intensidade: ${intensity.toFixed(3)} × √Cobertura: ${sqrtCoverage.toFixed(3)}${bonus > 0 ? ` + Bônus: ${bonus}` : ''}`);
+    console.log(`   Intensidade: ${intensity.toFixed(3)} × √Cobertura: ${sqrtCoverage.toFixed(3)}${bonus > 0 ? ` + Bônus: ${bonus} (${tier})` : ''}`);
     console.log(`   Média: ${average.toFixed(3)}`);
 
     return relevanceScore;

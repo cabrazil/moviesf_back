@@ -97,6 +97,20 @@ export interface SimilarMovie {
   displayTitle: string | null;
 }
 
+export interface SuggestionFlow {
+  reason: string;
+  relevance: number;
+  journeyOptionFlow: {
+    journeyStepFlow: {
+      journeyFlow: {
+        mainSentiment: {
+          name: string;
+        };
+      };
+    };
+  };
+}
+
 // ===== TIPOS DE RESPOSTA =====
 
 export interface MovieHeroResponse {
@@ -129,18 +143,18 @@ export interface MovieHeroResponse {
       journeyOptionFlowId: number;
       displayTitle: string | null;
     } | null;
+    movieSuggestionFlows: SuggestionFlow[];
   };
   subscriptionPlatforms: StreamingPlatform[];
   rentalPurchasePlatforms: StreamingPlatform[];
   similarMovies: SimilarMovie[];
-  reason: string | null;
 }
 
 // ===== TIPOS DE CONSULTA =====
 
 export interface MovieQueryResult {
   platforms: StreamingPlatform[];
-  reason: string | null;
+  suggestionFlows: SuggestionFlow[];
   sentiments: EmotionalTag[];
   mainCast: CastMember[];
   fullCast: CastMember[];
