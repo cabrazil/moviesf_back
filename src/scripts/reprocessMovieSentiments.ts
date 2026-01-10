@@ -124,7 +124,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
     return;
   }
 
-    // PASSO 2: Buscar DNA e Contexto da jornada
+  // PASSO 2: Buscar DNA e Contexto da jornada
   let dnaSubSentiments: Array<{
     id: number;
     name: string;
@@ -142,15 +142,15 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
       include: {
         journeyStepFlow: {
           include: {
-             emotionalIntentionJourneySteps: {
-               include: {
-                 emotionalIntention: {
-                   include: {
-                     mainSentiment: true
-                   }
-                 }
-               }
-             }
+            emotionalIntentionJourneySteps: {
+              include: {
+                emotionalIntention: {
+                  include: {
+                    mainSentiment: true
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -158,8 +158,8 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
 
     const emotionalIntention = jof?.journeyStepFlow?.emotionalIntentionJourneySteps?.[0]?.emotionalIntention;
     if (emotionalIntention?.mainSentiment?.name) {
-       userSentimentContext = emotionalIntention.mainSentiment.name.toLowerCase();
-       console.log(`🎭 Contexto Emocional: ${userSentimentContext}`);
+      userSentimentContext = emotionalIntention.mainSentiment.name.toLowerCase();
+      console.log(`🎭 Contexto Emocional: ${userSentimentContext}`);
     }
 
     // 2.2 Buscar DNA
@@ -206,13 +206,13 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
     for (const movie of batch) {
       // Checagem extra de maxScore se estivermos processando por JOF
       if (jofId && maxScore !== null) {
-         const currentSuggestion = await prisma.movieSuggestionFlow.findFirst({
-            where: { movieId: movie.id, journeyOptionFlowId: jofId }
-         });
-         if (currentSuggestion && maxScore !== undefined && Number(currentSuggestion.relevanceScore || 0) > maxScore) {
-            console.log(`⏭️  PULADO: ${movie.title} (Score ${currentSuggestion.relevanceScore?.toFixed(2)} > ${maxScore})`);
-            continue;
-         }
+        const currentSuggestion = await prisma.movieSuggestionFlow.findFirst({
+          where: { movieId: movie.id, journeyOptionFlowId: jofId }
+        });
+        if (currentSuggestion && maxScore !== undefined && Number(currentSuggestion.relevanceScore || 0) > maxScore) {
+          console.log(`⏭️  PULADO: ${movie.title} (Score ${currentSuggestion.relevanceScore?.toFixed(2)} > ${maxScore})`);
+          continue;
+        }
       }
       try {
         console.log(`🎬 ${movie.title} (${movie.year})`);
@@ -226,7 +226,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
         }
 
         console.log(`✅ ${auditResult.matches.length} matches encontrados:`);
-        
+
         // Exibir detalhes dos matches
         auditResult.matches.forEach(m => {
           console.log(`   🔸 ${(m.subSentimentName || 'NOME FALTANDO').padEnd(35)} | Rel: ${m.relevance.toFixed(2)} | ${m.explanation.length > 60 ? m.explanation.substring(0, 57) + '...' : m.explanation}`);
@@ -234,11 +234,11 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
 
         // Calcular e exibir score previsto (Simulado ou Real)
         if (jofId && dnaSubSentiments.length > 0) {
-           const predictedScore = calculateScoreFromMatches(auditResult.matches, dnaSubSentiments);
-           console.log(`
+          const predictedScore = calculateScoreFromMatches(auditResult.matches, dnaSubSentiments);
+          console.log(`
    📊 Score Calculado: ${predictedScore.toFixed(3)} (${dryRun ? 'Simulado' : 'Previsto para salvar'})`);
-           
-           console.log(`   ✨ Reflexão gerada (Preview): "${auditResult.reflection}"`);
+
+          console.log(`   ✨ Reflexão gerada (Preview): "${auditResult.reflection}"`);
         }
 
         if (!dryRun) {
@@ -311,7 +311,7 @@ async function auditMovieWithAI(
     `- **${ss.name}** (Peso: ${ss.weight.toFixed(2)})\n  Referências Técnicas: ${ss.keywords.join(', ')}`
   ).join('\n');
 
-    const prompt = `
+  const prompt = `
 Você é um curador especialista em psicologia cinematográfica do "vibesfilm".
 Sua tarefa é auditar se o filme abaixo se encaixa nos conceitos específicos da LISTA DE DNA.
 
@@ -423,9 +423,9 @@ async function saveMovieSentiments(
     });
 
     // Decidir se deve atualizar
-    const shouldUpdate = !existing || 
-                        match.relevance > Number(existing.relevance) ||
-                        match.explanation.length > (existing.explanation?.length || 0);
+    const shouldUpdate = !existing ||
+      match.relevance > Number(existing.relevance) ||
+      match.explanation.length > (existing.explanation?.length || 0);
 
     if (!existing) {
       // Criar novo
@@ -588,69 +588,69 @@ function calculateScoreFromMatches(
   matches: Array<{ subSentimentName: string; relevance: number }>,
   dnaSubSentiments: Array<{ name: string }>
 ): number {
-    const uniqueExpectedNames = new Set(dnaSubSentiments.map(s => s.name));
-    const totalUniqueExpected = uniqueExpectedNames.size;
+  const uniqueExpectedNames = new Set(dnaSubSentiments.map(s => s.name));
+  const totalUniqueExpected = uniqueExpectedNames.size;
 
-    if (totalUniqueExpected === 0) return 0;
+  if (totalUniqueExpected === 0) return 0;
 
-    // Matches válidos (que estão no DNA)
-    const validMatches = matches.filter(m => uniqueExpectedNames.has(m.subSentimentName));
-    
-    // Mapa de únicos com maior relevância
-    const uniqueMatches = new Map<string, number>();
-    validMatches.forEach(m => {
-        const name = m.subSentimentName;
-        const rel = Number(m.relevance);
-        if (!uniqueMatches.has(name) || uniqueMatches.get(name)! < rel) {
-            uniqueMatches.set(name, rel);
-        }
-    });
+  // Matches válidos (que estão no DNA)
+  const validMatches = matches.filter(m => uniqueExpectedNames.has(m.subSentimentName));
 
-    if (uniqueMatches.size === 0) {
-        console.log('   ⚠️ Nenhum match válido para cálculo de score.');
-        return 0;
+  // Mapa de únicos com maior relevância
+  const uniqueMatches = new Map<string, number>();
+  validMatches.forEach(m => {
+    const name = m.subSentimentName;
+    const rel = Number(m.relevance);
+    if (!uniqueMatches.has(name) || uniqueMatches.get(name)! < rel) {
+      uniqueMatches.set(name, rel);
     }
+  });
 
-    const matchCount = uniqueMatches.size;
-    const relevances = Array.from(uniqueMatches.values());
-    const average = relevances.reduce((a, b) => a + b, 0) / matchCount;
-    
-    // Intensidade: (Média)^1.5 × 10
-    const intensity = Math.pow(average, 1.5) * 10;
-    
-    // Abrangência: Raiz quadrada da razão de cobertura
-    const coverageRatio = matchCount / totalUniqueExpected;
-    const sqrtCoverage = Math.sqrt(coverageRatio);
-    
-    let score = intensity * sqrtCoverage;
-    
-    // Bônus por Patamares
-    let bonus = 0;
-    let tier = '';
-    
-    if (coverageRatio >= 0.75) {
-        bonus = 0.6;
-        tier = 'Ouro';
-    } else if (coverageRatio >= 0.65) {
-        bonus = 0.4;
-        tier = 'Prata';
-    } else if (coverageRatio >= 0.50) {
-        bonus = 0.2;
-        tier = 'Bronze';
-    }
-    
-    if (bonus > 0) score += bonus;
-    
-    const finalScore = Math.min(score, 10.0);
+  if (uniqueMatches.size === 0) {
+    console.log('   ⚠️ Nenhum match válido para cálculo de score.');
+    return 0;
+  }
 
-    // Logs Detalhados
-    console.log(`\n   📊 Detalhes do Score (Simulado):`);
-    console.log(`      Relevance Score: ${finalScore.toFixed(3)}`);
-    console.log(`      Matches: ${matchCount}/${totalUniqueExpected} nomes únicos | Cobertura: ${(coverageRatio * 100).toFixed(1)}%`);
-    console.log(`      Intensidade: ${intensity.toFixed(3)} × √Cobertura: ${sqrtCoverage.toFixed(3)}${bonus > 0 ? ` + Bônus: ${bonus} (${tier})` : ''}`);
-    console.log(`      Média Relevância: ${average.toFixed(3)}`);
+  const matchCount = uniqueMatches.size;
+  const relevances = Array.from(uniqueMatches.values());
+  const average = relevances.reduce((a, b) => a + b, 0) / matchCount;
 
-    return finalScore;
+  // Intensidade: (Média)^1.5 × 10
+  const intensity = Math.pow(average, 1.5) * 10;
+
+  // Abrangência: Raiz quadrada da razão de cobertura
+  const coverageRatio = matchCount / totalUniqueExpected;
+  const sqrtCoverage = Math.sqrt(coverageRatio);
+
+  let score = intensity * sqrtCoverage;
+
+  // Bônus por Patamares
+  let bonus = 0;
+  let tier = '';
+
+  if (coverageRatio >= 0.75) {
+    bonus = 0.6;
+    tier = 'Ouro';
+  } else if (coverageRatio >= 0.65) {
+    bonus = 0.4;
+    tier = 'Prata';
+  } else if (coverageRatio >= 0.50) {
+    bonus = 0.2;
+    tier = 'Bronze';
+  }
+
+  if (bonus > 0) score += bonus;
+
+  const finalScore = Math.min(score, 10.0);
+
+  // Logs Detalhados
+  console.log(`\n   📊 Detalhes do Score (Simulado):`);
+  console.log(`      Relevance Score: ${finalScore.toFixed(3)}`);
+  console.log(`      Matches: ${matchCount}/${totalUniqueExpected} nomes únicos | Cobertura: ${(coverageRatio * 100).toFixed(1)}%`);
+  console.log(`      Intensidade: ${intensity.toFixed(3)} × √Cobertura: ${sqrtCoverage.toFixed(3)}${bonus > 0 ? ` + Bônus: ${bonus} (${tier})` : ''}`);
+  console.log(`      Média Relevância: ${average.toFixed(3)}`);
+
+  return finalScore;
 }
 
 // CLI
