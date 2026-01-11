@@ -633,7 +633,7 @@ async function calculateRelevanceScore(movieId: string, journeyOptionFlowId: num
     // Ouro (75-100%):  +0.6 (Filme definitivo da jornada)
     let bonus = 0;
     let tier = '';
-    
+
     if (coverageRatio >= 0.75) {
       bonus = 0.6;
       tier = 'Ouro';
@@ -644,7 +644,7 @@ async function calculateRelevanceScore(movieId: string, journeyOptionFlowId: num
       bonus = 0.2;
       tier = 'Bronze';
     }
-    
+
     if (bonus > 0) {
       score += bonus;
     }
@@ -700,26 +700,50 @@ async function generateReflectionForMovie(movie: any, option: any): Promise<stri
 async function generateReflectionWithAI(movie: any, keywords: string[], option: any): Promise<string> {
   console.log(`🔍 Gerando reflexão para: ${movie.title}`);
   console.log(`📝 Opção de jornada: "${option.text}"`);
+
   const prompt = `
-Dado o filme '${movie.title}' (${movie.year || 'Ano não especificado'}), com gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}, palavras-chave principais: ${keywords.slice(0, 10).join(', ') || 'N/A'}, e sinopse: ${movie.overview || 'N/A'}.
+Você é um curador especialista em psicologia cinematográfica do "vibesfilm".
 
-E a **opção de jornada emocional específica escolhida pelo usuário**: '${option.text}'.
+### 🎬 DADOS DO FILME
+- Título: ${movie.title} (${movie.year || 'Ano não especificado'})
+- Sinopse: ${movie.overview || 'N/A'}
+- Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
+- Keywords: ${keywords.slice(0, 15).join(', ') || 'N/A'}
 
-Crie uma frase concisa (máximo 20 palavras) que explique **EXCLUSIVAMENTE** como este filme atende à necessidade específica expressa na opção de jornada. A frase deve se encaixar após 'o filme ${movie.title} oferece...' e fazer sentido na frase completa: "Para quem está [sentimento] e quer [opção], [filme] oferece [sua resposta aqui]."
+### 🎯 OPÇÃO DE JORNADA EMOCIONAL
+"${option.text}"
 
-REGRAS IMPORTANTES:
-- Escreva APENAS o texto da justificativa, sem formatação JSON
-- Use MÁXIMO 25 palavras
-- Foque EXCLUSIVAMENTE na opção de jornada fornecida
-- Explique como o filme atende à necessidade específica do usuário
-- Não repita o nome do filme
-- Conecte diretamente os elementos do filme com a opção de jornada
-- Seja direto e objetivo
-- A frase deve fazer sentido quando inserida na estrutura completa
+### 📝 MISSÃO: O COMPLEMENTO PERFEITO (CONTINUAÇÃO DE FRASE)
+O frontend exibe: "Este filme é perfeito para quem busca..."
+Sua tarefa é escrever APENAS o restante da frase (o complemento).
 
-EXEMPLO: Se a opção for "mergulhe na experiência psicológica da ansiedade", a resposta deve explicar como o filme oferece essa experiência psicológica específica.
+1. **FORMATO**: Comece com letra MINÚSCULA.
+   - **MENU DE VERBOS (VARIEDADE)**: Tente usar um destes para iniciar:
+     * "descobrir..."
+     * "acompanhar..."
+     * "vivenciar..."
+     * "sentir..."
+     * "entender..."
+     * "perceber..."
+     * "confrontar..."
+     * "explorar..."
+     * "decifrar..."
+     * "reconhecer..."
+   - **REGRA DE OURO**: Use o verbo que melhor descreve a AÇÃO do filme. Se é um filme de viagem, "acompanhar/descobrir". Se é introspectivo, "mergulhar/decifrar". Se é aprendizado, "aprender/entender".
+   - Opção Secundária (Substantivos): "uma experiência de...", "um mergulho em...". Use apenas se o verbo não encaixar bem.
 
-RESPONDA APENAS COM O TEXTO DA JUSTIFICATIVA, SEM JSON OU FORMATAÇÃO ESPECIAL.
+2. **CONTEÚDO**: Conecte a essência do filme ao desejo profundo do usuário.
+
+3. **PROIBIDO**: NÃO repita "para quem busca". NÃO use ponto final se possível (mas aceitável).
+
+4. **ESTILO**: Fluido, elegante e direto. Máx 180 caracteres.
+
+Exemplos Bons:
+- "aprender que o silêncio não é um vazio, mas uma nova frequência para reencontrar a própria voz."
+- "vivenciar a transformação da dor em propósito, onde cada golpe na arena é uma palavra na sentença final de um homem contra a tirania."
+- "entender que a verdadeira coragem reside na aceitação da própria vulnerabilidade."
+
+RESPONDA APENAS COM O TEXTO DA REFLEXÃO, SEM JSON OU FORMATAÇÃO ESPECIAL.
 `;
 
   try {
@@ -727,11 +751,11 @@ RESPONDA APENAS COM O TEXTO DA JUSTIFICATIVA, SEM JSON OU FORMATAÇÃO ESPECIAL.
     const config = getDefaultConfig(provider);
     const aiProvider = createAIProvider(config);
 
-    const systemPrompt = 'Você é um especialista em recomendação de filmes baseada em jornadas emocionais. Escreva justificativas concisas e específicas que expliquem como um filme atende à necessidade emocional específica do usuário. IMPORTANTE: Responda APENAS com o texto da justificativa, sem formatação JSON ou markdown.';
+    const systemPrompt = 'Você é um curador especialista em psicologia cinematográfica. Escreva reflexões poéticas e envolventes que conectem a essência do filme ao desejo emocional profundo do usuário. Use linguagem fluida e elegante. IMPORTANTE: Responda APENAS com o texto da reflexão, sem formatação JSON ou markdown.';
 
     const response = await aiProvider.generateResponse(systemPrompt, prompt, {
-      temperature: 0.6,
-      maxTokens: 100
+      temperature: 0.7,
+      maxTokens: 150
     });
 
     if (!response.success) {

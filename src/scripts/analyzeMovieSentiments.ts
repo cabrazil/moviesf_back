@@ -247,6 +247,22 @@ ${officialListFormatted.length > 0 ? officialListFormatted.join('\n') : 'Nenhum 
 
 ---
 
+### 🛠️ DIRETRIZES DE ANCORAGEM SEMÂNTICA
+
+1. **Tradução de Contexto:** Converta keywords concretas (lugares, objetos, profissões) em estados emocionais.
+   - Pergunte-se: "Como esta keyword [X] amplifica o subsentimento [Y] neste filme específico?"
+   - Exemplo: "bateria" em Whiplash → instrumento da obsessão e pressão extrema → amplifica "Suspense Crescente"
+
+2. **Validação de Intensidade:** Keywords que descrevem o tom (ex: "sombrio", "frenético", "melancólico", "intenso", "tensão") devem atuar como multiplicadores.
+   - Se o DNA pede "Suspense" e existe a keyword "tensão" ou "intenso", a relevância deve ser >= 0.90.
+
+3. **Hierarquia de Relevância:**
+   - Keywords **tonais/emocionais** (obsessão, medo, alegria, tensão) → Peso ALTO (0.85-1.0)
+   - Keywords **contextuais** (profissão, lugar, objeto) → Peso MÉDIO (0.60-0.85) se conectadas ao sentimento
+   - Keywords **neutras** (ano, gênero) → Ignorar para análise emocional
+
+---
+
 **INSTRUÇÕES DE ANÁLISE:**
 
 1. **ANÁLISE ABRANGENTE:** Analise o filme com foco principal em "${mainSentimentName}", MAS identifique TODOS os conceitos da lista acima que estão presentes no filme, mesmo que pertençam a outras categorias emocionais.
@@ -666,7 +682,7 @@ async function main() {
       // Se a IA retornou um ID (match OFFICIAL), confiar nele
       if (suggestion.id) {
         bestMatch = allSubSentiments.find(ss => ss.id === suggestion.id) || null;
-        
+
         if (bestMatch) {
           console.log(`✅ Match direto por ID: "${suggestion.name}" -> "${bestMatch.name}" (ID: ${bestMatch.id})`);
           validatedSubSentiments.push({ suggestion, dbMatch: bestMatch });

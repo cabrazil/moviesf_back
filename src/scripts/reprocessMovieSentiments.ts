@@ -227,14 +227,23 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
 
         console.log(`✅ ${auditResult.matches.length} matches encontrados:`);
 
-        // Exibir detalhes dos matches
-        auditResult.matches.forEach(m => {
-          console.log(`   🔸 ${(m.subSentimentName || 'NOME FALTANDO').padEnd(35)} | Rel: ${m.relevance.toFixed(2)} | ${m.explanation.length > 60 ? m.explanation.substring(0, 57) + '...' : m.explanation}`);
+        // Filtrar e validar matches
+        const validMatches = auditResult.matches.filter(m => {
+          if (!m.subSentimentName) {
+            console.warn(`   ⚠️ Match sem nome ignorado: ${JSON.stringify(m)}`);
+            return false;
+          }
+          return true;
+        });
+
+        // Exibir detalhes dos matches válidos
+        validMatches.forEach(m => {
+          console.log(`   🔸 ${m.subSentimentName.padEnd(35)} | Rel: ${m.relevance.toFixed(2)} | ${m.explanation.length > 60 ? m.explanation.substring(0, 57) + '...' : m.explanation}`);
         });
 
         // Calcular e exibir score previsto (Simulado ou Real)
         if (jofId && dnaSubSentiments.length > 0) {
-          const predictedScore = calculateScoreFromMatches(auditResult.matches, dnaSubSentiments);
+          const predictedScore = calculateScoreFromMatches(validMatches, dnaSubSentiments);
           console.log(`
    📊 Score Calculado: ${predictedScore.toFixed(3)} (${dryRun ? 'Simulado' : 'Previsto para salvar'})`);
 
@@ -243,8 +252,8 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
 
         if (!dryRun) {
           console.log('\n   💾 Gravando no banco...');
-          // Gravar no banco
-          await saveMovieSentiments(movie.id, auditResult.matches, dnaSubSentiments);
+          // Gravar no banco (apenas matches válidos)
+          await saveMovieSentiments(movie.id, validMatches, dnaSubSentiments);
 
           // Recalcular score se jofId especificado (Confirmação oficial do banco)
           if (jofId) {
@@ -324,6 +333,20 @@ Sua tarefa é auditar se o filme abaixo se encaixa nos conceitos específicos da
 Você deve verificar a presença destes itens. Use as "Referências Técnicas" para guiar seu julgamento:
 
 ${dnaWithDetails}
+
+### 🛠️ DIRETRIZES DE ANCORAGEM SEMÂNTICA
+
+1. **Tradução de Contexto:** Converta keywords concretas (lugares, objetos, profissões) em estados emocionais.
+   - Pergunte-se: "Como esta keyword [X] amplifica o subsentimento [Y] neste filme específico?"
+   - Exemplo: "bateria" em Whiplash → instrumento da obsessão e pressão extrema → amplifica "Suspense Crescente"
+
+2. **Validação de Intensidade:** Keywords que descrevem o tom (ex: "sombrio", "frenético", "melancólico", "intenso", "tensão") devem atuar como multiplicadores.
+   - Se o DNA pede "Suspense" e existe a keyword "tensão" ou "intenso", a relevância deve ser >= 0.90.
+
+3. **Hierarquia de Relevância:**
+   - Keywords **tonais/emocionais** (obsessão, medo, alegria, tensão) → Peso ALTO (0.85-1.0)
+   - Keywords **contextuais** (profissão, lugar, objeto) → Peso MÉDIO (0.60-0.85) se conectadas ao sentimento
+   - Keywords **neutras** (ano, gênero) → Ignorar para análise emocional
 
 ### 🎯 MISSÃO 1: ANÁLISE PROFUNDA (EXPLANATION DE ELITE)
 Para cada match, escreva uma "explanation" que sirva de base para um artigo crítico de cinema.
