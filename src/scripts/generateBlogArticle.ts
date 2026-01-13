@@ -171,6 +171,10 @@ Comece com um gancho forte que defina a premissa central e o impacto imediato do
 Mencione obrigatoriamente o diretor ${movie.director} e o elenco principal (${castNames}).
 Termine este parágrafo definindo a "Vibe" geral da obra com uma frase de impacto (ex: "No Vibesfilm, este não é apenas um filme de terror — é uma imersão emocional...").
 
+<h3>⚠️Alertas e Cuidados: ${movie.title} (${movie.year})</h3>
+<p>Um parágrafo empático contextualizando os alertas ("${movie.contentWarnings}").</p>
+⚠️ IMPORTANTE: Se o filme for sutil ou introspectivo (como dramas psicológicos), EVITE tom clínico, pathologizante ou excessivamente alarmista. Foque na carga emocional e na intensidade dos sentimentos, não apenas em "gatilhos", a menos que haja violência gráfica ou abuso explícito.
+
 ## O Que Torna "${movie.title}" Tão [Adjetivo Dinâmico]?
 **IMPORTANTE:** Escolha um adjetivo que defina o filme no título desta seção (ex: "Impactante", "Contemplativo", "Perturbador", "Especial").
 Nesta seção, faça a **Análise Conceitual e Semântica**.
@@ -182,25 +186,30 @@ Nesta seção, faça a **Análise Conceitual e Semântica**.
 ## A Atmosfera Dominante [Use variações: "O Clima", "A Emoção Central", "A Vibe"]
 Comece com um parágrafo introdutório (2-3 frases) que descreva a sensação geral que permeia o filme, destacando qual é a emoção primária (ex: Melancolia, Tensão, Euforia).
 SOMENTE DEPOIS deste parágrafo, pule uma linha e escreva a frase exata: "Tags Emocionais Chave que definem esta experiência são:"
-Depois, liste 3 **Tags Emocionais Chave** que definem a experiência.
+
+Depois, liste 3 **Tags Emocionais Chave** em formato HTML usando <ul> e <li>:
 ⚠️ **REGRA CRÍTICA:** Você **OBRIGATORIAMENTE** deve escolher essas tags da lista fornecida na seção "ANÁLISE DE SENTIMENTOS (IA VIBESFILM)". **NÃO INVENTE** novos nomes de sentimentos. Use *exatamente* o nome do SubSentimento fornecido (ex: "Nostalgia Positiva").
 
 Exemplo de formato para as tags:
-**[Nome do SubSentimento EXATO (ex: Nostalgia Positiva)]**: [Parágrafo explicando como essa emoção se manifesta no filme, citando momentos ou sensações específicas].
+<ul>
+<li><strong>[Nome do SubSentimento EXATO (ex: Nostalgia Positiva)]</strong>: [Parágrafo explicando como essa emoção se manifesta no filme, citando momentos ou sensações específicas].</li>
+<li><strong>[Nome do SubSentimento 2]</strong>: [Explicação...].</li>
+<li><strong>[Nome do SubSentimento 3]</strong>: [Explicação...].</li>
+</ul>
 
 ## Quando Escolher "${movie.title}"? (Sua Jornada Emocional no Vibesfilm)
 Escreva um parágrafo introdutório convidando o leitor a essa experiência.
-Em seguida, escolha 2 ou 3 das "Jornadas Emocionais" fornecidas nos dados e transforme-as em mini-ensaios (parágrafos completos) para perfis de espectadores.
-Use o formato:
-**Para quem busca [Nome da Intenção/Sentimento]**: [Escreva um parágrafo profundo explicando POR QUE o filme atende a essa busca. Evite listas. Diga algo como "Este filme é um mergulho em...", "É a escolha ideal para quem quer explorar..."].
+
+Em seguida, escolha 2 ou 3 das "Jornadas Emocionais" fornecidas nos dados e transforme-as em mini-ensaios usando formato HTML <ul> e <li>:
+
+<ul>
+<li><strong>Para quem busca [Nome da Intenção/Sentimento]</strong>: [Escreva um parágrafo profundo explicando POR QUE o filme atende a essa busca. Evite listas. Diga algo como "Este filme é um mergulho em...", "É a escolha ideal para quem quer explorar..."].</li>
+<li><strong>Para quem busca [Nome da Intenção 2]</strong>: [Explicação...].</li>
+</ul>
 
 ## Sua Vibe Encontra o Filme Certo no Vibesfilm
 Conclusão emocional. Reforce que o Vibesfilm entende que cinema é mais que entretenimento.
 Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /onde-assistir/${movie.title} com texto '${movie.title} (${movie.year})']."
-
-## Alertas e Cuidados
-Um parágrafo empático contextualizando os alertas ("${movie.contentWarnings}").
-⚠️ IMPORTANTE: Se o filme for sutil ou introspectivo (como dramas psicológicos), EVITE tom clínico, pathologizante ou excessivamente alarmista. Foque na carga emocional e na intensidade dos sentimentos, não apenas em "gatilhos", a menos que haja violência gráfica ou abuso explícito.
 
 **Rodapé:**
 "Qual é a sua vibe hoje? Descubra seu filme perfeito no Vibesfilm App!"
