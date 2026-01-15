@@ -142,12 +142,12 @@ async function checkYouTubeAvailability(movieTitle: string, year?: number): Prom
   try {
     const searchQuery = `${movieTitle} ${year || ''} full movie`;
     const searchUrl = `${YOUTUBE_BASE_URL}/search?part=snippet&q=${encodeURIComponent(searchQuery)}&type=video&videoDuration=long&maxResults=5&key=${YOUTUBE_API_KEY}`;
-    
+
     const response = await axios.get(searchUrl);
     const data = response.data as any;
 
     if (data.items && data.items.length > 0) {
-      const hasYouTubeMovies = data.items.some((item: any) => 
+      const hasYouTubeMovies = data.items.some((item: any) =>
         item.snippet.channelTitle.includes('YouTube Movies') ||
         item.snippet.channelTitle.includes('Movies') ||
         item.snippet.title.toLowerCase().includes('full movie')
@@ -177,17 +177,17 @@ async function updateMovieStreamingData(movie: MovieWithStreaming): Promise<void
       return;
     }
     const tmdbData = await getTMDBStreamingData(movie.tmdbId);
-    
+
     // Buscar dados YouTube
     const youtubeData = await checkYouTubeAvailability(movie.title, movie.year ?? undefined);
-    
+
     // Combinar dados
     const allStreamingData = [...tmdbData];
-    
+
     if (youtubeData.available) {
       const isOldMovie = (movie.year ?? 0) < 1970;
       const youtubePlatform = isOldMovie ? 'YouTube (Gratuito)' : 'YouTube Premium';
-      
+
       youtubeData.accessTypes.forEach(accessType => {
         allStreamingData.push({
           platform: youtubePlatform,
@@ -237,7 +237,7 @@ async function getHighPriorityMovies(startsWith?: string): Promise<MovieWithStre
   const baseWhere: any = {
     OR: [
       { year: { gte: 2024 } },
-      { 
+      {
         AND: [
           { vote_average: { gte: 7.5 } },
           { vote_count: { gte: 1000 } }
@@ -268,7 +268,7 @@ async function getMediumPriorityMovies(startsWith?: string): Promise<MovieWithSt
   const baseWhere: any = {
     OR: [
       { year: { gte: 2020, lt: 2024 } },
-      { 
+      {
         AND: [
           { vote_average: { gte: 6.5, lt: 7.5 } },
           { vote_count: { gte: 500 } }
@@ -299,7 +299,7 @@ async function getLowPriorityMovies(startsWith?: string): Promise<MovieWithStrea
   const baseWhere: any = {
     OR: [
       { year: { lt: 2020 } },
-      { 
+      {
         AND: [
           { vote_average: { lt: 6.5 } },
           { vote_count: { lt: 500 } }
@@ -325,37 +325,57 @@ async function getLowPriorityMovies(startsWith?: string): Promise<MovieWithStrea
   });
 }
 
-async function updateStreamingData(priority: 'high' | 'medium' | 'low' = 'high', startsWith?: string): Promise<void> {
-  console.log(`🚀 === ATUALIZAÇÃO DE DADOS DE STREAMING ===`);
-  console.log(`📊 Prioridade: ${priority.toUpperCase()}`);
-  if (startsWith) {
-    console.log(`🔤 Filtro por título iniciando com: "${startsWith}" (case-insensitive)`);
+// Helper para gerar array de letras a partir de range ou lista
+function parseStartsWith(input: string): string[] {
+  const letters: string[] = [];
+
+  // Caso 1: Lista separada por vírgula (A,B,C)
+  if (input.includes(',')) {
+    return input.split(',').map(l => l.trim().toUpperCase()).filter(l => l.length === 1);
   }
 
-  let movies: MovieWithStreaming[] = [];
-
-  switch (priority) {
-    case 'high':
-      movies = await getHighPriorityMovies(startsWith);
-      console.log(`🎯 Filmes de alta prioridade: ${movies.length}`);
-      break;
-    case 'medium':
-      movies = await getMediumPriorityMovies(startsWith);
-      console.log(`🎯 Filmes de média prioridade: ${movies.length}`);
-      break;
-    case 'low':
-      movies = await getLowPriorityMovies(startsWith);
-      console.log(`🎯 Filmes de baixa prioridade: ${movies.length}`);
-      break;
+  // Caso 2: Range (A-G)
+  if (input.includes('-')) {
+    const [start, end] = input.split('-').map(l => l.trim().toUpperCase());
+    if (start && end && start.length === 1 && end.length === 1) {
+      const startCode = start.charCodeAt(0);
+      const endCode = end.charCodeAt(0);
+      for (let i = startCode; i <= endCode; i++) {
+        letters.push(String.fromCharCode(i));
+      }
+      return letters;
+    }
   }
 
+  // Caso 3: Letra única
+  if (input.length === 1) {
+    return [input.toUpperCase()];
+  }
+
+  return [];
+}
+
+async function updateMoviesByLetter(letter: string): Promise<void> {
+  console.log(`🔍 Buscando TODOS os filmes iniciados com "${letter}"...`);
+
+  const movies = await prisma.movie.findMany({
+    where: { title: { startsWith: letter, mode: 'insensitive' } },
+    select: {
+      id: true, title: true, year: true, tmdbId: true, vote_average: true, vote_count: true
+    }
+  });
+
+  await processMovies(movies);
+}
+
+// Função auxiliar para processar a lista de filmes
+async function processMovies(movies: MovieWithStreaming[]): Promise<void> {
   if (movies.length === 0) {
-    console.log('❌ Nenhum filme encontrado para atualização');
+    console.log('❌ Nenhum filme encontrado.');
     return;
   }
 
-  console.log(`\n🔄 Iniciando atualização de ${movies.length} filmes...`);
-
+  console.log(`🔄 Encontrados ${movies.length} filmes.`);
   let successCount = 0;
   let errorCount = 0;
 
@@ -363,29 +383,82 @@ async function updateStreamingData(priority: 'high' | 'medium' | 'low' = 'high',
     try {
       await updateMovieStreamingData(movie);
       successCount++;
-      
-      // Rate limiting - pausa entre requisições
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limiting
     } catch (error) {
       console.error(`❌ Erro ao processar ${movie.title}:`, error);
       errorCount++;
     }
   }
 
-  console.log(`\n📊 === RELATÓRIO FINAL ===`);
-  console.log(`✅ Sucessos: ${successCount}`);
-  console.log(`❌ Erros: ${errorCount}`);
-  console.log(`📈 Taxa de sucesso: ${((successCount / movies.length) * 100).toFixed(1)}%`);
+  console.log(`✅ Sucessos: ${successCount} | ❌ Erros: ${errorCount}`);
+}
+
+async function updateStreamingDataInternal(priority: 'high' | 'medium' | 'low' | 'all', startsWith?: string): Promise<void> {
+  if (startsWith) {
+    console.log(`🔤 Filtro: Títulos iniciando com "${startsWith}"`);
+  }
+
+  if (priority === 'all') {
+    // Se for 'all' E tiver startsWith, pega todos os filmes daquela letra independente de prioridade
+    if (startsWith) {
+      await updateMoviesByLetter(startsWith);
+      return;
+    }
+
+    // Se for 'all' SEM startsWith, mantém comportamento antigo (High -> Medium -> Low)
+    console.log('\n🔄 Executando para TODAS as prioridades (High -> Medium -> Low)...');
+    await updateStreamingDataInternal('high', startsWith);
+    await updateStreamingDataInternal('medium', startsWith);
+    await updateStreamingDataInternal('low', startsWith);
+    return;
+  }
+
+  // ... lógica existente para priority específica ...
+  let movies: MovieWithStreaming[] = [];
+  switch (priority) {
+    case 'high': movies = await getHighPriorityMovies(startsWith); break;
+    case 'medium': movies = await getMediumPriorityMovies(startsWith); break;
+    case 'low': movies = await getLowPriorityMovies(startsWith); break;
+  }
+
+  await processMovies(movies);
+}
+
+async function updateStreamingData(priority: 'high' | 'medium' | 'low' | 'all' = 'high', startsWithInput?: string): Promise<void> {
+  console.log(`🚀 === ATUALIZAÇÃO DE DADOS DE STREAMING ===`);
+
+  // Se tiver startsWith, processa as letras sequencialmente
+  if (startsWithInput) {
+    const letters = parseStartsWith(startsWithInput);
+    if (letters.length > 0) {
+      console.log(`🔤 Processando letras: ${letters.join(', ')}`);
+
+      for (const letter of letters) {
+        console.log(`\n📌 === Atualizando letra: ${letter} ===`);
+        // Chama recursivamente para cada letra, mas sem passar o input composto para evitar loop
+        // Aqui forçamos a execução para a letra específica
+        await updateStreamingDataInternal(priority, letter);
+      }
+      return;
+    }
+  }
+
+  // Se não tiver startsWith ou falhar o parse, executa normal
+  await updateStreamingDataInternal(priority, startsWithInput);
 }
 
 // Função principal
 async function main(): Promise<void> {
   try {
     const args = process.argv.slice(2);
-    const priorityArg = args.find(a => a === 'high' || a === 'medium' || a === 'low');
-    const priority = (priorityArg as 'high' | 'medium' | 'low') || 'high';
+    // Removemos a validação estrita de priority aqui para permitir apenas startsWith
+    const priorityArg = args.find(a => ['high', 'medium', 'low', 'all'].includes(a));
+    // Se não passar prioridade mas passar startsWith, assume 'all' (todos daquela letra)
     const startsWithArg = args.find(a => a.startsWith('--startsWith='));
-    const startsWith = startsWithArg ? startsWithArg.split('=')[1]?.slice(0, 1) : undefined;
+    const startsWith = startsWithArg ? startsWithArg.split('=')[1] : undefined;
+
+    const priority = (priorityArg as 'high' | 'medium' | 'low' | 'all') || (startsWith ? 'all' : 'high');
+
     await updateStreamingData(priority, startsWith);
   } catch (error) {
     console.error('❌ Erro:', error);
