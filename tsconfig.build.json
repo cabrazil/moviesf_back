@@ -13,7 +13,8 @@
     "src/repositories/**/*",
     "src/types/**/*",
     "src/utils/**/*",
-    "src/prisma.ts"
+    "src/prisma.ts",
+    "src/scripts/updateStreamingData.ts"
   ],
   "exclude": [
     "node_modules",
@@ -26,4 +27,4 @@
     "src/tests/**/*",
     "src/services/emotionalRecommendationService.ts"
   ]
-} 
+}
