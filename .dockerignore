@@ -1,6 +1,6 @@
 node_modules
 npm-debug.log
-# dist - COMENTADO: necessário para produção (código compilado)
+dist
 .env
 .env.local
 .env.development
@@ -16,15 +16,6 @@ coverage
 *.test.ts
 *.spec.ts
 src/tests
-# Excluir apenas scripts de desenvolvimento/análise (manter scripts de manutenção)
-src/scripts/orchestrator.ts
-src/scripts/analyzeMovieSentiments.ts
-src/scripts/populateMovies.ts
-src/scripts/discoverAndCurate.ts
-src/scripts/reprocessMovieSentiments.ts
-src/scripts/generateBlogArticle.ts
-src/scripts/generatePillarArticle.ts
-src/scripts/duplicateMovieSuggestion.ts
-# Manter: updateStreamingData.ts (usado em cron jobs)
+src/scripts
 .DS_Store
 
