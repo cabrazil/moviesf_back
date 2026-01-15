@@ -21,9 +21,7 @@
     "dist",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "src/scripts",
     "src/tests",
-    "src/scripts/**/*",
     "src/tests/**/*",
     "src/services/emotionalRecommendationService.ts"
   ]
