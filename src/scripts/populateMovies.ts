@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 import { generateUniqueSlug } from '../utils/slugGenerator';
+import { uploadTmdbImageToSupabase } from '../utils/imageUpload';
 
 // Importar função de trailers do script updateMovieTrailers
 import { getMovieTrailers } from './updateMovieTrailers';
@@ -119,7 +120,7 @@ function formatAwardsForLP(awardsText: string): string {
   formatted = formatted.replace(/^Won\s+(\d+)\s+Oscars?/i, (match, num) => {
     return `Ganhou ${num} Oscar${parseInt(num) > 1 ? 's' : ''}`;
   });
-  
+
   // "Nominated for X Oscars" -> "Indicado a X Oscars"
   formatted = formatted.replace(/Nominated for\s+(\d+)\s+Oscars?/i, (match, num) => {
     return `Indicado a ${num} Oscar${parseInt(num) > 1 ? 's' : ''}`;
@@ -130,7 +131,7 @@ function formatAwardsForLP(awardsText: string): string {
   formatted = formatted.replace(/Won\s+(\d+)\s+Golden Globes?/i, (match, num) => {
     return `Ganhou ${num} Globo${parseInt(num) > 1 ? 's' : ''} de Ouro`;
   });
-  
+
   // "Nominated for X Golden Globes" -> "Indicado a X Globos de Ouro"
   formatted = formatted.replace(/Nominated for\s+(\d+)\s+Golden Globes?/i, (match, num) => {
     return `Indicado a ${num} Globo${parseInt(num) > 1 ? 's' : ''} de Ouro`;
@@ -164,7 +165,7 @@ function formatAwardsForLP(awardsText: string): string {
   formatted = formatted.replace(/Won\s+(\d+)\s+BAFTA/i, (match, num) => {
     return `Ganhou ${num} BAFTA${parseInt(num) > 1 ? 's' : ''}`;
   });
-  
+
   // Emmy
   formatted = formatted.replace(/Won\s+(\d+)\s+Emmys?/i, (match, num) => {
     return `Ganhou ${num} Emmy${parseInt(num) > 1 ? 's' : ''}`;
@@ -179,7 +180,7 @@ function formatAwardsForLP(awardsText: string): string {
   formatted = formatted.replace(/\bwins?\b/gi, 'vitórias');
   formatted = formatted.replace(/\bnominations?\b/gi, 'indicações');
   formatted = formatted.replace(/\btotal\b/gi, 'no total');
-  
+
   // Outras premiações conhecidas
   formatted = formatted.replace(/Golden Globes?/gi, 'Globos de Ouro');
   formatted = formatted.replace(/Screen Actors Guild/gi, 'Sindicato dos Atores');
@@ -192,7 +193,7 @@ function formatAwardsForLP(awardsText: string): string {
   formatted = formatted.replace(/\s+/g, ' ');
   // Capitalizar primeira letra
   formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-  
+
   return formatted.trim();
 }
 
@@ -384,8 +385,8 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'Telecine Amazon Channel': { name: 'Telecine', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Looke': { name: 'Looke', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Looke Amazon Channel': { name: 'Looke', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
-      'MUBI': { name: 'MUBI', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
-    'MUBI Amazon Channel': { name: 'MUBI', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'MUBI': { name: 'MUBI', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'MUBI Amazon Channel': { name: 'MUBI', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Oldflix': { name: 'Oldflix', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Crunchyroll': { name: 'Crunchyroll', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Claro tv+': { name: 'Claro Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
@@ -394,7 +395,7 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'MGM+ Apple TV Channel': { name: 'MGM+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'MGM Plus Amazon Channel': { name: 'MGM+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'FilmBox+': { name: 'FilmBox+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
-  
+
   // Novos providers encontrados
   'Sony One Amazon Channel': { name: 'Sony One', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Filmelier Plus Amazon Channel': { name: 'Filmelier+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
@@ -476,16 +477,16 @@ async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movie
         const mapped = TMDB_PROVIDER_MAPPING[provider.provider_name];
         if (mapped) {
           const accessType = getAccessTypeFromTMDB(type as 'flatrate' | 'buy' | 'rent' | 'free', provider.provider_name);
-          
+
           streamingData.push({
             platform: mapped.name,
             accessType
           });
-          
+
           if (!platforms.includes(mapped.name)) {
             platforms.push(mapped.name);
           }
-          
+
           console.log(`Mapeando provedor: ${provider.provider_name} → ${mapped.name} (${accessType})`);
         } else {
           console.log(`⚠️ Provedor não mapeado: ${provider.provider_name}`);
@@ -500,7 +501,7 @@ async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movie
         // Determinar qual plataforma YouTube usar baseado no ano
         const isOldMovie = movieYear < 1970;
         const youtubePlatform = isOldMovie ? 'YouTube (Gratuito)' : 'YouTube Premium';
-        
+
         // Adicionar todos os tipos de acesso retornados pelo YouTube
         youtubeAvailability.accessTypes.forEach(accessType => {
           streamingData.push({
@@ -508,7 +509,7 @@ async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movie
             accessType
           });
         });
-        
+
         if (!platforms.includes(youtubePlatform)) {
           platforms.push(youtubePlatform);
         }
@@ -603,7 +604,7 @@ async function getMovieCast(movieId: number): Promise<Array<{
       .sort((a, b) => a.order - b.order); // Ordenar por ordem de aparição
 
     // Debug: Mostrar dados brutos para atores com nomes em caracteres especiais
-    const specialActors = response.data.cast.filter(actor => 
+    const specialActors = response.data.cast.filter(actor =>
       /[\u0590-\u05FF\u0600-\u06FF\uAC00-\uD7AF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(actor.name) && actor.order <= 15
     );
     if (specialActors.length > 0) {
@@ -639,7 +640,7 @@ async function getMovieCast(movieId: number): Promise<Array<{
 async function getBrazilianCertification(movieId: number): Promise<string | null> {
   try {
     console.log(`Buscando certificação para o filme ID ${movieId}...`);
-    
+
     const response = await axios.get<TMDBMovieDetails>(`${TMDB_API_URL}/movie/${movieId}`, {
       params: {
         api_key: TMDB_API_KEY,
@@ -732,7 +733,7 @@ async function translateText(text: string): Promise<string> {
       } catch (error: any) {
         lastError = error;
         console.error(`Tentativa ${i + 1} falhou:`, error.message);
-        
+
         // Se não for o último retry, espera um pouco antes de tentar novamente
         if (i < maxRetries - 1) {
           const delay = Math.pow(2, i) * 1000; // Exponential backoff
@@ -769,7 +770,7 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
     });
 
     // Se houver keywords que não foram mapeadas, tentar traduzir via API
-    const unmappedKeywords = translatedKeywords.filter(keyword => 
+    const unmappedKeywords = translatedKeywords.filter(keyword =>
       !Object.values(commonKeywordsMapping).includes(keyword)
     );
 
@@ -788,8 +789,8 @@ async function getMovieKeywords(movieId: number): Promise<string[]> {
         );
 
         // Substituir as keywords não mapeadas pelas traduzidas
-        return translatedKeywords.map(keyword => 
-          unmappedKeywords.includes(keyword) 
+        return translatedKeywords.map(keyword =>
+          unmappedKeywords.includes(keyword)
             ? translatedUnmapped[unmappedKeywords.indexOf(keyword)]
             : keyword
         );
@@ -819,13 +820,13 @@ async function checkYouTubeAvailability(movieTitle: string, year?: number): Prom
     // Buscar por filmes completos no YouTube
     const searchQuery = `${movieTitle} ${year || ''} full movie`;
     const searchUrl = `${YOUTUBE_BASE_URL}/search?part=snippet&q=${encodeURIComponent(searchQuery)}&type=video&videoDuration=long&maxResults=5&key=${YOUTUBE_API_KEY}`;
-    
+
     const response = await axios.get(searchUrl);
     const data = response.data as any;
 
     if (data.items && data.items.length > 0) {
       // Verificar se há resultados do YouTube Movies ou canais oficiais
-      const hasYouTubeMovies = data.items.some((item: any) => 
+      const hasYouTubeMovies = data.items.some((item: any) =>
         item.snippet.channelTitle.includes('YouTube Movies') ||
         item.snippet.channelTitle.includes('Movies') ||
         item.snippet.title.toLowerCase().includes('full movie')
@@ -835,7 +836,7 @@ async function checkYouTubeAvailability(movieTitle: string, year?: number): Prom
         // Para filmes antigos, assumir FREE_WITH_ADS, para recentes PURCHASE + RENTAL
         const isOldMovie = year && year < 1970;
         const accessTypes = isOldMovie ? ['FREE_WITH_ADS'] : ['PURCHASE', 'RENTAL'];
-        
+
         console.log(`✅ YouTube: ${movieTitle} disponível (${accessTypes.join(', ')})`);
         return { available: true, accessTypes };
       }
@@ -873,41 +874,41 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
 
       const directors = await getMovieDirectors(tmdbId);
       const keywords = await getMovieKeywords(tmdbId);
-      
+
       // Buscar streaming apenas se não foi solicitado pular
       let platforms: string[] = [];
       let streamingData: Array<{ platform: string; accessType: string }> = [];
-      
+
       if (!skipStreaming) {
         const streamingInfo = await getMovieStreamingInfo(tmdbId, movieDetails.title, parseInt(movieDetails.release_date.split('-')[0]));
         platforms = streamingInfo.platforms;
         streamingData = streamingInfo.streamingData;
       }
-      
+
       const certification = await getBrazilianCertification(tmdbId);
       const cast = await getMovieCast(tmdbId);
 
-              return {
-          movie: {
-            id: movieDetails.id.toString(),
-            title: movieDetails.title,
-            original_title: movieDetails.original_title,
-            release_date: movieDetails.release_date,
-            vote_average: movieDetails.vote_average,
-            vote_count: movieDetails.vote_count,
-            adult: movieDetails.adult,
-            poster_path: movieDetails.poster_path,
-            overview: movieDetails.overview,
-            genres: movieDetails.genres,
-            runtime: movieDetails.runtime,
-          },
-          platforms,
-          streamingData,
-          director: directors || null,
-          certification,
-          keywords,
-          cast
-        };
+      return {
+        movie: {
+          id: movieDetails.id.toString(),
+          title: movieDetails.title,
+          original_title: movieDetails.original_title,
+          release_date: movieDetails.release_date,
+          vote_average: movieDetails.vote_average,
+          vote_count: movieDetails.vote_count,
+          adult: movieDetails.adult,
+          poster_path: movieDetails.poster_path,
+          overview: movieDetails.overview,
+          genres: movieDetails.genres,
+          runtime: movieDetails.runtime,
+        },
+        platforms,
+        streamingData,
+        director: directors || null,
+        certification,
+        keywords,
+        cast
+      };
     }
 
     if (!title) {
@@ -916,13 +917,13 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     }
 
     console.log(`Buscando filme no TMDB: ${title}${year ? ` (${year})` : ''}`);
-    
+
     // Remover o ano do título se existir, a menos que o próprio título seja o ano
     let cleanTitle = title.trim();
     if (!/^\d{4}$/.test(cleanTitle)) {
-        cleanTitle = cleanTitle.replace(/\s*\d{4}$/, '').trim();
+      cleanTitle = cleanTitle.replace(/\s*\d{4}$/, '').trim();
     }
-    
+
     // Tentar primeiro com o título em português
     let response = await axios.get<TMDBResponse>(`${TMDB_API_URL}/search/movie`, {
       params: {
@@ -982,24 +983,24 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     function calculateSimilarity(str1: string, str2: string): number {
       const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
       const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
-      
+
       // Se uma string contém a outra, retorna alta similaridade
       if (s1.includes(s2) || s2.includes(s1)) {
         return 0.8;
       }
-      
+
       // Contar palavras em comum
       const words1 = s1.split(/\s+/);
       const words2 = s2.split(/\s+/);
       const commonWords = words1.filter(word => words2.includes(word));
-      
+
       return commonWords.length / Math.max(words1.length, words2.length);
     }
 
     // Verificar se encontramos o filme correto
     const movie = response.data.results.find(m => {
       const releaseYear = m.release_date ? parseInt(m.release_date.split('-')[0]) : null;
-      
+
       // Verificar se o ano corresponde
       if (year && releaseYear !== year) {
         return false;
@@ -1008,10 +1009,10 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
       // Calcular similaridade entre os títulos
       const titleSimilarity = calculateSimilarity(cleanTitle, m.title);
       const originalTitleSimilarity = calculateSimilarity(cleanTitle, m.original_title);
-      
+
       // Se a similaridade for alta o suficiente, considera como match
       const isMatch = titleSimilarity > 0.6 || originalTitleSimilarity > 0.6;
-      
+
       if (isMatch) {
         console.log(`Match encontrado: ${m.title} (similaridade: ${Math.max(titleSimilarity, originalTitleSimilarity).toFixed(2)})`);
       }
@@ -1031,7 +1032,7 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     }
 
     console.log(`Filme encontrado: ${movie.title} (ID: ${movie.id})`);
-    
+
     // Buscar detalhes completos do filme
     const details = await axios.get<TMDBMovieDetails>(`${TMDB_API_URL}/movie/${movie.id}`, {
       params: {
@@ -1054,17 +1055,17 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     // Buscar palavras-chave
     const keywords = await getMovieKeywords(parseInt(movie.id));
     console.log(`Palavras-chave encontradas: ${keywords.join(', ')}`);
-    
+
     // Buscar informações de streaming apenas se não foi solicitado pular
     let platforms: string[] = [];
     let streamingData: Array<{ platform: string; accessType: string }> = [];
-    
+
     if (!skipStreaming) {
       const streamingInfo = await getMovieStreamingInfo(parseInt(movie.id), movie.title, new Date(movie.release_date).getFullYear());
       platforms = streamingInfo.platforms;
       streamingData = streamingInfo.streamingData;
     }
-    
+
     // Buscar certificação brasileira
     const certification = await getBrazilianCertification(parseInt(movie.id));
 
@@ -1126,12 +1127,12 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
         console.log(`⚠️ Filme já existe no banco: ${movie.title}`);
         console.log(`TMDB_ID_FOUND: ${existingMovie.tmdbId}`);
         console.log(`🔄 Reprocessando plataformas de streaming...`);
-        
+
         // Processar plataformas de streaming mesmo quando o filme já existe
         if (streamingData.length > 0) {
           if (!dryRun) {
             console.log(`📺 Atualizando ${streamingData.length} relações de streaming...`);
-            
+
             for (const streamingItem of streamingData) {
               try {
                 // Buscar a plataforma no banco
@@ -1175,7 +1176,7 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
         } else {
           console.log(`📺 Nenhuma plataforma de streaming encontrada para atualizar`);
         }
-        
+
         return { success: true, duplicate: true, movieId: existingMovie.id };
       } else {
         // Buscar ou criar os gêneros
@@ -1205,7 +1206,7 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
           console.log(`IMDb ID encontrado: ${imdbId}. Buscando ratings e premiações...`);
           omdbRatings = await getOmdbRatings(imdbId);
           console.log('Ratings da OMDb encontrados:', omdbRatings);
-          
+
           awardsSummary = await getOmdbAwards(imdbId);
           if (awardsSummary) {
             console.log(`🏆 Premiações encontradas: "${awardsSummary}"`);
@@ -1220,31 +1221,45 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
         const slug = await generateUniqueSlug(movie.title);
         console.log(`🔗 Slug gerado: ${slug}`);
 
+        // Fazer upload da imagem para o Supabase (se houver poster_path)
+        let thumbnailUrl: string | undefined;
+        if (movie.poster_path) {
+          console.log(`🖼️  Processando imagem do filme...`);
+          const supabaseUrl = await uploadTmdbImageToSupabase(movie.poster_path, slug);
+          if (supabaseUrl) {
+            thumbnailUrl = supabaseUrl;
+          } else {
+            // Fallback para URL do TMDB se upload falhar
+            console.log(`  ⚠️  Usando URL do TMDB como fallback`);
+            thumbnailUrl = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+          }
+        }
+
         // Criar o filme com os gêneros (sem streamingPlatforms)
         let createdMovie: any = null;
         if (!dryRun) {
           createdMovie = await prisma.movie.create({
-          data: {
-            title: movie.title,
-            slug: slug,
-            year: new Date(movie.release_date).getFullYear(),
-            director: director || undefined,
-            genres: movie.genres.map(g => g.name),
-            description: movie.overview,
-            thumbnail: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : undefined,
-            original_title: movie.original_title,
-            vote_average: movie.vote_average,
-            vote_count: movie.vote_count,
-            certification: certification || undefined,
-            adult: movie.adult,
-            keywords: keywords,
-            genreIds: genreIds,
-            runtime: movie.runtime || undefined,
-            tmdbId: parseInt(movie.id),
-            awardsSummary: awardsSummary || undefined,
-            ...omdbRatings
-          }
-        });
+            data: {
+              title: movie.title,
+              slug: slug,
+              year: new Date(movie.release_date).getFullYear(),
+              director: director || undefined,
+              genres: movie.genres.map(g => g.name),
+              description: movie.overview,
+              thumbnail: thumbnailUrl,
+              original_title: movie.original_title,
+              vote_average: movie.vote_average,
+              vote_count: movie.vote_count,
+              certification: certification || undefined,
+              adult: movie.adult,
+              keywords: keywords,
+              genreIds: genreIds,
+              runtime: movie.runtime || undefined,
+              tmdbId: parseInt(movie.id),
+              awardsSummary: awardsSummary || undefined,
+              ...omdbRatings
+            }
+          });
         } else {
           console.log(`🔍 DRY-RUN: Filme seria criado com slug: ${slug}`);
         }
@@ -1256,7 +1271,7 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
           } else {
             console.log(`🔍 DRY-RUN: ${streamingData.length} relações de streaming seriam inseridas`);
           }
-          
+
           for (const streamingItem of streamingData) {
             if (!dryRun) {
               try {
@@ -1306,7 +1321,7 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
           } else {
             console.log(`🔍 DRY-RUN: ${cast.length} atores do elenco seriam inseridos`);
           }
-          
+
           for (const actorData of cast) {
             if (!dryRun) {
               try {
@@ -1353,21 +1368,21 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
         } else {
           console.log(`🔍 DRY-RUN: Trailers seriam buscados para TMDB ID: ${movie.id}`);
         }
-        
+
         try {
           const trailers = await getMovieTrailers(parseInt(movie.id));
-          
+
           if (trailers.length > 0) {
             if (!dryRun) {
               console.log(`🎬 Inserindo ${trailers.length} trailers...`);
             } else {
               console.log(`🔍 DRY-RUN: ${trailers.length} trailers seriam inseridos`);
             }
-            
+
             for (let i = 0; i < trailers.length; i++) {
               const trailer = trailers[i];
               const isMain = i === 0; // Primeiro trailer é o principal
-              
+
               if (!dryRun) {
                 try {
                   await prisma.movieTrailer.create({
