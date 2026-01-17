@@ -46,6 +46,7 @@ model Movie {
   personAwardNominations PersonAwardNomination[]  @relation("PersonAwardForMovie")
   personAwardWins        PersonAwardWin[]         @relation("PersonAwardForMovieWin")
   quotes                 Quote[]
+  pillarArticles         MoviePillarArticle[]
 
   @@index([title])
   @@index([year])
@@ -419,6 +420,22 @@ model Quote {
   @@index([movieId])
   @@index([author])
   @@map("Quote")
+}
+
+model MoviePillarArticle {
+  id            Int      @id @default(autoincrement())
+  movieId       String   @db.Uuid
+  blogArticleId String   @db.VarChar(255)
+  title         String   @db.VarChar(500)
+  slug          String   @db.VarChar(255)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  movie         Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@unique([movieId, blogArticleId])
+  @@index([movieId])
+  @@index([blogArticleId])
+  @@map("MoviePillarArticle")
 }
 
 enum IntentionType {

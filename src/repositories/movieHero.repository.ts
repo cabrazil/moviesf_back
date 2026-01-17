@@ -122,6 +122,10 @@ export class MovieHeroRepository {
       {
         text: this.getSimilarMoviesQuery(),
         params: [movieId]
+      },
+      {
+        text: this.getPillarArticlesQuery(),
+        params: [movieId]
       }
     ];
 
@@ -138,7 +142,8 @@ export class MovieHeroRepository {
       mainTrailerResult,
       oscarWinsResult,
       oscarNominationsResult,
-      similarMoviesResult
+      similarMoviesResult,
+      pillarArticlesResult
     ] = results;
 
     console.log(`✅ Dados coletados: ${results.length} consultas executadas`);
@@ -152,7 +157,8 @@ export class MovieHeroRepository {
       mainTrailer: this.mapTrailer(mainTrailerResult.rows),
       oscarWins: this.mapOscarAwards(oscarWinsResult.rows),
       oscarNominations: this.mapOscarAwards(oscarNominationsResult.rows),
-      similarMovies: this.mapSimilarMovies(similarMoviesResult.rows)
+      similarMovies: this.mapSimilarMovies(similarMoviesResult.rows),
+      pillarArticles: this.mapPillarArticles(pillarArticlesResult.rows)
     };
   }
 
@@ -329,6 +335,19 @@ export class MovieHeroRepository {
     `;
   }
 
+  private getPillarArticlesQuery(): string {
+    return `
+      SELECT 
+        mpa.id,
+        mpa."blogArticleId",
+        mpa.title,
+        mpa.slug
+      FROM "MoviePillarArticle" mpa
+      WHERE mpa."movieId" = $1
+      ORDER BY mpa."createdAt" DESC
+    `;
+  }
+
   // ===== MAPPERS =====
 
   private mapSuggestionFlows(rows: any[]): SuggestionFlow[] {
@@ -408,6 +427,20 @@ export class MovieHeroRepository {
       relevanceScore: row.relevanceScore,
       journeyOptionFlowId: row.journeyOptionFlowId,
       displayTitle: row.displayTitle
+    }));
+  }
+
+  private mapPillarArticles(rows: any[]): Array<{
+    id: number;
+    blogArticleId: string;
+    title: string;
+    slug: string;
+  }> {
+    return rows.map(row => ({
+      id: row.id,
+      blogArticleId: row.blogArticleId,
+      title: row.title,
+      slug: row.slug
     }));
   }
 }

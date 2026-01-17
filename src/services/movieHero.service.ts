@@ -135,7 +135,8 @@ export class MovieHeroService {
         mainTrailer: processedData.mainTrailer,
         oscarAwards: processedData.oscarAwards,
         primaryJourney: primaryJourney,
-        movieSuggestionFlows: processedData.suggestionFlows
+        movieSuggestionFlows: processedData.suggestionFlows,
+        pillarArticles: processedData.pillarArticles
       },
       subscriptionPlatforms: processedData.subscriptionPlatforms,
       rentalPurchasePlatforms: processedData.rentalPurchasePlatforms,

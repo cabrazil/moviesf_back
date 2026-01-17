@@ -144,6 +144,12 @@ export interface MovieHeroResponse {
       displayTitle: string | null;
     } | null;
     movieSuggestionFlows: SuggestionFlow[];
+    pillarArticles: Array<{
+      id: number;
+      blogArticleId: string;
+      title: string;
+      slug: string;
+    }>;
   };
   subscriptionPlatforms: StreamingPlatform[];
   rentalPurchasePlatforms: StreamingPlatform[];
@@ -162,6 +168,12 @@ export interface MovieQueryResult {
   oscarWins: OscarAward[];
   oscarNominations: OscarAward[];
   similarMovies: SimilarMovie[];
+  pillarArticles: Array<{
+    id: number;
+    blogArticleId: string;
+    title: string;
+    slug: string;
+  }>;
 }
 
 // ===== TIPOS DE ERRO =====

@@ -6,21 +6,21 @@ const router = Router();
 router.get('/:id/details', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
       return res.status(400).json({ error: 'ID inválido' });
     }
-    
+
     console.log(`🔍 Buscando filme por UUID: ${id}`);
-    
+
     const { getSSLConfig } = require('../utils/ssl-config');
     const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
     const pool = new Pool({
       connectionString: connectionString,
       ssl: getSSLConfig(connectionString)
     });
-    
+
     const movieResult = await pool.query(`
       SELECT 
         m.id,
@@ -52,7 +52,7 @@ router.get('/:id/details', async (req, res) => {
     const movie = movieResult.rows[0];
     console.log(`✅ Filme encontrado: ${movie.title}`);
     console.log(`🏆 Awards Summary: ${movie.awardsSummary}`);
-    
+
     const oscarAwardsResult = await pool.query(`
       SELECT DISTINCT
         ac.name as category_name,
@@ -73,12 +73,12 @@ router.get('/:id/details', async (req, res) => {
         AND (maw.id IS NOT NULL OR man.id IS NOT NULL OR paw.id IS NOT NULL OR pan.id IS NOT NULL)
       ORDER BY year DESC, type DESC, category_name
     `, [id]);
-    
+
     let oscarAwards = null;
     if (oscarAwardsResult.rows.length > 0) {
       const wins: any[] = [];
       const nominations: any[] = [];
-      
+
       oscarAwardsResult.rows.forEach((row: any) => {
         if (row.type === 'win') {
           wins.push({
@@ -94,17 +94,17 @@ router.get('/:id/details', async (req, res) => {
           });
         }
       });
-      
+
       oscarAwards = {
         wins,
         nominations,
         totalWins: wins.length,
         totalNominations: nominations.length
       };
-      
+
       console.log(`🏆 Dados de Oscar encontrados: ${wins.length} vitórias, ${nominations.length} indicações`);
     }
-    
+
     // CORRIGIDO: Removido filtro que excluía RENTAL_PURCHASE_PRIMARY
     const platformsResult = await pool.query(`
       SELECT 
@@ -128,7 +128,7 @@ router.get('/:id/details', async (req, res) => {
         END,
         sp.name
     `, [id]);
-    
+
     let sentimentsResult;
     try {
       sentimentsResult = await pool.query(`
@@ -149,7 +149,7 @@ router.get('/:id/details', async (req, res) => {
       console.error('❌ Erro ao buscar subsentimentos:', sentimentsError);
       sentimentsResult = { rows: [] };
     }
-    
+
     let castResult;
     try {
       castResult = await pool.query(`
@@ -167,7 +167,7 @@ router.get('/:id/details', async (req, res) => {
       console.error('❌ Erro ao buscar elenco:', castError);
       castResult = { rows: [] };
     }
-    
+
     let mainTrailerResult;
     try {
       mainTrailerResult = await pool.query(`
@@ -189,20 +189,39 @@ router.get('/:id/details', async (req, res) => {
       mainTrailerResult = { rows: [] };
     }
 
+    // Buscar artigos pilares associados ao filme
+    let pillarArticlesResult;
+    try {
+      pillarArticlesResult = await pool.query(`
+        SELECT 
+          mpa.id,
+          mpa.\"blogArticleId\",
+          mpa.title,
+          mpa.slug
+        FROM \"MoviePillarArticle\" mpa
+        WHERE mpa.\"movieId\" = $1
+        ORDER BY mpa.\"createdAt\" DESC
+      `, [id]);
+      console.log(`✅ Artigos pilares encontrados: ${pillarArticlesResult.rows.length}`);
+    } catch (pillarError) {
+      console.error('❌ Erro ao buscar artigos pilares:', pillarError);
+      pillarArticlesResult = { rows: [] };
+    }
+
     await pool.end();
-    
+
     const emotionalTags = sentimentsResult.rows.map((row: any) => ({
       mainSentiment: row.mainSentimentName,
       subSentiment: row.subSentimentName,
       relevance: parseFloat(row.relevance) || 0
     }));
-    
+
     const mainCast = castResult.rows.map((row: any) => ({
       actorName: row.actorName,
       characterName: row.characterName,
       order: row.order
     }));
-    
+
     const mainTrailer = mainTrailerResult.rows.length > 0 ? {
       key: mainTrailerResult.rows[0].key,
       name: mainTrailerResult.rows[0].name,
@@ -221,6 +240,13 @@ router.get('/:id/details', async (req, res) => {
       freeTrialDuration: row.freeTrialDuration,
       baseUrl: row.baseUrl,
       accessType: row.accessType
+    }));
+
+    const pillarArticles = pillarArticlesResult.rows.map((row: any) => ({
+      id: row.id,
+      blogArticleId: row.blogArticleId,
+      title: row.title,
+      slug: row.slug
     }));
 
     res.json({
@@ -245,7 +271,8 @@ router.get('/:id/details', async (req, res) => {
         oscarAwards: oscarAwards,
         emotionalTags: emotionalTags,
         mainCast: mainCast,
-        mainTrailer: mainTrailer
+        mainTrailer: mainTrailer,
+        pillarArticles: pillarArticles
       },
       subscriptionPlatforms
     });
