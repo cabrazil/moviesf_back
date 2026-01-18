@@ -459,6 +459,31 @@ async function main(): Promise<void> {
 
     const priority = (priorityArg as 'high' | 'medium' | 'low' | 'all') || (startsWith ? 'all' : 'high');
 
+    const titleArg = args.find(a => a.startsWith('--title='));
+    const titleFilter = titleArg ? titleArg.split('=')[1] : undefined;
+
+    if (titleFilter) {
+      console.log(`🎯 Atualizando filme específico: "${titleFilter}"`);
+      const movie = await prisma.movie.findFirst({
+        where: { title: { equals: titleFilter, mode: 'insensitive' } },
+        select: {
+          id: true,
+          title: true,
+          year: true,
+          tmdbId: true,
+          vote_average: true,
+          vote_count: true
+        }
+      });
+
+      if (movie) {
+        await updateMovieStreamingData(movie);
+      } else {
+        console.error('❌ Filme não encontrado.');
+      }
+      return;
+    }
+
     await updateStreamingData(priority, startsWith);
   } catch (error) {
     console.error('❌ Erro:', error);
