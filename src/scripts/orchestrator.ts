@@ -7,6 +7,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { writeFileSync } from 'fs';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
+import { OscarDataService } from '../services/OscarDataService';
 
 const prisma = new PrismaClient();
 
@@ -32,15 +33,15 @@ class MovieCurationOrchestrator {
   async processMovieList(movies: MovieToProcess[], approveNewSubSentiments: boolean): Promise<ProcessingResult[]> {
     console.log(`\n🎬 === ORQUESTRADOR DE CURADORIA DE FILMES ===`);
     console.log(`📋 Processando ${movies.length} filmes...`);
-    
+
     const results: ProcessingResult[] = [];
-    
+
     for (const movie of movies) {
       console.log(`\n🔄 Processando: ${movie.title} (${movie.year})`);
       const result = await this.processSingleMovie(movie, approveNewSubSentiments);
       results.push(result);
     }
-    
+
     return results;
   }
 
@@ -89,10 +90,10 @@ class MovieCurationOrchestrator {
           const dbTitle = (dbMovie.title || '').toLowerCase().trim();
           const dbOriginalTitle = (dbMovie.original_title || '').toLowerCase().trim();
           const searchTitle = movie.title.toLowerCase().trim();
-          
+
           // Verificar se os títulos são similares (um contém o outro ou são muito parecidos)
           if (dbTitle.includes(searchTitle) || searchTitle.includes(dbTitle) ||
-              dbOriginalTitle.includes(searchTitle) || searchTitle.includes(dbOriginalTitle)) {
+            dbOriginalTitle.includes(searchTitle) || searchTitle.includes(dbOriginalTitle)) {
             movieFound = dbMovie;
             break;
           }
@@ -105,11 +106,11 @@ class MovieCurationOrchestrator {
         console.log(`🎯 TMDB ID encontrado: ${tmdbId}`);
         console.log(`🔄 Executando Etapa 1 para reprocessar plataformas de streaming...`);
       }
-      
+
       // Etapa 1: Adicionar/Atualizar filme (sempre executa para reprocessar streaming)
       console.log(`📥 Etapa 1: Processando filme no banco...`);
       const addResult = await this.runScript('populateMovies.ts', [`--title=${movie.title}`, `--year=${movie.year.toString()}`]);
-      
+
       if (!addResult.success) {
         return { success: false, error: `Falha ao processar filme: ${addResult.error}` };
       }
@@ -132,6 +133,18 @@ class MovieCurationOrchestrator {
         return { success: false, error: 'TMDB ID não disponível para continuar o processamento' };
       }
 
+      // Etapa 1.5: Enriquecer dados de Oscar (Automático)
+      try {
+        console.log(`🏆 Etapa 1.5: Verificando enriquecimento automático de Oscars...`);
+        const oscarService = new OscarDataService();
+        // Não 'await' aqui se quisermos paralelo, mas como usamos o mesmo banco e pode causar lock, melhor await.
+        // E é rápido (só consulta texto se precisar).
+        await oscarService.enrichMovieAwards(tmdbId);
+      } catch (oscarError) {
+        console.error('⚠️ Falha não crítica ao enriquecer Oscars:', oscarError);
+        // Não interrompe o fluxo principal
+      }
+
       // Usar o AI Provider especificado ou padrão (openai)
       const finalAiProvider = movie.aiProvider || 'openai';
       console.log(`🤖 AI Provider configurado: ${finalAiProvider.toUpperCase()}`);
@@ -145,16 +158,16 @@ class MovieCurationOrchestrator {
         movie.journeyOptionFlowId.toString(),
         movie.analysisLens.toString()
       ];
-      
+
       // Adicionar provedor de IA final
       if (finalAiProvider) {
         analysisArgs.push(`--ai-provider=${finalAiProvider}`);
       }
-      
+
       const analysisResult = await this.runScript('analyzeMovieSentiments.ts', analysisArgs);
-      
+
       if (!analysisResult.success) {
-      console.log(`✅ Análise concluída com sucesso`);
+        console.log(`✅ Análise concluída com sucesso`);
         return { success: false, error: `Falha na análise: ${analysisResult.error}` };
       }
 
@@ -162,19 +175,19 @@ class MovieCurationOrchestrator {
       const approvalLine = analysisResult.output.split('\n').find((line: string) => line.startsWith('CURATOR_APPROVAL_NEEDED'));
       if (approvalLine) {
         if (!approveNewSubSentiments) {
-            const jsonString = approvalLine.replace('CURATOR_APPROVAL_NEEDED: ', '');
-            const suggestions = JSON.parse(jsonString);
+          const jsonString = approvalLine.replace('CURATOR_APPROVAL_NEEDED: ', '');
+          const suggestions = JSON.parse(jsonString);
 
-            console.log('\n--------------------------------------------------');
-            console.log('⚠️ APROVAÇÃO DO CURADOR NECESSÁRIA ⚠️');
-            console.log('A IA sugeriu a criação dos seguintes SubSentimentos:');
-            suggestions.forEach((sug: { name: string; explanation: string }) => {
-                console.log(`\n  - Nome: "${sug.name}"`);
-                console.log(`    Explicação: ${sug.explanation}`);
-            });
-            console.log('\nPara aprovar, execute o comando novamente adicionando a flag: --approve-new-subsentiments');
-            console.log('--------------------------------------------------');
-            return { success: false, error: 'Aprovação necessária para novo subsentimento.' };
+          console.log('\n--------------------------------------------------');
+          console.log('⚠️ APROVAÇÃO DO CURADOR NECESSÁRIA ⚠️');
+          console.log('A IA sugeriu a criação dos seguintes SubSentimentos:');
+          suggestions.forEach((sug: { name: string; explanation: string }) => {
+            console.log(`\n  - Nome: "${sug.name}"`);
+            console.log(`    Explicação: ${sug.explanation}`);
+          });
+          console.log('\nPara aprovar, execute o comando novamente adicionando a flag: --approve-new-subsentiments');
+          console.log('--------------------------------------------------');
+          return { success: false, error: 'Aprovação necessária para novo subsentimento.' };
         }
         console.log('✅ Novos subsentimentos aprovados via flag. Continuando processo...');
       }
@@ -194,24 +207,24 @@ class MovieCurationOrchestrator {
         movie.journeyOptionFlowId.toString(),
         'PROCESS'
       ];
-      
+
       // Adicionar provedor de IA final
       if (finalAiProvider) {
         curateArgs.push(`--ai-provider=${finalAiProvider}`);
       }
-      
+
       const curateResult = await this.runScript('discoverAndCurateAutomated.ts', curateArgs);
-      
+
       if (!curateResult.success) {
         return { success: false, error: `Falha na curadoria: ${curateResult.error}` };
       }
 
       // Etapa 5: Verificar se deve atualizar campos genéricos baseado no relevanceScore
       const shouldUpdateGenericFields = await this.shouldUpdateGenericFields(tmdbId, movie.journeyOptionFlowId);
-      
+
       if (shouldUpdateGenericFields.shouldUpdate) {
         console.log(`🎯 Etapa 5: Atualizando campos genéricos (relevanceScore: ${shouldUpdateGenericFields.currentScore} > ${shouldUpdateGenericFields.existingScore || 'N/A'})...`);
-        
+
         const hookResult = await this.generateLandingPageHook(tmdbId, finalAiProvider);
         if (!hookResult.success) {
           console.log(`⚠️ Aviso: Falha ao gerar landingPageHook: ${hookResult.error}`);
@@ -231,11 +244,11 @@ class MovieCurationOrchestrator {
       }
 
       console.log(`\n🎯 === INICIANDO ETAPA 6: ATUALIZAÇÃO DE RANKING DE RELEVANCE ===`);
-      
+
       // Buscar filme usando tmdbId (mais confiável que título/ano)
-      const createdMovie = await prisma.movie.findUnique({ 
+      const createdMovie = await prisma.movie.findUnique({
         where: { tmdbId: tmdbId },
-        include: { 
+        include: {
           movieSuggestionFlows: {
             where: { journeyOptionFlowId: movie.journeyOptionFlowId },
             orderBy: { updatedAt: 'desc' },
@@ -243,11 +256,11 @@ class MovieCurationOrchestrator {
           }
         }
       });
-      
+
       if (!createdMovie) {
         console.error(`❌ Filme não encontrado no banco de dados (tmdbId: ${tmdbId}).`);
         // Tentar buscar por título/ano como fallback
-        const fallbackMovie = await prisma.movie.findFirst({ 
+        const fallbackMovie = await prisma.movie.findFirst({
           where: { title: movie.title, year: movie.year }
         });
         if (!fallbackMovie) {
@@ -264,13 +277,13 @@ class MovieCurationOrchestrator {
           console.error(`❌ Erro ao atualizar ranking:`, error);
         }
         // Continuar o fluxo normalmente
-        return { 
-          success: true, 
-          movie: { 
-            title: fallbackMovie.title, 
-            year: fallbackMovie.year || 0, 
-            id: fallbackMovie.id 
-          } 
+        return {
+          success: true,
+          movie: {
+            title: fallbackMovie.title,
+            year: fallbackMovie.year || 0,
+            id: fallbackMovie.id
+          }
         };
       }
 
@@ -280,12 +293,12 @@ class MovieCurationOrchestrator {
       // Isso é importante porque múltiplas sugestões podem ter sido criadas/atualizadas
       // O campo relevance é atualizado baseado no relevanceScore: maior score = relevance 1
       console.log(`🔄 Etapa 6: Atualizando ranking de relevance baseado em relevanceScore...`);
-      
+
       try {
         const { updateRelevanceRankingForMovie } = await import('../utils/relevanceRanking');
         const rankingUpdated = await updateRelevanceRankingForMovie(createdMovie.id);
         console.log(`📊 Resultado da atualização: ${rankingUpdated ? 'SUCESSO' : 'FALHOU'}`);
-        
+
         if (!rankingUpdated) {
           console.log(`⚠️ Aviso: Atualização de ranking retornou false (pode não haver sugestões com relevanceScore)`);
         }
@@ -296,15 +309,15 @@ class MovieCurationOrchestrator {
       }
 
       console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
-      return { 
-        success: true, 
-        movie: { 
-          title: createdMovie.title, 
-          year: createdMovie.year || 0, 
-          id: createdMovie.id 
-        } 
+      return {
+        success: true,
+        movie: {
+          title: createdMovie.title,
+          year: createdMovie.year || 0,
+          id: createdMovie.id
+        }
       };
-      
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`❌ Erro ao processar ${movie.title}:`, errorMessage);
@@ -439,17 +452,17 @@ class MovieCurationOrchestrator {
       }
 
       let emotionalBenefit = targetAudienceResponse.content.trim();
-      
+
       // Remover blocos de código JSON se presentes (problema do Gemini)
       emotionalBenefit = emotionalBenefit.replace(/```[\s\S]*?```/g, '').trim();
-      
+
       // Se ainda houver JSON, tentar extrair apenas o texto após o JSON
       if (emotionalBenefit.includes('{') && emotionalBenefit.includes('}')) {
         const lines = emotionalBenefit.split('\n');
-        const nonJsonLines = lines.filter(line => 
-          !line.trim().startsWith('{') && 
-          !line.trim().startsWith('}') && 
-          !line.includes('"name":') && 
+        const nonJsonLines = lines.filter(line =>
+          !line.trim().startsWith('{') &&
+          !line.trim().startsWith('}') &&
+          !line.includes('"name":') &&
           !line.includes('"relevance":') &&
           !line.includes('"explanation":') &&
           !line.includes('suggestedSubSentiments') &&
@@ -460,13 +473,13 @@ class MovieCurationOrchestrator {
           emotionalBenefit = nonJsonLines[0].trim(); // Pegar apenas a primeira linha válida
         }
       }
-      
+
       // Remover o prefixo se a IA já o incluiu
       emotionalBenefit = emotionalBenefit.replace(/^Este filme é ideal para quem busca\s*/i, '');
-      
+
       // Remover pontos extras no final
       emotionalBenefit = emotionalBenefit.replace(/\.+$/, '');
-      
+
       // Montar o texto simplificado sem sufixos padronizados
       const targetAudience = `Este filme pode ser perfeito para quem busca ${emotionalBenefit}.`;
 
@@ -487,17 +500,17 @@ class MovieCurationOrchestrator {
       }
 
       let hook = hookResponse.content.trim();
-      
+
       // Remover blocos de código JSON se presentes (problema do Gemini)
       hook = hook.replace(/```[\s\S]*?```/g, '').trim();
-      
+
       // Se ainda houver JSON, tentar extrair apenas o texto após o JSON
       if (hook.includes('{') && hook.includes('}')) {
         const lines = hook.split('\n');
-        const nonJsonLines = lines.filter(line => 
-          !line.trim().startsWith('{') && 
-          !line.trim().startsWith('}') && 
-          !line.includes('"name":') && 
+        const nonJsonLines = lines.filter(line =>
+          !line.trim().startsWith('{') &&
+          !line.trim().startsWith('}') &&
+          !line.includes('"name":') &&
           !line.includes('"relevance":') &&
           !line.includes('"explanation":') &&
           !line.includes('suggestedSubSentiments') &&
@@ -520,7 +533,7 @@ class MovieCurationOrchestrator {
       // Atualizar o filme no banco de dados com os dois campos separados
       await prisma.movie.update({
         where: { tmdbId: tmdbId },
-        data: { 
+        data: {
           landingPageHook: hook,
           targetAudienceForLP: targetAudience
         }
@@ -623,7 +636,7 @@ Se não houver alertas significativos, responda apenas com:
 
       // Extrair o texto gerado
       const generatedText = response.content.trim();
-      
+
       // Validar se o texto foi gerado
       if (!generatedText || generatedText.length < 10) {
         return { success: false, error: 'Texto gerado muito curto ou vazio' };
@@ -688,9 +701,9 @@ Se não houver alertas significativos, responda apenas com:
       } catch (error) {
         // Ignorar erros de desconexão
       }
-      
+
       const scriptPath = path.join(this.scriptsPath, scriptName);
-      
+
       // Passar variáveis de ambiente explicitamente para o processo filho
       const env = {
         ...process.env,
@@ -700,7 +713,7 @@ Se não houver alertas significativos, responda apenas com:
         BLOG_DATABASE_URL: process.env.BLOG_DATABASE_URL,
         BLOG_DIRECT_URL: process.env.BLOG_DIRECT_URL,
       };
-      
+
       const child = spawn('npx', ['ts-node', scriptPath, ...args], {
         stdio: 'pipe',
         cwd: path.dirname(this.scriptsPath),
@@ -713,7 +726,7 @@ Se não houver alertas significativos, responda apenas com:
       child.stdout.on('data', (data) => {
         const chunk = data.toString();
         if (!chunk.startsWith('CURATOR_APPROVAL_NEEDED')) {
-            process.stdout.write(chunk);
+          process.stdout.write(chunk);
         }
         output += chunk;
       });
@@ -730,7 +743,7 @@ Se não houver alertas significativos, responda apenas com:
         } catch (error) {
           // Ignorar erros de reconexão, será reconectado automaticamente na próxima query
         }
-        
+
         if (code === 0) {
           resolve({ success: true, output });
         } else {
@@ -743,34 +756,34 @@ Se não houver alertas significativos, responda apenas com:
 
 function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
   const parsed: Partial<MovieToProcess> = {};
-  
+
   // Função auxiliar para remover aspas de um valor
   const removeQuotes = (value: string): string => {
-    if ((value.startsWith('"') && value.endsWith('"')) || 
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))) {
       return value.slice(1, -1);
     }
     return value;
   };
-  
+
   // Função auxiliar para extrair valor de argumento
   const extractValue = (arg: string, prefix: string): string | null => {
     if (!arg.startsWith(prefix)) return null;
     return arg.substring(prefix.length);
   };
-  
+
   // Processar argumentos, agrupando valores que podem ter espaços
   let i = 0;
   while (i < args.length) {
     const arg = args[i];
-    
+
     if (arg.startsWith('--title=')) {
       let title = extractValue(arg, '--title=');
-      
+
       if (title) {
         // Remover aspas se presentes
         title = removeQuotes(title);
-        
+
         // Se o valor após o = não contém espaços e o próximo argumento não é um parâmetro,
         // pode ser que o título foi dividido pelo shell/npm
         // Exemplo: --title=O Exterminador do Futuro vira ["--title=O", "Exterminador", "do", "Futuro"]
@@ -789,7 +802,7 @@ function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
           parsed.title = title;
         }
       }
-    } 
+    }
     else if (arg.startsWith('--year=')) {
       const yearStr = extractValue(arg, '--year=');
       if (yearStr) {
@@ -831,15 +844,15 @@ function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
         }
       }
     }
-    
+
     i++;
   }
-  
+
   // Log para debug (apenas em desenvolvimento)
   if (process.env.NODE_ENV === 'development') {
     console.log('📋 Argumentos parseados:', parsed);
   }
-  
+
   return parsed;
 }
 
@@ -847,12 +860,12 @@ async function main() {
   const orchestrator = new MovieCurationOrchestrator();
   try {
     const args = process.argv.slice(2);
-    
+
     // Log de debug para ver argumentos recebidos
     if (process.env.NODE_ENV === 'development') {
       console.log('🔍 Argumentos recebidos do processo:', args);
     }
-    
+
     const approveNewSubSentiments = args.includes('--approve-new-subsentiments');
     const filteredArgs = args.filter(arg => arg !== '--approve-new-subsentiments');
 

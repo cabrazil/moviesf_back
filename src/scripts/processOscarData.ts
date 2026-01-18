@@ -23,7 +23,7 @@ interface OscarData {
 // Função para parsear o texto copiado do site
 function parseOscarText(text: string): OscarData | null {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  
+
   if (lines.length < 3) {
     console.log('❌ Texto muito curto para processar');
     return null;
@@ -64,7 +64,7 @@ function parseOscarText(text: string): OscarData | null {
   // Processar indicações
   for (let i = currentLine; i < lines.length; i++) {
     const line = lines[i];
-    
+
     // Pular linhas de notas
     if (line.startsWith('[NOTE:') || line.startsWith('Results')) {
       continue;
@@ -72,19 +72,19 @@ function parseOscarText(text: string): OscarData | null {
 
     // Verificar se é uma vitória (marcada com *)
     const isWin = line.startsWith('*');
-    
+
     // Remover marcação de vitória se existir
     const cleanLine = line.replace(/^\*\s*/, '');
-    
+
     // Padrão: "CATEGORY -- Nominee {"Character"}" (incluindo parênteses aninhados)
     // Primeiro tenta o padrão com parênteses aninhados (mais específico)
     let nominationMatch = cleanLine.match(/^([A-Z\s]+\([^)]*(?:\([^)]*\)[^)]*)*\))\s*--\s*(.+?)(?:\s*\{\"([^"]+)\"\})?\s*$/);
-    
+
     // Se não encontrar, tenta o padrão com parênteses simples
     if (!nominationMatch) {
       nominationMatch = cleanLine.match(/^([A-Z\s]+\([^)]+\))\s*--\s*(.+?)(?:\s*\{\"([^"]+)\"\})?\s*$/);
     }
-    
+
     // Se não encontrar, tenta o padrão sem parênteses
     if (!nominationMatch) {
       nominationMatch = cleanLine.match(/^([A-Z\s]+)\s*--\s*(.+?)(?:\s*\{\"([^"]+)\"\})?\s*$/);
@@ -181,6 +181,20 @@ async function getOrCreateMovie(filmTitle: string, year: number) {
     });
   }
 
+  // Terceira tentativa: buscar pelo ano anterior (cerimônia vs lançamento)
+  if (!movie) {
+    console.log(`🔍 Filme "${filmTitle}" (${year}) não encontrado, tentando ano anterior (${year - 1})...`);
+    movie = await prisma.movie.findFirst({
+      where: {
+        OR: [
+          { original_title: { contains: filmTitle, mode: 'insensitive' } },
+          { title: { contains: filmTitle, mode: 'insensitive' } }
+        ],
+        year: year - 1
+      }
+    });
+  }
+
   if (!movie) {
     console.log(`⚠️ Filme "${filmTitle}" (${year}) não encontrado no banco`);
     console.log('   Tentativas realizadas:');
@@ -208,7 +222,7 @@ async function processOscarData(text: string): Promise<void> {
 
   const wins = oscarData.nominations.filter(n => n.isWin).length;
   const nominations = oscarData.nominations.filter(n => !n.isWin).length;
-  
+
   console.log(`📽️ Filme: ${oscarData.filmTitle}`);
   console.log(`🏭 Produção: ${oscarData.production}`);
   console.log(`📅 Ano: ${oscarData.year} (${oscarData.ceremony}ª cerimônia)`);
@@ -230,7 +244,7 @@ async function processOscarData(text: string): Promise<void> {
   for (const nomination of oscarData.nominations) {
     const status = nomination.isWin ? '🏆 VITÓRIA' : '🎯 INDICAÇÃO';
     console.log(`\n${status}: ${nomination.category} -- ${nomination.nominee}`);
-    
+
     try {
       // Obter ou criar categoria
       const category = await getOrCreateCategory(oscarAward.id, nomination.category);
@@ -262,14 +276,14 @@ async function processOscarData(text: string): Promise<void> {
           try {
             // Criar ator único para cada indicação específica
             // Não reutilizar atores entre categorias diferentes
-            
+
             // Gerar tmdbId único para ator temporário
             const maxTmdbId = await prisma.actor.findFirst({
               orderBy: { tmdbId: 'desc' },
               select: { tmdbId: true }
             });
             const newTmdbId = (maxTmdbId?.tmdbId || 0) + 1;
-            
+
             // Criar ator temporário
             const actor = await prisma.actor.create({
               data: {
@@ -333,14 +347,14 @@ async function processOscarData(text: string): Promise<void> {
           try {
             // Criar ator único para cada indicação específica
             // Não reutilizar atores entre categorias diferentes
-            
+
             // Gerar tmdbId único para ator temporário
             const maxTmdbId = await prisma.actor.findFirst({
               orderBy: { tmdbId: 'desc' },
               select: { tmdbId: true }
             });
             const newTmdbId = (maxTmdbId?.tmdbId || 0) + 1;
-            
+
             // Criar ator temporário
             const actor = await prisma.actor.create({
               data: {
@@ -391,7 +405,7 @@ async function processOscarData(text: string): Promise<void> {
 // Função principal
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  
+
   if (args.length === 0) {
     console.log('❌ Uso: npx ts-node src/scripts/processOscarData.ts <arquivo.txt>');
     console.log('   ou: npx ts-node src/scripts/processOscarData.ts --text "texto copiado"');
