@@ -65,7 +65,9 @@ export class OscarDataService {
     console.log(`🚀 Iniciando enriquecimento de Oscars via IA para: ${movie.title} (${movie.year})...`);
 
     // 4. Buscar dados via IA
-    const oscarData = await this.fetchOscarDataFromAI(movie.title, movie.year || 0);
+    const searchTitle = movie.original_title || movie.title;
+    console.log(`🤖 Buscando por título: "${searchTitle}"`);
+    const oscarData = await this.fetchOscarDataFromAI(searchTitle, movie.year || 0);
 
     if (!oscarData) {
       console.log('⚠️ A IA não retornou dados de Oscar válidos ou o filme não teve indicações.');
