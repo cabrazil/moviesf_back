@@ -14,6 +14,7 @@ const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_API_URL = process.env.TMDB_API_URL || 'https://api.themoviedb.org/3';
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_BASE_URL = 'https://www.googleapis.com/youtube/v3';
+let youtubeQuotaExceeded = false;
 
 // Interfaces
 interface TMDBWatchProviders {
@@ -135,7 +136,7 @@ async function getTMDBStreamingData(tmdbId: number): Promise<Array<{ platform: s
 }
 
 async function checkYouTubeAvailability(movieTitle: string, year?: number): Promise<{ available: boolean; accessTypes: string[] }> {
-  if (!YOUTUBE_API_KEY) {
+  if (!YOUTUBE_API_KEY || youtubeQuotaExceeded) {
     return { available: false, accessTypes: [] };
   }
 
@@ -161,8 +162,13 @@ async function checkYouTubeAvailability(movieTitle: string, year?: number): Prom
     }
 
     return { available: false, accessTypes: [] };
-  } catch (error) {
-    console.error(`Erro ao verificar YouTube para ${movieTitle}:`, error);
+  } catch (error: any) {
+    if (error.response?.status === 403) {
+      console.warn('⚠️ Cota da API do YouTube excedida (403). Parando buscas no YouTube por hoje.');
+      youtubeQuotaExceeded = true;
+    } else {
+      console.warn(`⚠️ Erro ao verificar YouTube para "${movieTitle}": ${error.message}`);
+    }
     return { available: false, accessTypes: [] };
   }
 }
