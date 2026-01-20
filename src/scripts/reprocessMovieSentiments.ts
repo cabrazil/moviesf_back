@@ -334,7 +334,13 @@ Você deve verificar a presença destes itens. Use as "Referências Técnicas" p
 
 ${dnaWithDetails}
 
-### 🛠️ DIRETRIZES DE ANCORAGEM SEMÂNTICA
+### � REGRA DE OURO (STRICT MATCH)
+Você DEVE usar estritamente os nomes listados em "LISTA DE DNA".
+- NÃO INVENTE novos nomes de sentimentos.
+- Se identificar um tema forte (ex: "Masculinidade Tóxica") que não está na lista, faça o mapeamento para o conceito mais próximo disponível na lista (ex: "Desintegração Psicológica", "Isolamento" ou "Conflito").
+- O campo "subSentimentName" deve ser idêntico (copiar/colar) ao nome fornecido na lista acima.
+
+### �🛠️ DIRETRIZES DE ANCORAGEM SEMÂNTICA
 
 1. **Tradução de Contexto:** Converta keywords concretas (lugares, objetos, profissões) em estados emocionais.
    - Pergunte-se: "Como esta keyword [X] amplifica o subsentimento [Y] neste filme específico?"

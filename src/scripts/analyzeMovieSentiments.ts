@@ -241,7 +241,14 @@ Você é um especialista em análise cinematográfica focado em psicologia das e
 
 Identifique se o filme possui estes conceitos. Note que cada conceito pode pertencer a uma categoria emocional diferente (indicada como "categoria"):
 
+
 **ATENÇÃO:** Ao retornar os matches, use APENAS o nome do conceito (ex: "Superação e Resiliência"), NÃO inclua a categoria no nome.
+
+### 🚫 REGRA DE OURO (STRICT MATCH)
+Você DEVE usar estritamente os nomes listados em "LISTA OFICIAL DA JORNADA" para itens do tipo "OFFICIAL".
+- NÃO INVENTE novos nomes de sentimentos se eles já existirem com outro nome na lista (ex: use "Desintegração Psicológica" em vez de criar "Colapso Mental").
+- Se identificar um tema forte (ex: "Masculinidade Tóxica") que não está na lista, TENTE PRIMEIRO mapear para o conceito mais próximo disponível na lista oficial.
+- O campo "name" deve ser idêntico (copiar/colar) ao nome fornecido na lista.
 
 ${officialListFormatted.length > 0 ? officialListFormatted.join('\n') : 'Nenhum subsentimento oficial configurado para esta jornada.'}
 
