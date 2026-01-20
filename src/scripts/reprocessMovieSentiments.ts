@@ -204,6 +204,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
     console.log(`   Filmes ${i + 1} a ${Math.min(i + batchSize, moviesToProcess.length)} de ${moviesToProcess.length}\n`);
 
     for (const movie of batch) {
+      processedCount++;
       // Checagem extra de maxScore se estivermos processando por JOF
       if (jofId && maxScore !== null) {
         const currentSuggestion = await prisma.movieSuggestionFlow.findFirst({
@@ -278,7 +279,6 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
         errorCount++;
       }
 
-      processedCount++;
     }
 
     // Pequena pausa entre batches para não sobrecarregar API
@@ -386,7 +386,11 @@ Exemplos Bons:
 - (busca) "uma experiência de suspense psicológico intenso que desafia os limites do medo."
 - (busca) "entender que a verdadeira coragem reside na aceitação da própria vulnerabilidade."
 
-### FORMATO JSON
+### FORMATO JSON STRICT (RIGOROSO)
+IMPORTANTE: Use APENAS aspas duplas (") para todas as chaves e valores string. JAMAIS use aspas simples.
+Exemplo Válido: {"chave": "valor"}
+Exemplo INVÁLIDO: {'chave': 'valor'}
+
 {
   "matches": [
     {
@@ -411,7 +415,31 @@ Exemplos Bons:
       jsonString = jsonMatch[0];
     }
 
-    const result = JSON.parse(jsonString) as AuditResult;
+    let result: AuditResult;
+
+    try {
+      result = JSON.parse(jsonString) as AuditResult;
+    } catch (e) {
+      console.warn('⚠️ JSON estrito falhou. Tentando fallback para objeto JS (aspas simples)...');
+      try {
+        // Fallback para aceitar aspas simples ou formatos relaxados da IA
+        // eslint-disable-next-line @typescript-eslint/no-implied-eval
+        result = new Function('return ' + jsonString)() as AuditResult;
+      } catch (e2) {
+        throw e; // Lança erro original se ambos falharem
+      }
+    }
+
+    // Normalização de chaves (Robustez contra alucinações de casing da IA)
+    if (result && Array.isArray(result.matches)) {
+      result.matches = result.matches.map((m: any) => ({
+        ...m,
+        // Aceita várias formas de escrita
+        subSentimentName: m.subSentimentName || m.subsentimentName || m.SubSentimentName || m.sub_sentiment_name,
+        relevance: Number(m.relevance) // Garante que é número
+      }));
+    }
+
     return result;
 
   } catch (error) {

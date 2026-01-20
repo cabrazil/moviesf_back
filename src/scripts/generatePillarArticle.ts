@@ -114,7 +114,10 @@ async function generateGriefPillarArticle() {
     1. **Título (Ano)** como H3.
     2. **Resumo Emocional**: 1 parágrafo focado NÃO no plot twist, mas em *como* o personagem lida com a perda. Use os dados de "Vibe Principal" e "Hook Emocional" fornecidos.
     3. **A Vibe de Cura**: Uma frase final destacando o que esse filme ensina (ex: "Ensina que é ok não estar ok").
-    4. **CTA**: "Leia nossa [análise emocional completa de ${moviesData[0].title}](/blog/artigo/${moviesData[0].slug}) ou veja [onde assistir](/onde-assistir/${moviesData[0].slug})." (Adapte os links para cada filme).
+    4. **CTAs**: 
+       <p>📖 <a href="/blog/artigo/${moviesData[0].slug}">Análise emocional completa de ${moviesData[0].title}</a> - Explore a curadoria emocional completa e a "vibe" deste filme.</p>
+       <p>🎬 <a href="/onde-assistir/${moviesData[0].slug}">Onde Assistir Agora</a> - Verifique a disponibilidade nos streamings e detalhes técnicos na nossa Landing Page.</p>
+       (Adapte os links para cada filme).
 
     **Conclusão**
     - Fechamento acolhedor sobre o luto ser um processo não-linear.

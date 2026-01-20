@@ -212,7 +212,8 @@ Conclusão emocional. Reforce que o Vibesfilm entende que cinema é mais que ent
 Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /onde-assistir/${movie.title} com texto '${movie.title} (${movie.year})']."
 
 **Rodapé:**
-"Qual é a sua vibe hoje? Descubra seu filme perfeito no Vibesfilm App!"
+<hr>
+<p>Qual é a sua vibe hoje? Descubra seu filme perfeito no <a href="/app">Vibesfilm App!</a></p>
 `;
 
     // 3. Chamar a IA

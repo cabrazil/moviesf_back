@@ -3,8 +3,8 @@ import './scripts-helper';
 import { createAIProvider, getDefaultConfig } from '../utils/aiProvider';
 
 async function testPrompt() {
-  const title = "The Martian";
-  const year = 2015;
+  const title = "Medo da Verdade";
+  const year = 2007;
 
   console.log(`🎬 Testando Prompt para: ${title} (${year})`);
 
