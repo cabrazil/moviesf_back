@@ -35,6 +35,7 @@ Para cada filme na lista de processamento, o orquestrador executa sequencialment
 *   **Comando:** `npx ts-node discoverAndCurateAutomated.ts <tmdbId> <journeyOptionFlowId> <mainSentimentId>`
 *   **Função:** 
     *   Calcula o `relevanceScore` do filme para a jornada específica.
+    *   Gera a "reflexão" (`reason`) personalizada usando IA (texto explicativo do "porquê" assistir).
     *   Cria o vínculo na tabela `MovieSuggestionFlow` (liga o filme à opção da jornada).
     *   Define se o filme entra no "Top 3" ou na lista geral.
 

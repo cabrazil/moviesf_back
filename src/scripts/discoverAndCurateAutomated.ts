@@ -718,19 +718,22 @@ O frontend exibe: "Este filme é perfeito para quem busca..."
 Sua tarefa é escrever APENAS o restante da frase (o complemento).
 
 1. **FORMATO**: Comece com letra MINÚSCULA.
-   - **MENU DE VERBOS (VARIEDADE)**: Tente usar um destes para iniciar:
+   - **MENU DE VERBOS (VARIEDADE)**: Alterne o uso destes verbos. NÃO use apenas um:
      * "descobrir..."
-     * "acompanhar..."
+     * "testemunhar..."
      * "vivenciar..."
      * "sentir..."
-     * "entender..."
-     * "perceber..."
+     * "acompanhar..."
+     * "contemplar..."
      * "confrontar..."
-     * "explorar..."
+     * "examinar..."
      * "decifrar..."
      * "reconhecer..."
-   - **REGRA DE OURO**: Use o verbo que melhor descreve a AÇÃO do filme. Se é um filme de viagem, "acompanhar/descobrir". Se é introspectivo, "mergulhar/decifrar". Se é aprendizado, "aprender/entender".
-   - Opção Secundária (Substantivos): "uma experiência de...", "um mergulho em...". Use apenas se o verbo não encaixar bem.
+     * "atravessar..."
+     * "desvendar..."
+   - **PROIBIDO EXTENSIVO**: O verbo "mergulhar" está sendo usado em excesso. USE-O COM EXTREMA PARCIMÔNIA (máximo 5% das vezes). Prefira "adentrar", "imersão", "penetrar" ou os verbos acima.
+   - **REGRA DE OURO**: Use o verbo que melhor descreve a AÇÃO do filme. Se é um filme de viagem, "acompanhar/atravessar". Se é introspectivo, "contemplar/examinar". Se é aprendizado, "aprender/entender".
+   - Opção Secundária (Substantivos): "uma experiência de...", "uma jornada por...". Use apenas se o verbo não encaixar bem.
 
 2. **CONTEÚDO**: Conecte a essência do filme ao desejo profundo do usuário.
 
