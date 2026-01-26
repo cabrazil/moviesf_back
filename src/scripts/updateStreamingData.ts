@@ -57,8 +57,8 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'Apple TV+': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV Plus Amazon Channel': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV': { name: 'Apple TV (Loja)' }, // accessType removido - usar fallback baseado no tipo do provider
-  'Google Play Movies': { name: 'Google Play' }, // accessType removido - usar fallback baseado no tipo do provider
-  'Google Play': { name: 'Google Play' }, // accessType removido - usar fallback baseado no tipo do provider
+  'Google Play Movies': { name: 'YouTube' }, // accessType removido - usar fallback baseado no tipo do provider
+  'Google Play': { name: 'YouTube' }, // accessType removido - usar fallback baseado no tipo do provider
   'Amazon Video': { name: 'Prime Video' }, // accessType removido - usar fallback baseado no tipo do provider
   'Globoplay': { name: 'Globoplay', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Claro video': { name: 'Claro Video', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
@@ -75,7 +75,7 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'MGM+': { name: 'MGM+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'MGM Plus Amazon Channel': { name: 'MGM+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'MGM+ Apple TV Channel': { name: 'MGM+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
-  'YouTube Premium': { name: 'YouTube Premium', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
+  'YouTube Premium': { name: 'YouTube', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'YouTube (Gratuito)': { name: 'YouTube (Gratuito)', accessType: 'FREE_WITH_ADS' }
 };
 
@@ -192,7 +192,7 @@ async function updateMovieStreamingData(movie: MovieWithStreaming): Promise<void
 
     if (youtubeData.available) {
       const isOldMovie = (movie.year ?? 0) < 1970;
-      const youtubePlatform = isOldMovie ? 'YouTube (Gratuito)' : 'YouTube Premium';
+      const youtubePlatform = isOldMovie ? 'YouTube (Gratuito)' : 'YouTube';
 
       youtubeData.accessTypes.forEach(accessType => {
         allStreamingData.push({

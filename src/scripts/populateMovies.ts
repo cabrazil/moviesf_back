@@ -376,7 +376,8 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'Paramount Plus Premium': { name: 'Paramount+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV Plus': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV': { name: 'Apple TV (Loja)' }, // accessType removido - usar fallback
-  'Google Play Movies': { name: 'Google Play' }, // accessType removido - usar fallback
+  'Google Play Movies': { name: 'YouTube' }, // accessType removido - usar fallback
+  'Google Play': { name: 'YouTube' }, // accessType removido - usar fallback
   'Microsoft Store': { name: 'Microsoft Store' }, // accessType removido - usar fallback
   'YouTube': { name: 'YouTube (Gratuito)', accessType: 'FREE_WITH_ADS' },
   'Pluto TV': { name: 'Pluto TV', accessType: 'FREE_WITH_ADS' },
@@ -500,7 +501,7 @@ async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movie
       if (youtubeAvailability.available) {
         // Determinar qual plataforma YouTube usar baseado no ano
         const isOldMovie = movieYear < 1970;
-        const youtubePlatform = isOldMovie ? 'YouTube (Gratuito)' : 'YouTube Premium';
+        const youtubePlatform = isOldMovie ? 'YouTube (Gratuito)' : 'YouTube';
 
         // Adicionar todos os tipos de acesso retornados pelo YouTube
         youtubeAvailability.accessTypes.forEach(accessType => {

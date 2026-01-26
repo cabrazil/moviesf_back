@@ -731,6 +731,9 @@ Sua tarefa é escrever APENAS o restante da frase (o complemento).
      * "reconhecer..."
      * "atravessar..."
      * "desvendar..."
+     * "habitar..."
+     * "percorrer..."
+     * "sondar..."
    - **PROIBIDO EXTENSIVO**: O verbo "mergulhar" está sendo usado em excesso. USE-O COM EXTREMA PARCIMÔNIA (máximo 5% das vezes). Prefira "adentrar", "imersão", "penetrar" ou os verbos acima.
    - **REGRA DE OURO**: Use o verbo que melhor descreve a AÇÃO do filme. Se é um filme de viagem, "acompanhar/atravessar". Se é introspectivo, "contemplar/examinar". Se é aprendizado, "aprender/entender".
    - Opção Secundária (Substantivos): "uma experiência de...", "uma jornada por...". Use apenas se o verbo não encaixar bem.
