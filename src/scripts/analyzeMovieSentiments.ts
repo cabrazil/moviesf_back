@@ -14,7 +14,10 @@ const prisma = new PrismaClient();
  * Remove caracteres problemáticos e garante que aspas simples estejam balanceadas
  */
 function escapeSQLString(text: string, maxLength: number = 500): string {
-  let escaped = (text || '')
+  // Truncar antes de escapar para evitar cortar sequências de escape no meio e garantir integridade
+  const truncated = (text || '').substring(0, maxLength);
+
+  return truncated
     .replace(/\\/g, '')              // Remover barras invertidas
     .replace(/"/g, '')               // Remover aspas duplas
     .replace(/'/g, "''")             // Escapar aspas simples (SQL padrão)
@@ -22,18 +25,9 @@ function escapeSQLString(text: string, maxLength: number = 500): string {
     .replace(/\n/g, " ")             // Substituir quebras de linha por espaço
     .replace(/\r/g, "")              // Remover retorno de carro
     .replace(/\t/g, " ")             // Substituir tabs por espaço
+    .replace(/;/g, ",")              // Substituir ponto-e-vírgula por vírgula para não quebrar o split do executor
     .replace(/\0/g, "")              // Remover caracteres nulos
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remover caracteres de controle
-    .substring(0, maxLength);        // Limitar tamanho
-
-  // Garantir que não há aspas simples desbalanceadas após substring
-  const singleQuoteCount = (escaped.match(/''/g) || []).length;
-  if (singleQuoteCount % 2 !== 0) {
-    // Se ímpar, remover o último par de aspas simples
-    escaped = escaped.replace(/''$/, '');
-  }
-
-  return escaped;
+    .replace(/[\x00-\x1F\x7F]/g, ''); // Remover caracteres de controle
 }
 
 
