@@ -57,6 +57,7 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'Apple TV+': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV Plus Amazon Channel': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV': { name: 'Apple TV (Loja)' }, // accessType removido - usar fallback baseado no tipo do provider
+  'Apple TV Store': { name: 'Apple TV (Loja)' }, // Corrigido para mapear Apple TV Store (aluguel/compra)
   'Google Play Movies': { name: 'YouTube' }, // accessType removido - usar fallback baseado no tipo do provider
   'Google Play': { name: 'YouTube' }, // accessType removido - usar fallback baseado no tipo do provider
   'Amazon Video': { name: 'Prime Video' }, // accessType removido - usar fallback baseado no tipo do provider

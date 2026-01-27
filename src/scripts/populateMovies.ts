@@ -376,6 +376,7 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'Paramount Plus Premium': { name: 'Paramount+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV Plus': { name: 'Apple TV+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Apple TV': { name: 'Apple TV (Loja)' }, // accessType removido - usar fallback
+  'Apple TV Store': { name: 'Apple TV (Loja)' }, // Corrigido para mapear Apple TV Store (aluguel/compra)
   'Google Play Movies': { name: 'YouTube' }, // accessType removido - usar fallback
   'Google Play': { name: 'YouTube' }, // accessType removido - usar fallback
   'Microsoft Store': { name: 'Microsoft Store' }, // accessType removido - usar fallback
