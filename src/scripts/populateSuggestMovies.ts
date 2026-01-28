@@ -40,6 +40,9 @@ Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
 Palavras-chave: ${keywords.join(', ')}
 
 Com base nessas informações, escreva uma reflexão curta, inspiradora e única sobre o filme, conectando os temas principais e o impacto emocional da história. 
+A reflexão DEVE ser uma FRASE NOMINAL iniciada OBRIGATORIAMENTE por um ARTIGO (O, A, Um, Uma).
+EXEMPLOS: "Uma jornada...", "A descoberta...", "O retrato...", "Um convite...".
+JAMAIS inicie com verbos (ex: "Descobrir", "Vivenciar").
 A reflexão deve ter no máximo 30 palavras e terminar com um ponto final.
 Não repita o nome do filme.
 `;
@@ -129,7 +132,7 @@ async function validateJourneyPath(
       // 3.2.1 Validação específica para obras aclamadas pela crítica (optionId 135)
       if (step.optionId === 135) {
         console.log('\n🔍 Validando se o filme é uma obra aclamada pela crítica...');
-        
+
         // Buscar dados do filme no TMDB para verificar avaliações
         const tmdbMovie = await searchMovie(movie.title, movie.year || undefined);
         if (!tmdbMovie) {
@@ -141,23 +144,23 @@ async function validateJourneyPath(
         const tmdbRating = tmdbMovie.movie.vote_average || 0;
         const tmdbVoteCount = tmdbMovie.movie.vote_count || 0;
         const popularity = tmdbMovie.movie.popularity || 0;
-        
+
         console.log(`📊 Avaliação TMDB: ${tmdbRating}/10 (${tmdbVoteCount} votos)`);
         console.log(`📈 Popularidade: ${popularity}`);
-        
+
         // Critérios para obra aclamada pela crítica:
         // 1. Avaliação acima de 7.0 no TMDB E pelo menos 1000 votos
         // 2. OU avaliação acima de 7.5 no TMDB (mesmo com menos votos)
         // 3. OU alta popularidade (> 50) com boa avaliação (> 6.5)
         // 4. OU ser um filme clássico/antigo com boa reputação
-        
+
         const isHighRated = tmdbRating >= 7.0 && tmdbVoteCount >= 1000;
         const isVeryHighRated = tmdbRating >= 7.5;
         const isPopularAndWellRated = popularity > 50 && tmdbRating >= 6.5;
         const isClassic = movie.year && movie.year < 1990 && tmdbRating >= 7.0;
-        
+
         const isCriticallyAcclaimed = isHighRated || isVeryHighRated || isPopularAndWellRated || isClassic;
-        
+
         if (!isCriticallyAcclaimed) {
           console.log(`❌ Filme não atende aos critérios de obra aclamada pela crítica`);
           console.log(`   - Avaliação alta + votos: ${isHighRated ? '✅' : '❌'} (${tmdbRating}/10, ${tmdbVoteCount} votos)`);
@@ -166,7 +169,7 @@ async function validateJourneyPath(
           console.log(`   - Clássico: ${isClassic ? '✅' : '❌'} (ano: ${movie.year}, avaliação: ${tmdbRating})`);
           return false;
         }
-        
+
         console.log(`✅ Filme validado como obra aclamada pela crítica!`);
         if (isHighRated) console.log(`   - Motivo: Alta avaliação (${tmdbRating}/10) com muitos votos (${tmdbVoteCount})`);
         if (isVeryHighRated) console.log(`   - Motivo: Avaliação excepcional (${tmdbRating}/10)`);

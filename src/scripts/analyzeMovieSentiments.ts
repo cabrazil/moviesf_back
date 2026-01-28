@@ -640,8 +640,11 @@ async function main() {
     }
 
     // --- Nova verificação de imdbRating ---
-    if (movie.imdbRating === null || movie.imdbRating.toNumber() < 5.6) {
-      console.log(`❌ Filme "${movie.title}" (IMDb Rating: ${movie.imdbRating || 'N/A'}) não atende ao requisito de rating mínimo (5.6). Processo interrompido.`);
+    const rating = movie.imdbRating ? Number(movie.imdbRating) : Number(movie.vote_average || 0);
+
+    if (rating < 5.6) {
+      console.log(`❌ Filme "${movie.title}" (Rating: ${rating.toFixed(1)}) não atende ao requisito de rating mínimo (5.6). Processo interrompido.`);
+      console.log(`   (IMDb: ${movie.imdbRating || 'N/A'}, TMDB: ${movie.vote_average || 'N/A'})`);
       return;
     }
     // --- Fim da nova verificação ---

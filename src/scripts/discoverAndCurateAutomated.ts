@@ -718,25 +718,11 @@ O frontend exibe: "Este filme é perfeito para quem busca..."
 Sua tarefa é escrever APENAS o restante da frase (o complemento).
 
 1. **FORMATO**: Comece com letra MINÚSCULA.
-   - **MENU DE VERBOS (VARIEDADE)**: Alterne o uso destes verbos. NÃO use apenas um:
-     * "descobrir..."
-     * "testemunhar..."
-     * "vivenciar..."
-     * "sentir..."
-     * "acompanhar..."
-     * "contemplar..."
-     * "confrontar..."
-     * "examinar..."
-     * "decifrar..."
-     * "reconhecer..."
-     * "atravessar..."
-     * "desvendar..."
-     * "habitar..."
-     * "percorrer..."
-     * "sondar..."
-   - **PROIBIDO EXTENSIVO**: O verbo "mergulhar" está sendo usado em excesso. USE-O COM EXTREMA PARCIMÔNIA (máximo 5% das vezes). Prefira "adentrar", "imersão", "penetrar" ou os verbos acima.
-   - **REGRA DE OURO**: Use o verbo que melhor descreve a AÇÃO do filme. Se é um filme de viagem, "acompanhar/atravessar". Se é introspectivo, "contemplar/examinar". Se é aprendizado, "aprender/entender".
-   - Opção Secundária (Substantivos): "uma experiência de...", "uma jornada por...". Use apenas se o verbo não encaixar bem.
+   - **REGRA DE OURO (ARTIGO)**: Inicie OBRIGATORIAMENTE com um ARTIGO (o, a, um, uma).
+   - **ESTRUTURA FRASAL**: Use FRASES NOMINAIS. Ex: "uma jornada...", "a descoberta...", "o retrato...", "um convite...".
+   - **PROIBIÇÃO TOTAL**: JAMAIS inicie com VERBOS (ex: "descobrir", "testemunhar", "vivenciar").
+   - **PROIBIÇÃO DE REDUNDÂNCIA**: EVITE iniciar com "uma busca" ou "a busca" (pois repete o frontend).
+
 
 2. **CONTEÚDO**: Conecte a essência do filme ao desejo profundo do usuário.
 
