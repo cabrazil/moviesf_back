@@ -41,10 +41,27 @@ Palavras-chave: ${keywords.join(', ')}
 
 Com base nessas informações, escreva uma reflexão curta, inspiradora e única sobre o filme, conectando os temas principais e o impacto emocional da história. 
 A reflexão DEVE ser uma FRASE NOMINAL iniciada OBRIGATORIAMENTE por um ARTIGO (O, A, Um, Uma).
-EXEMPLOS: "Uma jornada...", "A descoberta...", "O retrato...", "Um convite...".
-JAMAIS inicie com verbos (ex: "Descobrir", "Vivenciar").
-A reflexão deve ter no máximo 30 palavras e terminar com um ponto final.
-Não repita o nome do filme.
+FORMATO: Comece com letra MINÚSCULA.
+REGRA DE OURO (ARTIGO): Inicie OBRIGATORIAMENTE com um ARTIGO (o, a, um, uma).
+ESTRUTURA FRASAL: Use FRASES NOMINAIS.
+MENU DE SUBSTANTIVOS (VARIEDADE): Use um destes se possível, evitando repetir sempre o mesmo:
+     * "um retrato..."
+     * "uma análise..."
+     * "uma odisséia..."
+     * "um estudo..."
+     * "um convite..."
+     * "uma celebração..."
+     * "uma exploração..."
+     * "um manifesto..."
+     * "um quebra-cabeça..." (suspense/thriller)
+     * "uma espiral..." (suspense/thriller)
+     * "uma dissecação..."
+     * "um duelo..."
+     * "um labirinto..." (psicológico)
+     * "uma crônica..."
+REGRA ANTI-REPETIÇÃO: A palavra "imersão" (e "mergulho") está PROIBIDA se o filme anterior usou algo similar. Prefira substantivos táteis ou geométricos (espiral, mosaico, labirinto, duelo). USE "IMERSÃO" APENAS EM ÚLTIMO CASO.
+PROIBIÇÃO TOTAL: JAMAIS inicie com VERBOS (ex: "descobrir", "testemunhar").
+PROIBIÇÃO DE REDUNDÂNCIA: EVITE iniciar com "uma busca" ou "a busca" (pois repete o frontend).
 `;
 
   try {

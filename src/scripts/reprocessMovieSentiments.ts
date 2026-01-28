@@ -371,8 +371,24 @@ Sua tarefa é escrever APENAS o restante da frase (o complemento).
 
 1. **FORMATO**: Comece com letra MINÚSCULA.
    - **REGRA DE OURO (ARTIGO)**: Inicie OBRIGATORIAMENTE com um ARTIGO (o, a, um, uma).
-   - **ESTRUTURA FRASAL**: Use FRASES NOMINAIS. Ex: "uma jornada...", "a descoberta...", "o retrato...", "um convite...".
-   - **PROIBIÇÃO TOTAL**: JAMAIS inicie com VERBOS (ex: "descobrir", "testemunhar", "vivenciar").
+   - **ESTRUTURA FRASAL**: Use FRASES NOMINAIS.
+   - **MENU DE SUBSTANTIVOS (VARIEDADE)**: Use um destes se possível, evitando repetir sempre o mesmo:
+     * "um retrato..."
+     * "uma análise..."
+     * "uma odisséia..."
+     * "um estudo..."
+     * "um convite..."
+     * "uma celebração..."
+     * "uma exploração..."
+     * "um manifesto..."
+     * "um quebra-cabeça..." (suspense/thriller)
+     * "uma espiral..." (suspense/thriller)
+     * "uma dissecação..."
+     * "um duelo..."
+     * "um labirinto..." (psicológico)
+     * "uma crônica..."
+   - **REGRA ANTI-REPETIÇÃO**: A palavra "imersão" (e "mergulho") está PROIBIDA se o filme anterior usou algo similar. Prefira substantivos táteis ou geométricos (espiral, mosaico, labirinto, duelo). USE "IMERSÃO" APENAS EM ÚLTIMO CASO.
+   - **PROIBIÇÃO TOTAL**: JAMAIS inicie com VERBOS (ex: "descobrir", "testemunhar").
    - **PROIBIÇÃO DE REDUNDÂNCIA**: EVITE iniciar com "uma busca" ou "a busca" (pois repete o frontend).
 
 2. **CONTEÚDO**: Conecte a essência do filme ao desejo profundo do usuário.
