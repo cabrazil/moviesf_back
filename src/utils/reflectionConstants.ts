@@ -1,0 +1,41 @@
+export const REFLECTION_PRIORITY_NOUNS = [
+  '* "um quebra-cabeça..." (PRIORIDADE ALTA - Suspense)',
+  '* "uma espiral..." (PRIORIDADE ALTA - Suspense)',
+  '* "um mosaico..." (PRIORIDADE ALTA)',
+  '* "um duelo..." (PRIORIDADE ALTA - Conflito)',
+  '* "uma crônica..." (PRIORIDADE ALTA)',
+  '* "um labirinto..." (Psicológico)',
+  '* "um estudo..."',
+  '* "uma odisséia..."',
+  '* "um manifesto..."',
+  '* "um retrato..."',
+  '* "uma celebração..."',
+  '* "uma exploração..."',
+  '* "um convite..."',
+  '* "uma análise..."',
+  '* "uma lente..."',
+  '* "um olhar..."',
+  '* "uma transformação..."',
+  '* "uma visão..."',
+  '* "uma experiência..."',
+  '* "uma crueza..."',
+  '* "uma força..."',
+  '* "uma solidão..."',
+  '* "uma amizade..."',
+  '* "uma metamorfose..."',
+  '* "uma paixão..."',
+  '* "uma relação..."',
+  '* "uma revelação..."',
+  '* "uma autodescoberta..."',
+  '* "uma esperança..."',
+  '* "um visual..."',
+  '* "um mundo..."',
+  '* "um universo..."'
+];
+
+export const REFLECTION_AVOID_NOUNS = [
+  '* 🛑 "uma dissecação..." (EVITAR - MUITO REPETIDO)',
+  '* 🛑 "uma imersão..." (EVITAR - MUITO REPETIDO)',
+  '* 🛑 "um mergulho..." (EVITAR - MUITO REPETIDO)',
+  '* 🛑 "uma jornada..." (EVITAR - CLICHÊ)'
+];

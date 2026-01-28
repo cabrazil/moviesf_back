@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { searchMovie } from './populateMovies';
 import { validateMovieSentiments } from './validateMovieSentiments';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
+import { REFLECTION_PRIORITY_NOUNS, REFLECTION_AVOID_NOUNS } from '../utils/reflectionConstants';
 
 // Criar PrismaClient com configurações otimizadas
 const prisma = new PrismaClient({
@@ -32,6 +33,22 @@ function getAIProvider(): AIProvider {
 }
 
 interface EmotionalIntention {
+  id: number;
+  mainSentimentId: number;
+  intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE';
+  description: string;
+  preferredGenres: string[];
+  avoidGenres: string[];
+  minReleaseYear?: number;
+  maxReleaseYear?: number;
+  mainSentiment: {
+    id: number;
+    name: string;
+    description: string | null;
+  };
+}
+
+interface DiscoveryOptions {
   id: number;
   mainSentimentId: number;
   intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE';
@@ -223,6 +240,9 @@ async function selectEmotionalIntentionAutomated(
     where: {
       mainSentimentId: mainSentimentId,
       intentionType: intentionType
+    },
+    include: {
+      mainSentiment: true
     }
   });
 
@@ -720,22 +740,10 @@ Sua tarefa é escrever APENAS o restante da frase (o complemento).
 1. **FORMATO**: Comece com letra MINÚSCULA.
    - **REGRA DE OURO (ARTIGO)**: Inicie OBRIGATORIAMENTE com um ARTIGO (o, a, um, uma).
    - **ESTRUTURA FRASAL**: Use FRASES NOMINAIS.
-   - **MENU DE SUBSTANTIVOS (VARIEDADE)**: Use um destes se possível, evitando repetir sempre o mesmo:
-     * "um retrato..."
-     * "uma análise..."
-     * "uma odisséia..."
-     * "um estudo..."
-     * "um convite..."
-     * "uma celebração..."
-     * "uma exploração..."
-     * "um manifesto..."
-     * "um quebra-cabeça..." (suspense/thriller)
-     * "uma espiral..." (suspense/thriller)
-     * "uma dissecação..."
-     * "um duelo..."
-     * "um labirinto..." (psicológico)
-     * "uma crônica..."
-   - **REGRA ANTI-REPETIÇÃO**: A palavra "imersão" (e "mergulho") está PROIBIDA se o filme anterior usou algo similar. Prefira substantivos táteis ou geométricos (espiral, mosaico, labirinto, duelo). USE "IMERSÃO" APENAS EM ÚLTIMO CASO.
+   - **MENU DE SUBSTANTIVOS (ALEATORIEDADE OBRIGATÓRIA)**: NÃO escolha sempre os mesmos. Sorteie mentalmente um destes termos MENOS USUAIS para garantir variedade:
+     ${REFLECTION_PRIORITY_NOUNS.join('\n     ')}
+   - **LISTA DE "EVITAR" (OVERUSED)**: Os termos abaixo foram usados demais. USE APENAS EM ÚLTIMO CASO:
+     ${REFLECTION_AVOID_NOUNS.join('\n     ')}
    - **PROIBIÇÃO TOTAL**: JAMAIS inicie com VERBOS (ex: "descobrir", "testemunhar").
    - **PROIBIÇÃO DE REDUNDÂNCIA**: EVITE iniciar com "uma busca" ou "a busca" (pois repete o frontend).
 

@@ -3,8 +3,10 @@ import './scripts-helper';
 
 import { PrismaClient } from '@prisma/client';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
+import { REFLECTION_PRIORITY_NOUNS, REFLECTION_AVOID_NOUNS } from '../utils/reflectionConstants';
 
 const prisma = new PrismaClient();
+
 
 interface ReprocessOptions {
   jofId?: number;
@@ -372,24 +374,12 @@ Sua tarefa é escrever APENAS o restante da frase (o complemento).
 1. **FORMATO**: Comece com letra MINÚSCULA.
    - **REGRA DE OURO (ARTIGO)**: Inicie OBRIGATORIAMENTE com um ARTIGO (o, a, um, uma).
    - **ESTRUTURA FRASAL**: Use FRASES NOMINAIS.
-   - **MENU DE SUBSTANTIVOS (VARIEDADE)**: Use um destes se possível, evitando repetir sempre o mesmo:
-     * "um retrato..."
-     * "uma análise..."
-     * "uma odisséia..."
-     * "um estudo..."
-     * "um convite..."
-     * "uma celebração..."
-     * "uma exploração..."
-     * "um manifesto..."
-     * "um quebra-cabeça..." (suspense/thriller)
-     * "uma espiral..." (suspense/thriller)
-     * "uma dissecação..."
-     * "um duelo..."
-     * "um labirinto..." (psicológico)
-     * "uma crônica..."
-   - **REGRA ANTI-REPETIÇÃO**: A palavra "imersão" (e "mergulho") está PROIBIDA se o filme anterior usou algo similar. Prefira substantivos táteis ou geométricos (espiral, mosaico, labirinto, duelo). USE "IMERSÃO" APENAS EM ÚLTIMO CASO.
-   - **PROIBIÇÃO TOTAL**: JAMAIS inicie com VERBOS (ex: "descobrir", "testemunhar").
-   - **PROIBIÇÃO DE REDUNDÂNCIA**: EVITE iniciar com "uma busca" ou "a busca" (pois repete o frontend).
+   - **MENU DE SUBSTANTIVOS (ALEATORIEDADE OBRIGATÓRIA)**: NÃO escolha sempre os mesmos. Sorteie mentalmente um destes termos MENOS USUAIS para garantir variedade:
+     ${REFLECTION_PRIORITY_NOUNS.join('\n     ')}
+   - **LISTA DE "EVITAR" (OVERUSED)**: Os termos abaixo foram usados demais. USE APENAS EM ÚLTIMO CASO:
+     ${REFLECTION_AVOID_NOUNS.join('\n     ')}
+   - **PROIBIÇÃO TOTAL**: JAMAIS inicie com VERBOS (ex: "descobrir").
+   - **PROIBIÇÃO DE REDUNDÂNCIA**: EVITE iniciar com "uma busca" ou "a busca".
 
 2. **CONTEÚDO**: Conecte a essência do filme ao desejo profundo do usuário.
 3. **PROIBIDO**: NÃO repita "para quem busca". NÃO use ponto final se possível (mas aceitável).
