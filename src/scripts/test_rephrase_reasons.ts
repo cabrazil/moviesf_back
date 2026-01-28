@@ -108,8 +108,10 @@ async function main() {
         console.log(`\n🎥 Filme: ${suggestion.movie.title}`);
         console.log(`🔴 Antes: "${oldReason}"`);
         console.log(`🟢 Depois: "${newReason}"`);
-        console.log(`\nContexto 1: "Este filme pode ser perfeito para quem busca ${reasonLower}"`);
-        console.log(`Contexto 2: "Para quem está Calmo(a) e quer Explorar: ${newReason}"`);
+        if (!executeMode) {
+          console.log(`\nContexto 1: "Este filme pode ser perfeito para quem busca ${reasonLower}"`);
+          console.log(`Contexto 2: "Para quem está Calmo(a) e quer Explorar: ${newReason}"`);
+        }
         console.log('--------------------------------------------------');
       } else {
         console.log(`⚠️ Sem alteração para ID ${suggestion.id}`);
@@ -127,12 +129,14 @@ async function main() {
       const confirm = await question('\n⚠️ Deseja SALVAR estas alterações no banco de dados? (s/n): ');
       if (confirm.toLowerCase() === 's') {
         console.log('\n💾 Salvando alterações...');
-        for (const update of updates) {
-          await prisma.movieSuggestionFlow.update({
+        const updateOperations = updates.map(update =>
+          prisma.movieSuggestionFlow.update({
             where: { id: update.id },
             data: { reason: update.new }
-          });
-        }
+          })
+        );
+
+        await prisma.$transaction(updateOperations);
         console.log('✅ Atualização concluída com sucesso!');
       } else {
         console.log('❌ Operação cancelada. Nenhuma alteração salva.');
