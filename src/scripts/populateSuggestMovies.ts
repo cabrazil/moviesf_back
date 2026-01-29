@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { validateMovieSentiments } from './validateMovieSentiments';
 import { searchMovie } from './populateMovies';
 import axios from 'axios';
-import { REFLECTION_PRIORITY_NOUNS, REFLECTION_AVOID_NOUNS } from '../utils/reflectionConstants';
+import { createAIProvider, getDefaultConfig } from '../utils/aiProvider';
 
 const prisma = new PrismaClient();
 
@@ -41,14 +41,11 @@ Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
 Palavras-chave: ${keywords.join(', ')}
 
 Com base nessas informações, escreva uma reflexão curta, inspiradora e única sobre o filme, conectando os temas principais e o impacto emocional da história. 
-A reflexão DEVE ser uma FRASE NOMINAL iniciada OBRIGATORIAMENTE por um ARTIGO (O, A, Um, Uma).
-FORMATO: Comece com letra MINÚSCULA.
-REGRA DE OURO (ARTIGO): Inicie OBRIGATORIAMENTE com um ARTIGO (o, a, um, uma).
-ESTRUTURA FRASAL: Use FRASES NOMINAIS.
-   - **MENU DE SUBSTANTIVOS (ALEATORIEDADE OBRIGATÓRIA)**: NÃO escolha sempre os mesmos. Sorteie mentalmente um destes termos MENOS USUAIS para garantir variedade:
-     ${REFLECTION_PRIORITY_NOUNS.join('\n     ')}
-   - **LISTA DE "EVITAR" (OVERUSED)**: Os termos abaixo foram usados demais. USE APENAS EM ÚLTIMO CASO:
-     ${REFLECTION_AVOID_NOUNS.join('\n     ')}
+Com base nessas informações, escreva uma reflexão curta, inspiradora e única sobre o filme, conectando os temas principais e o impacto emocional da história. 
+A reflexão deve ter entre 15 e 24 palavras.
+Evite orações subordinadas excessivas (use no máximo um "que" ou "onde").
+Seja poético e direto.
+Não repita o nome do filme.
 `;
 
   try {
@@ -293,7 +290,14 @@ async function validateJourneyPath(
 
     // console.log(`\nDebug - Keywords do filme: ${JSON.stringify(movieKeywords, null, 2)}`);
 
-    const reason = await generateReflectionWithOpenAI(tmdbMovie.movie, movieKeywords);
+    let reason = await generateReflectionWithOpenAI(tmdbMovie.movie, movieKeywords);
+    console.log(`✅ Reflexão gerada: "${reason}"`);
+
+    // CORREÇÃO: Aplicar Rephraser
+    if (reason) {
+      reason = await rephraseReasonWithAI(reason);
+      console.log(`✨ Reflexão Corrigida: "${reason}"`);
+    }
 
     await prisma.movieSuggestionFlow.create({
       data: {
@@ -306,10 +310,60 @@ async function validateJourneyPath(
 
     console.log(`✅ Filme ${movieDetails.title} adicionado com sucesso à jornada!`);
     return true;
-
   } catch (error) {
     console.error('Erro ao validar jornada:', error);
     return false;
+  }
+}
+
+// Função de rephrasing
+async function rephraseReasonWithAI(originalReason: string): Promise<string> {
+  try {
+    const provider = 'openai'; // Voltar para OpenAI (agora usando 3.5 no provider)
+    const config = getDefaultConfig(provider);
+    const aiProvider = createAIProvider(config);
+
+    const prompt = `
+Tarefa: Transformar a frase abaixo, que inicia com um verbo, em uma Frase Nominal.
+IMPORTANTE: O resultado final deve ter NO MÁXIMO 24 PALAVRAS. Se a frase original for muito longa, RESUMA e simplifique para caber no limite.
+
+Regras:
+1. Comece com Artigo + Substantivo e remova o verbo inicial.
+2. Inicie com letra MAIÚSCULA.
+3. CORTE excessos para respeitar o limite de 24 palavras.
+4. Mantenha os termos-chave.
+
+Exemplos de PRESERVAÇÃO TOTAL:
+- "descobrir que o destino mais grandioso pode ser a mais profunda tragédia" 
+  -> "A descoberta de que o destino mais grandioso pode ser a mais profunda tragédia" (NÃO "O destino grandioso")
+
+- "vivenciar uma jornada que transcende o tempo e o espaço" 
+  -> "A vivência de uma jornada que transcende o tempo e o espaço" (NÃO "Uma jornada atemporal")
+
+- "contemplar a beleza que existe na dor" 
+  -> "A contemplação da beleza que existe na dor"
+
+- "mergulhar em um abismo de loucura e paixão" 
+  -> "Um mergulho em um abismo de loucura e paixão"
+
+Frase Original: "${originalReason}"
+
+Responda APENAS com a nova frase. Mantenha 100% dos adjetivos.
+`;
+
+    const response = await aiProvider.generateResponse(
+      'Você é um editor de texto especializado em gramática e estilo.',
+      prompt,
+      { temperature: 0.3, maxTokens: 200 }
+    );
+
+    if (response.success) {
+      return response.content.replace(/^"|"$/g, '').trim();
+    }
+    return originalReason;
+  } catch (error) {
+    console.error('Erro ao reescrever reflexão:', error);
+    return originalReason;
   }
 }
 

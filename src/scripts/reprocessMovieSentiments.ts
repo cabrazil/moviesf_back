@@ -3,10 +3,8 @@ import './scripts-helper';
 
 import { PrismaClient } from '@prisma/client';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
-import { REFLECTION_PRIORITY_NOUNS, REFLECTION_AVOID_NOUNS } from '../utils/reflectionConstants';
 
 const prisma = new PrismaClient();
-
 
 interface ReprocessOptions {
   jofId?: number;
@@ -220,8 +218,17 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
       try {
         console.log(`🎬 ${movie.title} (${movie.year})`);
 
-        // Auditar filme com IA
+        // Auditar filme com IA (Gera verbos)
         const auditResult = await auditMovieWithAI(movie, dnaSubSentiments, aiProvider, userSentimentContext);
+
+        // CORREÇÃO: Aplicar Rephraser para transformar Verbo -> Frase Nominal
+        if (auditResult && auditResult.reflection) {
+          // console.log(`   📝 Reflexão Original (Verbo): "${auditResult.reflection}"`);
+          // Passar o provider escolhido (variable aiProvider from options)
+          const rephrased = await rephraseReasonWithAI(auditResult.reflection, aiProvider);
+          auditResult.reflection = rephrased;
+          // console.log(`   ✨ Reflexão Corrigida: "${auditResult.reflection}"`);
+        }
 
         if (!auditResult || auditResult.matches.length === 0) {
           console.log(`⚠️  Nenhum match encontrado\n`);
@@ -368,22 +375,35 @@ Exemplo Ruim: "O filme mostra solidão através da viagem da personagem."
 Exemplo Bom: "A solidão se materializa no silêncio da van estacionada em pátios vazios, onde Fern celebra o Ano Novo com apenas uma fita estalando."
 
 ### 🎯 MISSÃO 2: O COMPLEMENTO PERFEITO (CONTINUAÇÃO DE FRASE)
-O frontend exibe: "Este filme pode ser perfeito para quem busca..."
+O frontend exibe: "Este filme é perfeito para quem busca..."
 Sua tarefa é escrever APENAS o restante da frase (o complemento).
 
 1. **FORMATO**: Comece com letra MINÚSCULA.
-   - **REGRA DE OURO (ARTIGO)**: Inicie OBRIGATORIAMENTE com um ARTIGO (o, a, um, uma).
-   - **ESTRUTURA FRASAL**: Use FRASES NOMINAIS.
-   - **MENU DE SUBSTANTIVOS (ALEATORIEDADE OBRIGATÓRIA)**: NÃO escolha sempre os mesmos. Sorteie mentalmente um destes termos MENOS USUAIS para garantir variedade:
-     ${REFLECTION_PRIORITY_NOUNS.join('\n     ')}
-   - **LISTA DE "EVITAR" (OVERUSED)**: Os termos abaixo foram usados demais. USE APENAS EM ÚLTIMO CASO:
-     ${REFLECTION_AVOID_NOUNS.join('\n     ')}
-   - **PROIBIÇÃO TOTAL**: JAMAIS inicie com VERBOS (ex: "descobrir").
-   - **PROIBIÇÃO DE REDUNDÂNCIA**: EVITE iniciar com "uma busca" ou "a busca".
-
+   - **MENU DE VERBOS (VARIEDADE)**: Alterne o uso destes verbos. NÃO use apenas um:
+     * "descobrir..."
+     * "testemunhar..."
+     * "vivenciar..."
+     * "sentir..."
+     * "acompanhar..."
+     * "contemplar..."
+     * "confrontar..."
+     * "examinar..."
+     * "decifrar..."
+     * "reconhecer..."
+     * "atravessar..."
+     * "desvendar..."
+     * "habitar..."
+     * "percorrer..."
+     * "sondar..."
+   - **PROIBIDO EXTENSIVO**: O verbo "mergulhar" está sendo usado em excesso. USE-O COM EXTREMA PARCIMÔNIA (máximo 5% das vezes). Prefira "adentrar", "imersão", "penetrar" ou os verbos acima.
+   - **REGRA DE OURO**: Use o verbo que melhor descreve a AÇÃO do filme. Se é um filme de viagem, "acompanhar/atravessar". Se é introspectivo, "contemplar/examinar". Se é aprendizado, "aprender/entender".
+   - Opção Secundária (Substantivos): "uma experiência de...", "uma jornada por...". Use apenas se o verbo não encaixar bem.
 2. **CONTEÚDO**: Conecte a essência do filme ao desejo profundo do usuário.
 3. **PROIBIDO**: NÃO repita "para quem busca". NÃO use ponto final se possível (mas aceitável).
-4. **ESTILO**: Fluido, elegante e direto. Máx 160 caracteres.
+4. **ESTILO**: Fluido, elegante e direto.
+5. **TAMANHO OBRIGATÓRIO**: Entre 15 e 24 PALAVRAS. (Ideal: 20).
+6. **RESTRIÇÃO**: Evite "QUE/ONDE" em excesso. Use no máximo UMA oração subordinada.
+7. **ESTRUTURA**: Sujeito + Verbo + Predicado poético.
 
 Exemplos Bons:
 - (busca) "aprender que o silêncio não é um vazio, mas uma nova frequência para reencontrar a própria voz."
@@ -449,6 +469,56 @@ Exemplo INVÁLIDO: {'chave': 'valor'}
   } catch (error) {
     console.error('Erro ao auditar com IA:', error);
     return null;
+  }
+}
+
+async function rephraseReasonWithAI(originalReason: string, forcedProvider?: AIProvider): Promise<string> {
+  try {
+    const provider = forcedProvider || 'openai'; // Usar provider forçado ou default (openai)
+    const config = getDefaultConfig(provider);
+    const aiProvider = createAIProvider(config);
+
+    const prompt = `
+Tarefa: Transformar a frase abaixo, que inicia com um verbo, em uma Frase Nominal (começando com artigo, substantivo ou pronome).
+IMPORTANTE: O resultado final deve ter NO MÁXIMO 24 PALAVRAS. Se a frase original for muito longa, RESUMA e simplifique para caber no limite.
+
+Regras:
+1. Comece com Artigo + Substantivo e remova o verbo inicial.
+2. Inicie com letra MAIÚSCULA.
+3. CORTE excessos para respeitar o limite de 24 palavras.
+4. Mantenha os termos-chave.
+
+Exemplos de PRESERVAÇÃO TOTAL:
+- "descobrir que o destino mais grandioso pode ser a mais profunda tragédia" 
+  -> "A descoberta de que o destino mais grandioso pode ser a mais profunda tragédia" (NÃO "O destino grandioso")
+
+- "vivenciar uma jornada que transcende o tempo e o espaço" 
+  -> "A vivência de uma jornada que transcende o tempo e o espaço" (NÃO "Uma jornada atemporal")
+
+- "contemplar a beleza que existe na dor" 
+  -> "A contemplação da beleza que existe na dor"
+
+- "mergulhar em um abismo de loucura e paixão" 
+  -> "Um mergulho em um abismo de loucura e paixão"
+
+Frase Original: "${originalReason}"
+
+Responda APENAS com a nova frase. Mantenha 100% dos adjetivos.
+`;
+
+    const response = await aiProvider.generateResponse(
+      'Você é um editor de texto especializado em gramática e estilo.',
+      prompt,
+      { temperature: 0.3, maxTokens: 200 }
+    );
+
+    if (response.success) {
+      return response.content.replace(/^"|"$/g, '').trim();
+    }
+    return originalReason;
+  } catch (error) {
+    console.error('Erro ao reescrever reflexão:', error);
+    return originalReason;
   }
 }
 

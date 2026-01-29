@@ -19,7 +19,7 @@ function question(query: string): Promise<string> {
 
 async function rephraseReasonWithAI(originalReason: string): Promise<string> {
   try {
-    const provider = 'openai'; // Usar OpenAI para melhor qualidade de reescrita
+    const provider = 'openai'; // Voltar para OpenAI (agora usando 3.5 no provider)
     const config = getDefaultConfig(provider);
     const aiProvider = createAIProvider(config);
 
@@ -30,19 +30,26 @@ Objetivo: A frase será usada como complemento de "Este filme traz..."
 Regras:
 1. Remova o verbo inicial (ex: "Descobrir...", "Testemunhar...", "Vivenciar...").
 2. Inicie com letra MAIÚSCULA.
-3. Mantenha o restante da frase o mais fiel possível ao original.
-4. O resultado deve fluir naturalmente após "Este filme pode ser perfeito para quem busca...".
-5. EVITE iniciar com "Uma busca" ou "A busca" para não repetir a palavra "busca" do contexto anterior. Prefira "Uma jornada", "A procura", "O encontro", "Uma caçada", etc.
+3. Mantenha TODO o restante da frase exato. NÃO RESUMA NADA.
+4. Se a frase começa com "Descobrir que...", "Perceber que...", "Entender que...", transforme em "A descoberta de que...", "A percepção de que...", "O entendimento de que...".
+5. Use "A", "O", "Uma", "Um" no início.
 
-Exemplos:
-- "Descobrir a beleza da vida" -> "A beleza da vida"
-- "Testemunhar uma jornada épica" -> "Uma jornada épica"
-- "Vivenciar a transformação da dor" -> "A transformação da dor"
-- "Sentir a emoção do primeiro amor" -> "A emoção do primeiro amor"
-- "Refletir sobre a existência" -> "Uma reflexão sobre a existência"
-- "Buscar a verdade" -> "A perseguição da verdade" (Evitar "A busca da verdade")
+Exemplos de PRESERVAÇÃO TOTAL:
+- "descobrir que o destino mais grandioso pode ser a mais profunda tragédia" 
+  -> "A descoberta de que o destino mais grandioso pode ser a mais profunda tragédia" (NÃO "O destino grandioso")
+
+- "vivenciar uma jornada que transcende o tempo e o espaço" 
+  -> "A vivência de uma jornada que transcende o tempo e o espaço" (NÃO "Uma jornada atemporal")
+
+- "contemplar a beleza que existe na dor" 
+  -> "A contemplação da beleza que existe na dor"
+
+- "mergulhar em um abismo de loucura e paixão" 
+  -> "Um mergulho em um abismo de loucura e paixão"
 
 Frase Original: "${originalReason}"
+
+Responda APENAS com a nova frase. Mantenha 100% dos adjetivos.
 
 Responda APENAS com a nova frase.
 `;
@@ -50,7 +57,7 @@ Responda APENAS com a nova frase.
     const response = await aiProvider.generateResponse(
       'Você é um editor de texto especializado em gramática e estilo.',
       prompt,
-      { temperature: 0.3, maxTokens: 100 }
+      { temperature: 0.3, maxTokens: 200 }
     );
 
     if (response.success) {

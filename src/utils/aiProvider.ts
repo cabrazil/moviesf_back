@@ -449,7 +449,7 @@ export function createAIProvider(config: AIConfig): AIProviderManager {
 
 export function getDefaultConfig(provider: AIProvider): AIConfig {
   const modelMap = {
-    openai: 'gpt-4-turbo',
+    openai: 'gpt-3.5-turbo', // Downgrade seguro para evitar erros de cota (era gpt-4-turbo)
     gemini: 'gemini-2.5-flash',
     deepseek: 'deepseek-chat'
   };

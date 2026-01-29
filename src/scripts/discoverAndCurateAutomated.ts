@@ -5,7 +5,6 @@ import { PrismaClient } from '@prisma/client';
 import { searchMovie } from './populateMovies';
 import { validateMovieSentiments } from './validateMovieSentiments';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
-import { REFLECTION_PRIORITY_NOUNS, REFLECTION_AVOID_NOUNS } from '../utils/reflectionConstants';
 
 // Criar PrismaClient com configurações otimizadas
 const prisma = new PrismaClient({
@@ -32,23 +31,57 @@ function getAIProvider(): AIProvider {
   return 'openai';
 }
 
-interface EmotionalIntention {
-  id: number;
-  mainSentimentId: number;
-  intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE';
-  description: string;
-  preferredGenres: string[];
-  avoidGenres: string[];
-  minReleaseYear?: number;
-  maxReleaseYear?: number;
-  mainSentiment: {
-    id: number;
-    name: string;
-    description: string | null;
-  };
+async function rephraseReasonWithAI(originalReason: string): Promise<string> {
+  try {
+    const provider = 'openai'; // Voltar para OpenAI (agora usando 3.5 no provider)
+    const config = getDefaultConfig(provider);
+    const aiProvider = createAIProvider(config);
+
+    const prompt = `
+Tarefa: Transformar a frase abaixo, que inicia com um verbo, em uma Frase Nominal (começando com artigo, substantivo ou pronome).
+IMPORTANTE: O resultado final deve ter NO MÁXIMO 24 PALAVRAS. Se a frase original for muito longa, RESUMA e simplifique para caber no limite.
+
+Regras:
+1. Comece com Artigo + Substantivo e remova o verbo inicial.
+2. Inicie com letra MAIÚSCULA.
+3. CORTE excessos para respeitar o limite de 24 palavras.
+4. Mantenha os termos-chave.
+
+Exemplos de PRESERVAÇÃO TOTAL:
+- "descobrir que o destino mais grandioso pode ser a mais profunda tragédia" 
+  -> "A descoberta de que o destino mais grandioso pode ser a mais profunda tragédia" (NÃO "O destino grandioso")
+
+- "vivenciar uma jornada que transcende o tempo e o espaço" 
+  -> "A vivência de uma jornada que transcende o tempo e o espaço" (NÃO "Uma jornada atemporal")
+
+- "contemplar a beleza que existe na dor" 
+  -> "A contemplação da beleza que existe na dor"
+
+- "mergulhar em um abismo de loucura e paixão" 
+  -> "Um mergulho em um abismo de loucura e paixão"
+
+Frase Original: "${originalReason}"
+
+Responda APENAS com a nova frase. Mantenha 100% dos adjetivos.
+`;
+
+    const response = await aiProvider.generateResponse(
+      'Você é um editor de texto especializado em gramática e estilo.',
+      prompt,
+      { temperature: 0.3, maxTokens: 200 }
+    );
+
+    if (response.success) {
+      return response.content.replace(/^"|"$/g, '').trim();
+    }
+    return originalReason;
+  } catch (error) {
+    console.error('Erro ao reescrever reflexão:', error);
+    return originalReason;
+  }
 }
 
-interface DiscoveryOptions {
+interface EmotionalIntention {
   id: number;
   mainSentimentId: number;
   intentionType: 'PROCESS' | 'TRANSFORM' | 'MAINTAIN' | 'EXPLORE';
@@ -128,13 +161,34 @@ async function automatedCuration(
     }
 
     // FASE 4: População da sugestão
-    const success = await populateSuggestion(movie.id, curationResult.journeyPath!);
+    const lastStep = curationResult.journeyPath!.steps[curationResult.journeyPath!.steps.length - 1];
+    const optionId = lastStep.optionId;
 
-    if (success) {
+    // Agora populateSuggestion retorna o objeto sugestão (com reflection) ou null
+    const suggestion = await populateSuggestion(movie.id, optionId);
+
+    if (suggestion) {
       console.log("\n🎉 === CURADORIA CONCLUÍDA COM SUCESSO! ===");
       console.log(`✅ Filme: ${movie.title} (${movie.year})`);
-      console.log(`✅ Sentimento: ${sentimentAnalysis.mainSentiment}`);
-      console.log(`✅ Intenção Emocional: ${intentionType}`);
+
+      // Buscar SubSentiments para exibir (opcional, só se suggestion tiver)
+      // Se suggestion veio do update, não tem include automatico unless we adding it.
+      // O rephraser atua no suggestion.reason (mapped to suggestion.reflection logic)
+
+      const reflectionKey = 'reason';
+      let currentReflection = suggestion[reflectionKey]; // Acessar dinamicamente ou via tipo correto
+
+      // CORREÇÃO: Aplicar Rephraser para transformar Verbo -> Frase Nominal
+      if (currentReflection) {
+        currentReflection = await rephraseReasonWithAI(currentReflection);
+
+        // Atualizar no objeto em memória (se formos usar depois)
+        // E idealmente salvar de novo? O ideal seria rephraser ANTES de salvar no populateSuggestion. 
+        // Mas como populateSuggestion já salvou, precisamos dar Update de novo aqui ou mover lógica para dentro.
+        // Vamos mover a lógica PARA DENTRO do populateSuggestion para evitar duplo save.
+      }
+
+      console.log(`      ✨ Reflexão Final: ${currentReflection}`);
       console.log(`✅ UUID: ${movie.id}`);
       return { success: true, movie };
     } else {
@@ -240,9 +294,6 @@ async function selectEmotionalIntentionAutomated(
     where: {
       mainSentimentId: mainSentimentId,
       intentionType: intentionType
-    },
-    include: {
-      mainSentiment: true
     }
   });
 
@@ -429,56 +480,51 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
   };
 }
 
-async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Promise<boolean> {
+async function populateSuggestion(movieId: string, optionId: number): Promise<any | null> {
   console.log(`\n🎯 === FASE 4: POPULAÇÃO DA SUGESTÃO ===`);
 
   try {
-    const lastStep = journeyPath.steps[journeyPath.steps.length - 1];
-    const optionId = lastStep.optionId;
-
-    // Verificar se já existe
+    // Verificar se já existe (Idempotência)
     const existingSuggestion = await prisma.movieSuggestionFlow.findFirst({
       where: {
-        movieId,
+        movieId: movieId,
         journeyOptionFlowId: optionId
       }
     });
 
     if (existingSuggestion) {
-      console.log(`✅ Sugestão já existe (ID: ${existingSuggestion.id}) - Atualizando reflexão...`);
+      console.log(`⚠️ Sugestão já existe para Filme ${movieId} e Opção ${optionId}. Atualizando...`);
 
-      // Buscar informações do filme
+      // Buscar informações do filme para o log e contexto
       const movie = await prisma.movie.findUnique({
         where: { id: movieId }
       });
 
-      if (!movie) {
-        console.log(`❌ Filme não encontrado: ${movieId}`);
-        return false;
-      }
-
-      // Buscar opção da jornada
-      console.log(`🔍 Buscando opção da jornada ID: ${optionId}`);
       const option = await prisma.journeyOptionFlow.findUnique({
         where: { id: optionId }
       });
-      console.log(`📝 Opção encontrada: "${option?.text}"`);
 
       if (!option) {
         console.log(`❌ Opção não encontrada: ${optionId}`);
-        return false;
+        return null; // WAS false
       }
 
       // Calcular relevanceScore baseado nos matches de subsentimentos
       const relevanceScore = await calculateRelevanceScore(movieId, optionId);
 
-      // Gerar nova reflexão
-      console.log(`🎯 Iniciando geração de reflexão para: ${movie.title}`);
-      const reflection = await generateReflectionForMovie(movie, option);
-      console.log(`✅ Reflexão gerada: "${reflection}"`);
+      // Gerar nova reflexão (Gera Verbo)
+      console.log(`🎯 Iniciando geração de reflexão para: ${movie?.title}`);
+      let reflection = await generateReflectionForMovie(movie!, option);
+
+      // CORREÇÃO: Aplicar Rephraser para transformar Verbo -> Frase Nominal
+      if (reflection) {
+        reflection = await rephraseReasonWithAI(reflection);
+      }
+
+      console.log(`✅ Reflexão gerada (e corrigida): "${reflection}"`);
 
       // Atualizar a sugestão existente
-      await prisma.movieSuggestionFlow.update({
+      const updatedDiff = await prisma.movieSuggestionFlow.update({
         where: { id: existingSuggestion.id },
         data: {
           reason: reflection,
@@ -488,12 +534,9 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
       });
 
       console.log(`📊 Relevance Score atualizado: ${relevanceScore?.toFixed(3) || 'N/A'}`);
-
       console.log(`✅ Sugestão atualizada (ID: ${existingSuggestion.id})`);
-      console.log(`📝 Opção: ${option.text}`);
-      console.log(`🎬 Filme: ${movie.title} (${movie.year})`);
 
-      return true;
+      return updatedDiff; // Return the object
     }
 
     // Buscar informações do filme
@@ -503,7 +546,7 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
 
     if (!movie) {
       console.log(`❌ Filme não encontrado: ${movieId}`);
-      return false;
+      return null;
     }
 
     // Buscar opção da jornada
@@ -515,7 +558,7 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
 
     if (!option) {
       console.log(`❌ Opção não encontrada: ${optionId}`);
-      return false;
+      return null;
     }
 
     // Calcular relevanceScore baseado nos matches de subsentimentos
@@ -523,8 +566,14 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
 
     // Gerar reflexão
     console.log(`🎯 Iniciando geração de reflexão para: ${movie.title}`);
-    const reflection = await generateReflectionForMovie(movie, option);
-    console.log(`✅ Reflexão gerada: "${reflection}"`);
+    let reflection = await generateReflectionForMovie(movie, option);
+    console.log(`✅ Reflexão gerada (Verbo): "${reflection}"`);
+
+    // CORREÇÃO: Aplicar Rephraser
+    if (reflection) {
+      reflection = await rephraseReasonWithAI(reflection);
+    }
+    console.log(`✨ Reflexão Final (Nominal): "${reflection}"`);
 
     // Criar sugestão com relevanceScore incluído
     // Nota: relevance será calculado automaticamente pela função updateRelevanceRankingForMovie
@@ -547,11 +596,11 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
     console.log(`🎬 Filme: ${movie.title} (${movie.year})`);
     console.log(`📊 Relevance Score: ${relevanceScore?.toFixed(3) || 'N/A'}`);
 
-    return true;
+    return suggestion;
 
   } catch (error) {
     console.error('Erro ao popular sugestão:', error);
-    return false;
+    return null;
   }
 }
 
@@ -701,6 +750,13 @@ async function generateReflectionForMovie(movie: any, option: any): Promise<stri
     }
   });
 
+  // Construir Contexto Rico (DNA) para o Prompt
+  const sentimentContext = movieWithSentiments?.movieSentiments
+    .map(ms => `- **${ms.subSentiment.name}**: ${ms.subSentiment.keywords.join(', ')}`)
+    .filter((value, index, self) => self.indexOf(value) === index)
+    .slice(0, 10) // Top 10 sentimentos
+    .join('\n') || 'N/A';
+
   const keywords = movieWithSentiments?.movieSentiments
     .flatMap(ms => ms.subSentiment.keywords)
     .filter((value, index, self) => self.indexOf(value) === index) || [];
@@ -714,44 +770,65 @@ async function generateReflectionForMovie(movie: any, option: any): Promise<stri
     return `Uma reflexão inspiradora sobre ${movie.title} que explora temas profundos da experiência humana.`;
   }
 
-  return await generateReflectionWithAI(movieData, keywords, option);
+  return await generateReflectionWithAI(movieData, keywords, sentimentContext, option);
 }
 
-async function generateReflectionWithAI(movie: any, keywords: string[], option: any): Promise<string> {
+async function generateReflectionWithAI(movie: any, keywords: string[], sentimentContext: string, option: any): Promise<string> {
   console.log(`🔍 Gerando reflexão para: ${movie.title}`);
   console.log(`📝 Opção de jornada: "${option.text}"`);
 
   const prompt = `
-Você é um curador especialista em psicologia cinematográfica do "vibesfilm".
+You are a curator specialist in film psychology for "vibesfilm".
 
 ### 🎬 DADOS DO FILME
 - Título: ${movie.title} (${movie.year || 'Ano não especificado'})
 - Sinopse: ${movie.overview || 'N/A'}
 - Gêneros: ${movie.genres.map((g: any) => g.name).join(', ')}
-- Keywords: ${keywords.slice(0, 15).join(', ') || 'N/A'}
+- Keywords Detalhadas: ${keywords.slice(0, 15).join(', ') || 'N/A'}
+
+### 🧬 DNA EMOCIONAL (Sentimentos Identificados)
+Analise como o filme manifesta estes temas:
+${sentimentContext}
 
 ### 🎯 OPÇÃO DE JORNADA EMOCIONAL
 "${option.text}"
 
 ### 📝 MISSÃO: O COMPLEMENTO PERFEITO (CONTINUAÇÃO DE FRASE)
 O frontend exibe: "Este filme é perfeito para quem busca..."
-Sua tarefa é escrever APENAS o restante da frase (o complemento).
+  - TAMANHO: Máximo 18 palavras. CURTO E GROSSO.
+  - PROIBIDO: Palavras "onde", "que", "quando", "pois".
+  - ESTRUTURA: Sujeito + Verbo + Objeto. Só.
+  - EVITE orações subordinadas longas ou múltiplas vírgulas.
+  - NUNCA inicie com "Para quem busca" ou "Se você busca".
+  - NUNCA repita o nome do filme. Sua tarefa é escrever APENAS o restante da frase (o complemento).
 
 1. **FORMATO**: Comece com letra MINÚSCULA.
-   - **REGRA DE OURO (ARTIGO)**: Inicie OBRIGATORIAMENTE com um ARTIGO (o, a, um, uma).
-   - **ESTRUTURA FRASAL**: Use FRASES NOMINAIS.
-   - **MENU DE SUBSTANTIVOS (ALEATORIEDADE OBRIGATÓRIA)**: NÃO escolha sempre os mesmos. Sorteie mentalmente um destes termos MENOS USUAIS para garantir variedade:
-     ${REFLECTION_PRIORITY_NOUNS.join('\n     ')}
-   - **LISTA DE "EVITAR" (OVERUSED)**: Os termos abaixo foram usados demais. USE APENAS EM ÚLTIMO CASO:
-     ${REFLECTION_AVOID_NOUNS.join('\n     ')}
-   - **PROIBIÇÃO TOTAL**: JAMAIS inicie com VERBOS (ex: "descobrir", "testemunhar").
-   - **PROIBIÇÃO DE REDUNDÂNCIA**: EVITE iniciar com "uma busca" ou "a busca" (pois repete o frontend).
+   - **MENU DE VERBOS (VARIEDADE)**: Alterne o uso destes verbos. NÃO use apenas um:
+     * "descobrir..."
+     * "testemunhar..."
+     * "vivenciar..."
+     * "sentir..."
+     * "acompanhar..."
+     * "contemplar..."
+     * "confrontar..."
+     * "examinar..."
+     * "decifrar..."
+     * "reconhecer..."
+     * "atravessar..."
+     * "desvendar..."
+     * "habitar..."
+     * "percorrer..."
+     * "sondar..."
+   - **PROIBIDO EXTENSIVO**: O verbo "mergulhar" está sendo usado em excesso. USE-O COM EXTREMA PARCIMÔNIA (máximo 5% das vezes). Prefira "adentrar", "imersão", "penetrar" ou os verbos acima.
+   - **REGRA DE OURO**: Use o verbo que melhor descreve a AÇÃO do filme. Se é um filme de viagem, "acompanhar/atravessar". Se é introspectivo, "contemplar/examinar". Se é aprendizado, "aprender/entender".
+   - Opção Secundária (Substantivos): "uma experiência de...", "uma jornada por...". Use apenas se o verbo não encaixar bem.
 
 2. **CONTEÚDO**: Conecte a essência do filme ao desejo profundo do usuário.
-
 3. **PROIBIDO**: NÃO repita "para quem busca". NÃO use ponto final se possível (mas aceitável).
-
-4. **ESTILO**: Fluido, elegante e direto. Máx 180 caracteres.
+4. **ESTILO**: Fluido, elegante e direto.
+5. **TAMANHO OBRIGATÓRIO**: Entre 15 e 24 PALAVRAS. (Ideal: 20).
+6. **RESTRIÇÃO**: Evite "QUE/ONDE" em excesso. Use no máximo UMA oração subordinada.
+7. **ESTRUTURA**: Sujeito + Verbo + Predicado poético.
 
 Exemplos Bons:
 - "aprender que o silêncio não é um vazio, mas uma nova frequência para reencontrar a própria voz."
