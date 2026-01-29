@@ -479,31 +479,27 @@ async function rephraseReasonWithAI(originalReason: string, forcedProvider?: AIP
     const aiProvider = createAIProvider(config);
 
     const prompt = `
-Tarefa: Transformar a frase abaixo, que inicia com um verbo, em uma Frase Nominal (começando com artigo, substantivo ou pronome).
-IMPORTANTE: O resultado final deve ter NO MÁXIMO 24 PALAVRAS. Se a frase original for muito longa, RESUMA e simplifique para caber no limite.
+Tarefa: Transformar a frase abaixo em uma Frase Nominal (Artigo + Substantivo), eliminando o verbo inicial.
 
-Regras:
-1. Comece com Artigo + Substantivo e remova o verbo inicial.
-2. Inicie com letra MAIÚSCULA.
-3. CORTE excessos para respeitar o limite de 24 palavras.
-4. Mantenha os termos-chave.
+DICIONÁRIO DE ESTRUTURAS (Escolha a mais adequada ao gênero do filme):
 
-Exemplos de PRESERVAÇÃO TOTAL:
-- "descobrir que o destino mais grandioso pode ser a mais profunda tragédia" 
-  -> "A descoberta de que o destino mais grandioso pode ser a mais profunda tragédia" (NÃO "O destino grandioso")
+Tensão/Ação: "Uma espiral...", "Um frenesi...", "Um duelo...", "Uma sinfonia...", "Uma engrenagem...", "Um espetáculo...", "Uma odisseia...".
 
-- "vivenciar uma jornada que transcende o tempo e o espaço" 
-  -> "A vivência de uma jornada que transcende o tempo e o espaço" (NÃO "Uma jornada atemporal")
+Mistério/Psicológico: "Um labirinto...", "Um quebra-cabeça...", "Um mosaico...", "Uma radiografia...", "Um prisma...", "Um mergulho...", "Um eco...".
 
-- "contemplar a beleza que existe na dor" 
-  -> "A contemplação da beleza que existe na dor"
+Drama/Histórico: "Um retrato...", "Uma crônica...", "Um manifesto...", "Um testemunho...", "Uma epopeia...", "Um registro...", "Um estudo...".
 
-- "mergulhar em um abismo de loucura e paixão" 
-  -> "Um mergulho em um abismo de loucura e paixão"
+REGRAS DE OURO:
 
-Frase Original: "${originalReason}"
+LIMITE ESTRITO: Máximo de 24 palavras. Resuma o conteúdo para caber no limite.
 
-Responda APENAS com a nova frase. Mantenha 100% dos adjetivos.
+DIVERSIDADE: Proibido iniciar mais de 2 filmes seguidos com "A vivência" ou "A descoberta". Use o dicionário acima para variar.
+
+FORMA: Inicie com Letra Maiúscula. Remova 100% dos verbos iniciais.
+
+CONTEÚDO: Mantenha os adjetivos e termos-chave que dão o tom da obra.
+
+Frase Original: "${originalReason}" Responda APENAS com a nova frase.
 `;
 
     const response = await aiProvider.generateResponse(
