@@ -479,25 +479,29 @@ async function rephraseReasonWithAI(originalReason: string, forcedProvider?: AIP
     const aiProvider = createAIProvider(config);
 
     const prompt = `
-Tarefa: Transformar a frase abaixo em uma Frase Nominal (Artigo + Substantivo), eliminando o verbo inicial.
+Tarefa: Transformar a frase abaixo em uma Frase Nominal curta, poética e direta, removendo o verbo inicial e proibindo terminantemente o uso de rótulos como "Um testemunho de", "Uma crônica de", "Um estudo sobre" ou "Um retrato de".
 
-DICIONÁRIO DE ESTRUTURAS (Escolha a mais adequada ao gênero do filme):
+EXEMPLOS DE REFERÊNCIA (Siga esta cadência):
 
-Tensão/Ação: "Uma espiral...", "Um frenesi...", "Um duelo...", "Uma sinfonia...", "Uma engrenagem...", "Um espetáculo...", "Uma odisseia...".
+"A quieta revelação de que a centelha da vida não é um destino a conquistar, mas o sopro que já habita cada momento comum."
 
-Mistério/Psicológico: "Um labirinto...", "Um quebra-cabeça...", "Um mosaico...", "Uma radiografia...", "Um prisma...", "Um mergulho...", "Um eco...".
+"A liberdade que habita no desapego e a profunda conexão humana que floresce nos espaços entre um lugar e outro."
 
-Drama/Histórico: "Um retrato...", "Uma crônica...", "Um manifesto...", "Um testemunho...", "Uma epopeia...", "Um registro...", "Um estudo...".
+"A beleza serena que habita o limiar entre a vida e a morte, onde o último cuidado é também o primeiro ato de autoconhecimento."
+
+"A trajetória de um homem comum que atravessa o mundo para, finalmente, encontrar-se no instante em que para de sonhar e começa a viver."
+
+"A beleza rude de um sonho que floresce nos pântanos, onde a amizade improvável se torna a única lei e a liberdade a única vitória."
 
 REGRAS DE OURO:
 
-LIMITE ESTRITO: Máximo de 24 palavras. Resuma o conteúdo para caber no limite.
+IMPACTO IMEDIATO: Comece diretamente pelo tema central (Amor, Dor, Resiliência, Obsessão).
 
-DIVERSIDADE: Proibido iniciar mais de 2 filmes seguidos com "A vivência" ou "A descoberta". Use o dicionário acima para variar.
+LIMITE ESTRITO: Máximo de 24 palavras. Seja econômico e denso.
 
-FORMA: Inicie com Letra Maiúscula. Remova 100% dos verbos iniciais.
+NOMINALIZAÇÃO: Transforme o verbo inicial em substantivo se necessário, mas mantenha a fluidez (ex: em vez de "Testemunhar a dor", use "A dor visceral...").
 
-CONTEÚDO: Mantenha os adjetivos e termos-chave que dão o tom da obra.
+ESTÉTICA: Mantenha os adjetivos que dão textura à frase.
 
 Frase Original: "${originalReason}" Responda APENAS com a nova frase.
 `;

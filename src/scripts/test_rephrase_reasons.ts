@@ -24,34 +24,31 @@ async function rephraseReasonWithAI(originalReason: string): Promise<string> {
     const aiProvider = createAIProvider(config);
 
     const prompt = `
-Tarefa: Transformar a frase abaixo, que inicia com um verbo, em uma Frase Nominal (começando com artigo, substantivo ou pronome).
-Objetivo: A frase será usada como complemento de "Este filme traz..."
+Tarefa: Transformar a frase abaixo em uma Frase Nominal curta, poética e direta, removendo o verbo inicial e proibindo terminantemente o uso de rótulos como "Um testemunho de", "Uma crônica de", "Um estudo sobre" ou "Um retrato de".
 
-Regras:
-1. Remova o verbo inicial (ex: "Descobrir...", "Testemunhar...", "Vivenciar...").
-2. Inicie com letra MAIÚSCULA.
-3. Mantenha TODO o restante da frase exato. NÃO RESUMA NADA.
-4. Se a frase começa com "Descobrir que...", "Perceber que...", "Entender que...", transforme em "A descoberta de que...", "A percepção de que...", "O entendimento de que...".
-5. Use "A", "O", "Uma", "Um" no início.
+EXEMPLOS DE REFERÊNCIA (Siga esta cadência):
 
-Exemplos de PRESERVAÇÃO TOTAL:
-- "descobrir que o destino mais grandioso pode ser a mais profunda tragédia" 
-  -> "A descoberta de que o destino mais grandioso pode ser a mais profunda tragédia" (NÃO "O destino grandioso")
+"A quieta revelação de que a centelha da vida não é um destino a conquistar, mas o sopro que já habita cada momento comum."
 
-- "vivenciar uma jornada que transcende o tempo e o espaço" 
-  -> "A vivência de uma jornada que transcende o tempo e o espaço" (NÃO "Uma jornada atemporal")
+"A liberdade que habita no desapego e a profunda conexão humana que floresce nos espaços entre um lugar e outro."
 
-- "contemplar a beleza que existe na dor" 
-  -> "A contemplação da beleza que existe na dor"
+"A beleza serena que habita o limiar entre a vida e a morte, onde o último cuidado é também o primeiro ato de autoconhecimento."
 
-- "mergulhar em um abismo de loucura e paixão" 
-  -> "Um mergulho em um abismo de loucura e paixão"
+"A trajetória de um homem comum que atravessa o mundo para, finalmente, encontrar-se no instante em que para de sonhar e começa a viver."
 
-Frase Original: "${originalReason}"
+"A beleza rude de um sonho que floresce nos pântanos, onde a amizade improvável se torna a única lei e a liberdade a única vitória."
 
-Responda APENAS com a nova frase. Mantenha 100% dos adjetivos.
+REGRAS DE OURO:
 
-Responda APENAS com a nova frase.
+IMPACTO IMEDIATO: Comece diretamente pelo tema central (Amor, Dor, Resiliência, Obsessão).
+
+LIMITE ESTRITO: Máximo de 24 palavras. Seja econômico e denso.
+
+NOMINALIZAÇÃO: Transforme o verbo inicial em substantivo se necessário, mas mantenha a fluidez (ex: em vez de "Testemunhar a dor", use "A dor visceral...").
+
+ESTÉTICA: Mantenha os adjetivos que dão textura à frase.
+
+Frase Original: "${originalReason}" Responda APENAS com a nova frase.
 `;
 
     const response = await aiProvider.generateResponse(
