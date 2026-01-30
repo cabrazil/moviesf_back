@@ -70,16 +70,67 @@ Frase Original: "${originalReason}" Responda APENAS com a nova frase.
 
 async function main() {
   const args = process.argv.slice(2);
-  const journeyOptionFlowId = args[0] ? parseInt(args[0]) : 75;
-  const executeMode = args.includes('--execute');
+
+  // Parse arguments manually to support --title="X" --year=Y
+  const parsedArgs: any = {
+    execute: args.includes('--execute')
+  };
+
+  let jofIdArg = args[0];
+  // Se o primeiro arg não começar com --, assumimos que é o ID
+  if (jofIdArg && !jofIdArg.startsWith('--')) {
+    parsedArgs.journeyOptionFlowId = parseInt(jofIdArg);
+  }
+
+  for (const arg of args) {
+    if (arg.startsWith('--title=')) {
+      parsedArgs.title = arg.split('=')[1].replace(/^"|"$/g, '');
+    }
+    if (arg.startsWith('--year=')) {
+      parsedArgs.year = parseInt(arg.split('=')[1].replace(/^"|"$/g, ''));
+    }
+  }
+
+  const journeyOptionFlowId = parsedArgs.journeyOptionFlowId;
+  const executeMode = parsedArgs.execute;
 
   console.log(`\n🔍 === TESTE DE REFRASEAMENTO DE REFLEXÕES ===`);
-  console.log(`🎯 JourneyOptionFlowId Alvo: ${journeyOptionFlowId}`);
+  if (journeyOptionFlowId) console.log(`🎯 JourneyOptionFlowId Alvo: ${journeyOptionFlowId}`);
+  if (parsedArgs.title) console.log(`🎬 Filtro por Filme: ${parsedArgs.title}`);
   console.log(`⚙️  Modo: ${executeMode ? 'EXECUÇÃO (Salvar no Banco)' : 'DRY-RUN (Apenas Simulação)'}`);
 
   try {
+    // Construir filtro dinâmico
+    const whereClause: any = {};
+
+    if (journeyOptionFlowId) {
+      whereClause.journeyOptionFlowId = journeyOptionFlowId;
+    }
+
+    if (parsedArgs.title) {
+      console.log(`🔍 Buscando filme: "${parsedArgs.title}"${parsedArgs.year ? ` (${parsedArgs.year})` : ''}...`);
+      const movie = await prisma.movie.findFirst({
+        where: {
+          title: { contains: parsedArgs.title, mode: 'insensitive' },
+          ...(parsedArgs.year ? { year: parsedArgs.year } : {})
+        }
+      });
+
+      if (!movie) {
+        console.log('❌ Filme não encontrado.');
+        return;
+      }
+      console.log(`✅ Filme encontrado: ${movie.title} (ID: ${movie.id})`);
+      whereClause.movieId = movie.id;
+    }
+
+    if (Object.keys(whereClause).length === 0) {
+      console.log('❌ É necessário fornecer pelo menos um filtro: ID da Jornada (primeiro argumento) ou --title="Nome"');
+      return;
+    }
+
     const suggestions = await prisma.movieSuggestionFlow.findMany({
-      where: { journeyOptionFlowId },
+      where: whereClause,
       include: { movie: true }
     });
 
