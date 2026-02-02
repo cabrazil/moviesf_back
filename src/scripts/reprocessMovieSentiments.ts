@@ -460,7 +460,7 @@ Exemplo INVÁLIDO: {'chave': 'valor'}
         ...m,
         // Aceita várias formas de escrita
         subSentimentName: m.subSentimentName || m.subsentimentName || m.SubSentimentName || m.sub_sentiment_name,
-        relevance: Number(m.relevance) // Garante que é número
+        relevance: (typeof m.relevance === 'number' && !isNaN(m.relevance)) ? m.relevance : (parseFloat(m.relevance) || 0) // Garante que é número válido
       }));
     }
 
