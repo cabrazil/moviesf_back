@@ -148,7 +148,8 @@ async function analyzeMovieWithAI(
   journeyOptionText: string,
   mainSentimentId: number,
   mainSentimentName: string,
-  journeyOptionFlowId: number  // ← NOVO PARÂMETRO
+  mainSentimentKeywords: string[], // ← NOVO PARÂMETRO
+  journeyOptionFlowId: number
 ): Promise<{
   matches: Array<{
     id?: number;
@@ -226,6 +227,9 @@ Você é um especialista em análise cinematográfica focado em psicologia das e
 - Keywords: ${keywords.join(', ')}
 
 **LENTE DE ANÁLISE PRINCIPAL:** ${mainSentimentName} (ID: ${mainSentimentId})
+**DEFINIÇÃO DA LENTE (KEYWORDS):** ${mainSentimentKeywords.length > 0 ? mainSentimentKeywords.join(', ') : 'Nenhuma keyword definida'}
+
+**IMPORTANTE:** Como a lente é "${mainSentimentName}" definido por [${mainSentimentKeywords.slice(0, 5).join(', ')}...], você deve buscar nuances que correspondam a essa definição específica.
 
 **IMPORTANTE:** Embora a lente principal seja "${mainSentimentName}", você deve identificar ESPECIFICAMENTE se o filme possui os seguintes conceitos emocionais, INDEPENDENTEMENTE da categoria emocional a que pertencem (Triste, Ansioso, Cansado, Calmo, Animado, etc.).
 
@@ -282,6 +286,11 @@ ${officialListFormatted.length > 0 ? officialListFormatted.join('\n') : 'Nenhum 
 ${libraryListFormatted.length > 0 ? libraryListFormatted.slice(0, 5).join('\n') : 'Nenhum outro subsentimento disponível.'}
 
 **FORMATO DE SAÍDA (JSON VÁLIDO):**
+
+8. **LEI ANTI-CLICHÊ (CRÍTICO)**:
+   - **PROIBIDO**: "alquimia silenciosa", "cura silenciosa", "dança sutil", "testamento de", "ode à".
+   - **PROIBIDO**: Repetir a palavra "silenciosa" ou "silêncio" se ela não for literal (do som).
+   - **PREFERÊNCIA**: Use verbos ativos e imagens concretas. Em vez de "a cura silenciosa", use "cicatrizar feridas antigas sem dizer uma palavra".
 {
   "matches": [
     {
@@ -669,7 +678,15 @@ async function main() {
       return;
     }
 
-    const analysis = await analyzeMovieWithAI(tmdbMovie.movie, keywords, journeyOption.option.text, mainSentimentId, mainSentiment.name, journeyOption.option.id);
+    const analysis = await analyzeMovieWithAI(
+      tmdbMovie.movie,
+      keywords,
+      journeyOption.option.text,
+      mainSentimentId,
+      mainSentiment.name,
+      mainSentiment.keywords || [], // Passando as keywords do MainSentiment
+      journeyOption.option.id
+    );
 
     console.log('\n🔍 Validando sugestões da IA com o sentimento de destino (Lógica Inteligente)...');
     const validatedSubSentiments: { suggestion: any; dbMatch: SubSentiment | null }[] = [];

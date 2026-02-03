@@ -17,9 +17,9 @@ function question(query: string): Promise<string> {
   return new Promise(resolve => rl.question(query, resolve));
 }
 
-async function rephraseReasonWithAI(originalReason: string): Promise<string> {
+async function rephraseReasonWithAI(originalReason: string, providerName: string = 'kimi'): Promise<string> {
   try {
-    const provider = 'openai'; // Voltar para OpenAI (agora usando 3.5 no provider)
+    const provider = providerName as any;
     const config = getDefaultConfig(provider);
     const aiProvider = createAIProvider(config);
 
@@ -73,7 +73,8 @@ async function main() {
 
   // Parse arguments manually to support --title="X" --year=Y
   const parsedArgs: any = {
-    execute: args.includes('--execute')
+    execute: args.includes('--execute'),
+    provider: 'kimi' // Default provider
   };
 
   let jofIdArg = args[0];
@@ -89,6 +90,12 @@ async function main() {
     if (arg.startsWith('--year=')) {
       parsedArgs.year = parseInt(arg.split('=')[1].replace(/^"|"$/g, ''));
     }
+    if (arg.startsWith('--ia-provider=') || arg.startsWith('--ai-provider=')) {
+      parsedArgs.provider = arg.split('=')[1].replace(/^"|"$/g, '');
+    }
+    if (arg.startsWith('--jofId=') || arg.startsWith('-jofId=')) {
+      parsedArgs.journeyOptionFlowId = parseInt(arg.split('=')[1]);
+    }
   }
 
   const journeyOptionFlowId = parsedArgs.journeyOptionFlowId;
@@ -97,6 +104,7 @@ async function main() {
   console.log(`\n🔍 === TESTE DE REFRASEAMENTO DE REFLEXÕES ===`);
   if (journeyOptionFlowId) console.log(`🎯 JourneyOptionFlowId Alvo: ${journeyOptionFlowId}`);
   if (parsedArgs.title) console.log(`🎬 Filtro por Filme: ${parsedArgs.title}`);
+  console.log(`🧠 Provider: ${parsedArgs.provider}`);
   console.log(`⚙️  Modo: ${executeMode ? 'EXECUÇÃO (Salvar no Banco)' : 'DRY-RUN (Apenas Simulação)'}`);
 
   try {
@@ -152,7 +160,7 @@ async function main() {
       // Mas sempre passamos pela IA para garantir a transformação correta
 
       process.stdout.write(`Processando ID ${suggestion.id}... `);
-      const newReason = await rephraseReasonWithAI(oldReason);
+      const newReason = await rephraseReasonWithAI(oldReason, parsedArgs.provider);
       process.stdout.write('OK\n');
 
       if (oldReason !== newReason) {

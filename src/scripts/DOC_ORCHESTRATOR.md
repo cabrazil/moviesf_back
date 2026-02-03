@@ -67,8 +67,8 @@ const moviesToProcess = [
     title: "A Chegada",
     year: 2016,
     journeyOptionFlowId: 159, // ID da opção "Quero refletir sobre a vida..."
-    analysisLens: 18,         // ID do sentimento "Calmo/Reflexivo"
-    journeyValidation: 159    // ID para validar o match final
+    analysisLens: 15,         // ID do sentimento "Calmo/Reflexivo"
+    journeyValidation: 18    // ID para validar o match final
   }
 ];
 

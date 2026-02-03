@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export type AIProvider = 'openai' | 'gemini' | 'deepseek';
+export type AIProvider = 'openai' | 'gemini' | 'deepseek' | 'kimi';
 
 // Interfaces para tipagem das respostas das APIs
 interface OpenAIResponse {
@@ -23,6 +23,14 @@ interface GeminiResponse {
 }
 
 interface DeepSeekResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+}
+
+interface KimiResponse {
   choices: Array<{
     message: {
       content: string;
@@ -68,6 +76,8 @@ class AIProviderManager {
         return this.generateGeminiResponse(systemPrompt, userPrompt, temperature, maxTokens);
       case 'deepseek':
         return this.generateDeepSeekResponse(systemPrompt, userPrompt, temperature, maxTokens);
+      case 'kimi':
+        return this.generateKimiResponse(systemPrompt, userPrompt, temperature, maxTokens);
       default:
         throw new Error(`Provedor de IA não suportado: ${this.config.provider}`);
     }
@@ -441,6 +451,66 @@ INSTRUÇÕES IMPORTANTES:
       };
     }
   }
+
+  private async generateKimiResponse(
+    systemPrompt: string,
+    userPrompt: string,
+    temperature: number,
+    maxTokens: number
+  ): Promise<AIResponse> {
+    try {
+      const modelToUse = this.config.model || 'moonshotai/kimi-k2.5';
+      const invokeUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
+
+      console.log(`🤖 Tentando Kimi (via Nvidia) modelo: ${modelToUse}...`);
+
+      if (!process.env.KIMI_API_KEY) {
+        throw new Error('KIMI_API_KEY não configurada nas variáveis de ambiente');
+      }
+
+      const response = await axios.post<KimiResponse>(invokeUrl, {
+        model: modelToUse,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        max_tokens: maxTokens, // User example limits to 16384, but we use strict args
+        temperature: temperature,
+        top_p: 1.00,
+        stream: false,
+        chat_template_kwargs: { thinking: true } // As per user example
+      }, {
+        headers: {
+          "Authorization": `Bearer ${process.env.KIMI_API_KEY}`,
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.data.choices || response.data.choices.length === 0) {
+        throw new Error('Resposta vazia - nenhuma escolha retornada');
+      }
+
+      const content = response.data.choices[0].message.content;
+      return { content, success: true };
+
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message || error?.message;
+
+      console.error(`Erro na API Kimi/Nvidia:`, {
+        status,
+        message: errorMessage,
+        error: error?.response?.data
+      });
+
+      return {
+        content: '',
+        success: false,
+        error: `Erro Kimi (${status || 'N/A'}): ${errorMessage || 'Erro desconhecido'}`
+      };
+    }
+  }
 }
 
 export function createAIProvider(config: AIConfig): AIProviderManager {
@@ -451,14 +521,15 @@ export function getDefaultConfig(provider: AIProvider): AIConfig {
   const modelMap = {
     openai: 'gpt-3.5-turbo', // Downgrade seguro para evitar erros de cota (era gpt-4-turbo)
     gemini: 'gemini-2.5-flash',
-    deepseek: 'deepseek-chat'
+    deepseek: 'deepseek-chat',
+    kimi: 'moonshotai/kimi-k2.5'
   };
 
   return {
     provider,
     model: modelMap[provider],
-    temperature: provider === 'deepseek' ? 1.0 : 0.7,
-    maxTokens: 2000
+    temperature: provider === 'deepseek' || provider === 'kimi' ? 1.0 : 0.7,
+    maxTokens: provider === 'kimi' ? 4000 : 2000
   };
 }
 

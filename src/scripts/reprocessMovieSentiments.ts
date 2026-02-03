@@ -134,6 +134,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
   }> = [];
 
   let userSentimentContext = "lidar com suas emoções";
+  let userSentimentKeywords: string[] = [];
 
   if (jofId) {
     // 2.1 Buscar Contexto Emocional
@@ -159,7 +160,10 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
     const emotionalIntention = jof?.journeyStepFlow?.emotionalIntentionJourneySteps?.[0]?.emotionalIntention;
     if (emotionalIntention?.mainSentiment?.name) {
       userSentimentContext = emotionalIntention.mainSentiment.name.toLowerCase();
+      // Capturar keywords do MainSentiment
+      userSentimentKeywords = emotionalIntention.mainSentiment.keywords || [];
       console.log(`🎭 Contexto Emocional: ${userSentimentContext}`);
+      console.log(`🔑 Keywords da Lente: ${userSentimentKeywords.join(', ') || 'Nenhuma'}`);
     }
 
     // 2.2 Buscar DNA
@@ -219,7 +223,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
         console.log(`🎬 ${movie.title} (${movie.year})`);
 
         // Auditar filme com IA (Gera verbos)
-        const auditResult = await auditMovieWithAI(movie, dnaSubSentiments, aiProvider, userSentimentContext);
+        const auditResult = await auditMovieWithAI(movie, dnaSubSentiments, aiProvider, userSentimentContext, userSentimentKeywords);
 
         // CORREÇÃO: Aplicar Rephraser para transformar Verbo -> Frase Nominal
         if (auditResult && auditResult.reflection) {
@@ -321,7 +325,8 @@ async function auditMovieWithAI(
     weight: number;
   }>,
   provider: AIProvider,
-  userSentimentContext: string
+  userSentimentContext: string,
+  userSentimentKeywords: string[] = [] // ← NOVO PARÂMETRO
 ): Promise<AuditResult | null> {
 
   // Formatar DNA com detalhes técnicos
@@ -337,6 +342,11 @@ Sua tarefa é auditar se o filme abaixo se encaixa nos conceitos específicos da
 - Título: ${movie.title} (${movie.year})
 - Sinopse: ${movie.description || "Sem sinopse"}
 - Keywords do Filme: ${movie.keywords.join(', ')}
+
+**LENTE DE ANÁLISE PRINCIPAL:** ${userSentimentContext}
+**DEFINIÇÃO DA LENTE (KEYWORDS):** ${userSentimentKeywords.length > 0 ? userSentimentKeywords.join(', ') : 'Nenhuma keyword definida'}
+
+**IMPORTANTE:** Como a lente é "${userSentimentContext}" definido por [${userSentimentKeywords.slice(0, 5).join(', ')}...], você deve buscar nuances que correspondam a essa definição específica.
 
 ### 🧬 LISTA DE DNA - CONCEITOS ALVO (FONTE B)
 Você deve verificar a presença destes itens. Use as "Referências Técnicas" para guiar seu julgamento:
