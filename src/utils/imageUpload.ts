@@ -47,14 +47,20 @@ export async function uploadTmdbImageToSupabase(
     // Gerar nome do arquivo
     const filename = `thumbnails/${movieId}_${tmdbPosterPath.split('/').pop()?.replace(/\.(jpg|jpeg|png)$/i, '.webp')}`;
 
+    // Converter para Blob (Correção para fetch failed no Node 18+)
+    // @ts-ignore - Blob is global in Node 18+ but TS might not know
+    const blob = new Blob([webpBuffer], { type: 'image/webp' });
+
     // Upload para Supabase
     console.log(`  📤 Fazendo upload para Supabase...`);
+    // @ts-ignore - supabase-js typos
     const { data, error } = await supabase.storage
       .from(BUCKET_NAME)
-      .upload(filename, webpBuffer, {
+      .upload(filename, blob, {
         contentType: 'image/webp',
         cacheControl: '31536000', // 1 ano
-        upsert: true
+        upsert: true,
+        duplex: 'half' // Importante para fetch no Node
       });
 
     if (error) {

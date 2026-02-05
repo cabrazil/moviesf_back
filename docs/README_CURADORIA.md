@@ -1,8 +1,8 @@
-# Sistema de Curadoria de Filmes - emoFilms
+# Sistema de Curadoria de Filmes - vibesfilm
 
 ## Visão Geral
 
-O sistema de curadoria de filmes é uma ferramenta automatizada que utiliza **inteligência artificial híbrida** (OpenAI + Gemini) para analisar e categorizar filmes baseado em sentimentos e intenções emocionais. O sistema foi projetado para ser escalável, manutenível e economicamente eficiente.
+O sistema de curadoria de filmes é uma ferramenta automatizada que utiliza **inteligência artificial híbrida** (OpenAI + Gemini ou DeepSeek) para analisar e categorizar filmes baseado em sentimentos e intenções emocionais. O sistema foi projetado para ser escalável, manutenível e economicamente eficiente.
 
 ## Arquitetura Moderna
 
@@ -10,12 +10,12 @@ O sistema de curadoria de filmes é uma ferramenta automatizada que utiliza **in
 
 1. **🎬 Orquestrador Central** (`orchestrator.ts`)
    - Sistema automatizado completo de curadoria
-   - Seleção inteligente de AI provider (OpenAI/Gemini/Auto)
+   - Seleção inteligente de AI provider (OpenAI/Gemini/DeepSeek/Auto)
    - Processamento por `tmdbId` para máxima eficiência
    - Validação e retry automático
 
 2. **🤖 Sistema de AI Providers** (`utils/aiProvider.ts`)
-   - Suporte dual: OpenAI (GPT-4) + Google Gemini
+   - Suporte: OpenAI (GPT-4) + Google Gemini + DeepSeek
    - Seleção automática baseada em contexto do filme
    - Otimização de custos e qualidade
    - Configuração específica por gênero
@@ -29,6 +29,8 @@ O sistema de curadoria de filmes é uma ferramenta automatizada que utiliza **in
    - `testAIProviders.ts` - Comparação OpenAI vs Gemini
    - `duplicateMovieSuggestion.ts` - Duplicação de sugestões
    - `healthCheck.ts` - Verificação de integridade
+   - `reprocessMovieSentiments.ts` - Reprocessa relevanceScore e reflexão
+   - `rephrase_reasons` - Refaz as reflexões
 
 ## 🚀 Processo de Curadoria Automatizada
 
@@ -42,7 +44,7 @@ npx ts-node src/scripts/orchestrator.ts \
   --journeyOptionFlowId=26 \
   --analysisLens=17 \
   --journeyValidation=13 \
-  --ai-provider=auto
+  --ai-provider=deepseek
 ```
 
 ### Parâmetros do Orchestrator
@@ -54,18 +56,15 @@ npx ts-node src/scripts/orchestrator.ts \
 | `--journeyOptionFlowId` | ID da opção de jornada | `26` |
 | `--analysisLens` | Lente de análise (ID do MainSentiment) | `17` (Animado) |
 | `--journeyValidation` | Sentimento de validação | `13` (Feliz) |
-| `--ai-provider` | Provider de IA: `openai`\|`gemini`\|`auto` | `auto` |
+| `--ai-provider` | Provider de IA: `deepseek`\| openai`\|`gemini`\|`auto` | `auto` |
 | `--approve-new-subsentiments` | Aprovar novos subsentimentos | Flag opcional |
 
 ### 🎯 Sistema de AI Providers
 
-#### **Seleção Automática (`--ai-provider=auto`)**
-
-O sistema escolhe automaticamente entre OpenAI e Gemini baseado no contexto:
 
 ```bash
-# Auto-seleção baseada em contexto
---ai-provider=auto
+# A seleção fica por conta do executar 
+--ai-provider=deepseek
 ```
 
 **🤖 OpenAI é escolhido para:**
@@ -75,7 +74,7 @@ O sistema escolhe automaticamente entre OpenAI e Gemini baseado no contexto:
 - **Lente 16 (Ansioso)**: Melhor para suspense
 - **Keywords complexas**: "autodescoberta", "trauma", "psicológico"
 
-**🔮 Gemini é escolhido para:**
+**🔮 DeepSeek é escolhido para:**
 - **Romance/Comédia**: Filmes leves e românticos
 - **Família/Animação**: Conteúdo familiar
 - **Ação/Aventura**: "John Wick", "Mad Max"
@@ -89,7 +88,7 @@ O sistema escolhe automaticamente entre OpenAI e Gemini baseado no contexto:
 --ai-provider=openai
 
 # Gemini para economia e casos simples
---ai-provider=gemini
+--ai-provider=deepseek
 ```
 
 ### 📋 Etapas do Processo Automatizado
@@ -403,7 +402,7 @@ npx ts-node src/scripts/testAIProviders.ts
 
 ## 🤝 Contribuindo
 
-1. **Sempre use `--ai-provider=auto`** para novos filmes
+1. **Sempre use `--ai-provider=deepseek`** para novos filmes
 2. **Teste com ambos providers** para casos duvidosos
 3. **Documente novos subsentimentos** criados
 4. **Monitore custos** e otimize quando possível
@@ -420,4 +419,4 @@ Para problemas ou dúvidas:
 
 ---
 
-**emoFilms Curation System v2.0** - Powered by OpenAI + Gemini 🎬🤖 
+**vibesfilm Curation System v2.0** - Powered by OpenAI + Gemini 🎬🤖 

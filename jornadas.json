@@ -1,0 +1,953 @@
+### Sentimentos principais de partida e intenções emocionais
+[
+  {
+    "mainSentimentId": 13,
+    "name": "Feliz / Alegre",
+    "intentionType": "TRANSFORM",
+    "description": "Busco algo para me energizar ou mudar um pouco o foco."
+  },
+  {
+    "mainSentimentId": 13,
+    "name": "Feliz / Alegre",
+    "intentionType": "EXPLORE",
+    "description": "Quero entender nuances ou diferentes formas de felicidade."
+  },
+  {
+    "mainSentimentId": 13,
+    "name": "Feliz / Alegre",
+    "intentionType": "PROCESS",
+    "description": "Quero amplificar e saborear esse bom momento."
+  },
+  {
+    "mainSentimentId": 13,
+    "name": "Feliz / Alegre",
+    "intentionType": "MAINTAIN",
+    "description": "Quero algo para preservar essa vibe positiva e relaxada."
+  },
+  {
+    "mainSentimentId": 14,
+    "name": "Triste",
+    "intentionType": "MAINTAIN",
+    "description": "Estou bem com essa melancolia, quero algo que ressoe com ela"
+  },
+  {
+    "mainSentimentId": 14,
+    "name": "Triste",
+    "intentionType": "TRANSFORM",
+    "description": "Quero um filme que me ajude a sair dessa tristeza"
+  },
+  {
+    "mainSentimentId": 14,
+    "name": "Triste",
+    "intentionType": "EXPLORE",
+    "description": "Quero explorar diferentes aspectos da tristeza e melancolia"
+  },
+  {
+    "mainSentimentId": 14,
+    "name": "Triste",
+    "intentionType": "PROCESS",
+    "description": "Quero um filme que me ajude a processar e elaborar essa tristeza"
+  },
+  {
+    "mainSentimentId": 15,
+    "name": "Calmo(a)",
+    "intentionType": "TRANSFORM",
+    "description": "Busco um filme para quebrar a calma com emoções intensas e foco total."
+  },
+  {
+    "mainSentimentId": 15,
+    "name": "Calmo(a)",
+    "intentionType": "EXPLORE",
+    "description": "Quero entender suas nuances ou aprender sobre a paz interior."
+  },
+  {
+    "mainSentimentId": 15,
+    "name": "Calmo(a)",
+    "intentionType": "PROCESS",
+    "description": "Quero aprofundar e contemplar essa serenidade."
+  },
+  {
+    "mainSentimentId": 15,
+    "name": "Calmo(a)",
+    "intentionType": "MAINTAIN",
+    "description": "Quero algo para preservar essa tranquilidade e bem-estar."
+  },
+  {
+    "mainSentimentId": 16,
+    "name": "Ansioso(a)",
+    "intentionType": "MAINTAIN",
+    "description": "Quero um filme que me prenda totalmente e me faça esquecer a ansiedade."
+  },
+  {
+    "mainSentimentId": 16,
+    "name": "Ansioso(a)",
+    "intentionType": "EXPLORE",
+    "description": "Quero entender as causas da ansiedade ou como ela afeta a vida."
+  },
+  {
+    "mainSentimentId": 16,
+    "name": "Ansioso(a)",
+    "intentionType": "PROCESS",
+    "description": "Busco compreender e lidar com essa sensação"
+  },
+  {
+    "mainSentimentId": 16,
+    "name": "Ansioso(a)",
+    "intentionType": "TRANSFORM",
+    "description": "Quero algo que me acalme ou mude completamente o foco."
+  },
+  {
+    "mainSentimentId": 17,
+    "name": "Animado(a)",
+    "intentionType": "EXPLORE",
+    "description": "Quero entender a fonte dessa energia ou o que a impulsiona."
+  },
+  {
+    "mainSentimentId": 17,
+    "name": "Animado(a)",
+    "intentionType": "PROCESS",
+    "description": "Quero amplificar e canalizar essa energia positiva."
+  },
+  {
+    "mainSentimentId": 17,
+    "name": "Animado(a)",
+    "intentionType": "TRANSFORM",
+    "description": "Busco algo para direcionar essa energia para outra emoção ou foco."
+  },
+  {
+    "mainSentimentId": 17,
+    "name": "Animado(a)",
+    "intentionType": "MAINTAIN",
+    "description": "Quero algo leve e divertido para sustentar essa vibe animada."
+  },
+  {
+    "mainSentimentId": 18,
+    "name": "Cansado(a)",
+    "intentionType": "TRANSFORM",
+    "description": "Busco algo para recarregar as energias e me animar."
+  },
+  {
+    "mainSentimentId": 18,
+    "name": "Cansado(a)",
+    "intentionType": "PROCESS",
+    "description": "Quero um filme que me ajude a relaxar e descarregar."
+  },
+  {
+    "mainSentimentId": 18,
+    "name": "Cansado(a)",
+    "intentionType": "EXPLORE",
+    "description": "Quero entender as causas da fadiga ou como lidar com ela."
+  },
+  {
+    "mainSentimentId": 18,
+    "name": "Cansado(a)",
+    "intentionType": "MAINTAIN",
+    "description": "Quero algo fácil de assistir, que não exija esforço."
+  }
+]
+
+
+Jornadas dos usuários:
+
+[
+  {
+    "separador": "--- Animado(a) - Explorar ---",
+    "journey_option_flow_id": 143,
+    "journeyStepFlowId": 40,
+    "option_text": "...revele a paixão e a persistência por trás de grandes conquistas?",
+    "step_question": "Para entender o que impulsiona essa energia, você busca um filme que...",
+    "contextual_hint": "Animado(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 144,
+    "journeyStepFlowId": 40,
+    "option_text": "...mergulhe na mente de gênios e inovadores, e sua busca por novas ideias?",
+    "step_question": "Para entender o que impulsiona essa energia, você busca um filme que...",
+    "contextual_hint": "Animado(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 145,
+    "journeyStepFlowId": 40,
+    "option_text": "...explore o poder da ambição e o caminho para a excelência?",
+    "step_question": "Para entender o que impulsiona essa energia, você busca um filme que...",
+    "contextual_hint": "Animado(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 146,
+    "journeyStepFlowId": 40,
+    "option_text": "...inspire a encontrar propósito e a viver com mais intensidade?",
+    "step_question": "Para entender o que impulsiona essa energia, você busca um filme que...",
+    "contextual_hint": "Animado(a) - Explorar"
+  },
+  {
+    "separador": "--- Animado(a) - Manter ---",
+    "journey_option_flow_id": 65,
+    "journeyStepFlowId": 19,
+    "option_text": "...repleto de risadas fáceis e um humor contagiante?",
+    "step_question": "Para sustentar essa vibe animada, você busca um filme que seja...",
+    "contextual_hint": "Animado(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 66,
+    "journeyStepFlowId": 19,
+    "option_text": "...um clássico 'feel-good' que aqueça o coração e traga bem-estar?",
+    "step_question": "Para sustentar essa vibe animada, você busca um filme que seja...",
+    "contextual_hint": "Animado(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 67,
+    "journeyStepFlowId": 19,
+    "option_text": "...uma animação vibrante ou um filme divertido para toda a família?",
+    "step_question": "Para sustentar essa vibe animada, você busca um filme que seja...",
+    "contextual_hint": "Animado(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 68,
+    "journeyStepFlowId": 19,
+    "option_text": "...um romance charmoso e leve, com um final doce e feliz?\"",
+    "step_question": "Para sustentar essa vibe animada, você busca um filme que seja...",
+    "contextual_hint": "Animado(a) - Manter"
+  },
+  {
+    "separador": "--- Animado(a) - Processar ---",
+    "journey_option_flow_id": 61,
+    "journeyStepFlowId": 17,
+    "option_text": "...te ofereça pura adrenalina e ação ininterrupta?",
+    "step_question": "Para amplificar essa energia, você busca um filme que...",
+    "contextual_hint": "Animado(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 62,
+    "journeyStepFlowId": 17,
+    "option_text": "...seja uma explosão de diversão com ritmo vibrante e contagiante?",
+    "step_question": "Para amplificar essa energia, você busca um filme que...",
+    "contextual_hint": "Animado(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 63,
+    "journeyStepFlowId": 17,
+    "option_text": "...te transporte para uma jornada grandiosa e cheia de mundos a explorar?",
+    "step_question": "Para amplificar essa energia, você busca um filme que...",
+    "contextual_hint": "Animado(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 64,
+    "journeyStepFlowId": 17,
+    "option_text": "...te inspire com histórias de grande triunfo e superação?",
+    "step_question": "Para amplificar essa energia, você busca um filme que...",
+    "contextual_hint": "Animado(a) - Processar"
+  },
+  {
+    "separador": "--- Animado(a) - Transformar ---",
+    "journey_option_flow_id": 60,
+    "journeyStepFlowId": 14,
+    "option_text": "...uma ficção científica que desafie a mente e expanda a realidade?",
+    "step_question": "Com essa energia, você quer um filme que te leve para...",
+    "contextual_hint": "Animado(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 180,
+    "journeyStepFlowId": 14,
+    "option_text": "...um suspense intrigante ou um mistério cheio de reviravoltas?",
+    "step_question": "Com essa energia, você quer um filme que te leve para...",
+    "contextual_hint": "Animado(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 181,
+    "journeyStepFlowId": 14,
+    "option_text": "...um drama profundo e envolvente sobre a condição humana?",
+    "step_question": "Com essa energia, você quer um filme que te leve para...",
+    "contextual_hint": "Animado(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 182,
+    "journeyStepFlowId": 14,
+    "option_text": "...um romance intenso e uma jornada emocional marcante?",
+    "step_question": "Com essa energia, você quer um filme que te leve para...",
+    "contextual_hint": "Animado(a) - Transformar"
+  },
+  {
+    "separador": "--- Ansioso(a) - Explorar ---",
+    "journey_option_flow_id": 102,
+    "journeyStepFlowId": 28,
+    "option_text": "...mergulhe na experiência psicológica da ansiedade e seus desafios internos?",
+    "step_question": "Para investigar as causas e o impacto da ansiedade, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 103,
+    "journeyStepFlowId": 28,
+    "option_text": "...explore a ansiedade como reflexo de pressões sociais ou sistemas opressores?",
+    "step_question": "Para investigar as causas e o impacto da ansiedade, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 104,
+    "journeyStepFlowId": 28,
+    "option_text": "...mostre a jornada de personagens que enfrentam e buscam superar a inquietação?",
+    "step_question": "Para investigar as causas e o impacto da ansiedade, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 105,
+    "journeyStepFlowId": 28,
+    "option_text": "...revele a ansiedade diante do desconhecido, de dilemas ou de futuros incertos?",
+    "step_question": "Para investigar as causas e o impacto da ansiedade, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Explorar"
+  },
+  {
+    "separador": "--- Ansioso(a) - Manter ---",
+    "journey_option_flow_id": 98,
+    "journeyStepFlowId": 27,
+    "option_text": "...te envolva em um suspense psicológico e mistérios intrigantes?",
+    "step_question": "Para uma imersão total que te faça esquecer a ansiedade, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 99,
+    "journeyStepFlowId": 27,
+    "option_text": "...te transporte para mundos complexos e ideias que desafiam a mente?",
+    "step_question": "Para uma imersão total que te faça esquecer a ansiedade, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 100,
+    "journeyStepFlowId": 27,
+    "option_text": "...te prenda com um drama intenso e enredos cheios de reviravoltas?",
+    "step_question": "Para uma imersão total que te faça esquecer a ansiedade, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 101,
+    "journeyStepFlowId": 27,
+    "option_text": "...jogue com a sua percepção e te surpreenda com reviravoltas inesperadas?",
+    "step_question": "Para uma imersão total que te faça esquecer a ansiedade, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Manter"
+  },
+  {
+    "separador": "--- Ansioso(a) - Processar ---",
+    "journey_option_flow_id": 118,
+    "journeyStepFlowId": 41,
+    "option_text": "...seja leve e divertido para desligar a mente?",
+    "step_question": "Para compreender e lidar com essa inquietação, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 119,
+    "journeyStepFlowId": 41,
+    "option_text": "...te envolva com visuais tranquilos e uma história sem pressa?",
+    "step_question": "Para compreender e lidar com essa inquietação, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 120,
+    "journeyStepFlowId": 41,
+    "option_text": "...ofereça um conforto aconchegante e uma sensação familiar?",
+    "step_question": "Para compreender e lidar com essa inquietação, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 184,
+    "journeyStepFlowId": 41,
+    "option_text": "...te permita escapar completamente da realidade?",
+    "step_question": "Para compreender e lidar com essa inquietação, você busca um filme que...",
+    "contextual_hint": "Ansioso(a) - Processar"
+  },
+  {
+    "separador": "--- Ansioso(a) - Transformar ---",
+    "journey_option_flow_id": 90,
+    "journeyStepFlowId": 26,
+    "option_text": "...repleto de risadas leves e uma diversão despretensiosa?",
+    "step_question": "Para aliviar a ansiedade e mudar o foco, você busca um filme que seja...",
+    "contextual_hint": "Ansioso(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 91,
+    "journeyStepFlowId": 26,
+    "option_text": "...um clássico 'feel-good' que aqueça o coração e traga bem-estar?",
+    "step_question": "Para aliviar a ansiedade e mudar o foco, você busca um filme que seja...",
+    "contextual_hint": "Ansioso(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 92,
+    "journeyStepFlowId": 26,
+    "option_text": "...uma animação encantadora ou um filme que te transporte para outro mundo?",
+    "step_question": "Para aliviar a ansiedade e mudar o foco, você busca um filme que seja...",
+    "contextual_hint": "Ansioso(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 93,
+    "journeyStepFlowId": 26,
+    "option_text": "...um romance charmoso e leve, com um final doce e feliz?",
+    "step_question": "Para aliviar a ansiedade e mudar o foco, você busca um filme que seja...",
+    "contextual_hint": "Ansioso(a) - Transformar"
+  },
+  {
+    "separador": "--- Calmo(a) - Explorar ---",
+    "journey_option_flow_id": 74,
+    "journeyStepFlowId": 21,
+    "option_text": "...inspire a viver com mais presença, simplicidade e conexão com a vida?",
+    "step_question": "Para investigar a calma e a paz interior, você busca um filme que...",
+    "contextual_hint": "Calmo(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 75,
+    "journeyStepFlowId": 21,
+    "option_text": "...mostre a jornada de personagens que encontraram a serenidade e o equilíbrio?",
+    "step_question": "Para investigar a calma e a paz interior, você busca um filme que...",
+    "contextual_hint": "Calmo(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 76,
+    "journeyStepFlowId": 21,
+    "option_text": "...explore a natureza da paz interior e o equilíbrio da vida de forma profunda?",
+    "step_question": "Para investigar a calma e a paz interior, você busca um filme que...",
+    "contextual_hint": "Calmo(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 77,
+    "journeyStepFlowId": 21,
+    "option_text": "...revele as nuances da calma em histórias e ambientes contemplativos?",
+    "step_question": "Para investigar a calma e a paz interior, você busca um filme que...",
+    "contextual_hint": "Calmo(a) - Explorar"
+  },
+  {
+    "separador": "--- Calmo(a) - Manter ---",
+    "journey_option_flow_id": 69,
+    "journeyStepFlowId": 20,
+    "option_text": "...repleto de leveza e um humor suave para descontrair?",
+    "step_question": "Para manter essa paz e bem-estar, que filme você busca que seja...",
+    "contextual_hint": "Calmo(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 70,
+    "journeyStepFlowId": 20,
+    "option_text": "...um romance delicado e acolhedor para aquecer o coração?",
+    "step_question": "Para manter essa paz e bem-estar, que filme você busca que seja...",
+    "contextual_hint": "Calmo(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 72,
+    "journeyStepFlowId": 20,
+    "option_text": "...com uma história simples e visualmente agradável para apenas desfrutar?",
+    "step_question": "Para manter essa paz e bem-estar, que filme você busca que seja...",
+    "contextual_hint": "Calmo(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 73,
+    "journeyStepFlowId": 20,
+    "option_text": "...um clássico reconfortante ou um passatempo familiar?",
+    "step_question": "Para manter essa paz e bem-estar, que filme você busca que seja...",
+    "contextual_hint": "Calmo(a) - Manter"
+  },
+  {
+    "separador": "--- Calmo(a) - Processar ---",
+    "journey_option_flow_id": 78,
+    "journeyStepFlowId": 22,
+    "option_text": "...te envolva em uma atmosfera de reflexão e ritmo calmo?",
+    "step_question": "Para aprofundar e contemplar essa serenidade, que filme você busca que...",
+    "contextual_hint": "Calmo(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 79,
+    "journeyStepFlowId": 22,
+    "option_text": "...te deslumbre com visuais e cenários espetaculares?",
+    "step_question": "Para aprofundar e contemplar essa serenidade, que filme você busca que...",
+    "contextual_hint": "Calmo(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 80,
+    "journeyStepFlowId": 22,
+    "option_text": "...explore a beleza da natureza ou da arte de forma serena?",
+    "step_question": "Para aprofundar e contemplar essa serenidade, que filme você busca que...",
+    "contextual_hint": "Calmo(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 81,
+    "journeyStepFlowId": 22,
+    "option_text": "...mergulhe suavemente na complexidade da vida e das relações humanas?",
+    "step_question": "Para aprofundar e contemplar essa serenidade, que filme você busca que...",
+    "contextual_hint": "Calmo(a) - Processar"
+  },
+  {
+    "separador": "--- Calmo(a) - Transformar ---",
+    "journey_option_flow_id": 86,
+    "journeyStepFlowId": 24,
+    "option_text": "...te prenda com pura adrenalina e ação ininterrupta?",
+    "step_question": "Para uma experiência mais intensa e que te tire da rotina, você busca um filme que...\"",
+    "contextual_hint": "Calmo(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 87,
+    "journeyStepFlowId": 24,
+    "option_text": "...te envolva em um suspense psicológico ou um thriller de tirar o fôlego?",
+    "step_question": "Para uma experiência mais intensa e que te tire da rotina, você busca um filme que...\"",
+    "contextual_hint": "Calmo(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 88,
+    "journeyStepFlowId": 24,
+    "option_text": "...mergulhe em um drama de guerra, um grande evento histórico ou uma luta por justiça impactante?",
+    "step_question": "Para uma experiência mais intensa e que te tire da rotina, você busca um filme que...\"",
+    "contextual_hint": "Calmo(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 89,
+    "journeyStepFlowId": 24,
+    "option_text": "...uma jornada de amadurecimento e nostalgia",
+    "step_question": "Para uma experiência mais intensa e que te tire da rotina, você busca um filme que...\"",
+    "contextual_hint": "Calmo(a) - Transformar"
+  },
+  {
+    "separador": "--- Cansado(a) - Explorar ---",
+    "journey_option_flow_id": 139,
+    "journeyStepFlowId": 39,
+    "option_text": "...revele o esgotamento mental, emocional e o impacto das pressões em diferentes contextos sociais?",
+    "step_question": "Para investigar as causas e nuances da fadiga, mental ou emocional, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 140,
+    "journeyStepFlowId": 39,
+    "option_text": "...ofereça caminhos para a resiliência e o reequilíbrio?",
+    "step_question": "Para investigar as causas e nuances da fadiga, mental ou emocional, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 141,
+    "journeyStepFlowId": 39,
+    "option_text": "...mostre a jornada de autodescoberta e reflexão para lidar com o cansaço?",
+    "step_question": "Para investigar as causas e nuances da fadiga, mental ou emocional, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 142,
+    "journeyStepFlowId": 39,
+    "option_text": "...explore a desilusão e a busca por sentido em meio à exaustão existencial?",
+    "step_question": "Para investigar as causas e nuances da fadiga, mental ou emocional, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Explorar"
+  },
+  {
+    "separador": "--- Cansado(a) - Manter ---",
+    "journey_option_flow_id": 138,
+    "journeyStepFlowId": 38,
+    "option_text": "...te ofereça histórias leves e inspiradoras que celebram a alegria nos pequenos momentos?",
+    "step_question": "Para um filme que não exija esforço, você busca que ele seja...",
+    "contextual_hint": "Cansado(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 147,
+    "journeyStepFlowId": 38,
+    "option_text": "...um conforto aconchegante e uma sensação familiar?",
+    "step_question": "Para um filme que não exija esforço, você busca que ele seja...",
+    "contextual_hint": "Cansado(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 148,
+    "journeyStepFlowId": 38,
+    "option_text": "...uma animação relaxante ou um filme com visuais tranquilos?",
+    "step_question": "Para um filme que não exija esforço, você busca que ele seja...",
+    "contextual_hint": "Cansado(a) - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 149,
+    "journeyStepFlowId": 38,
+    "option_text": "...seja puro entretenimento, para curtir sem pensar em nada?",
+    "step_question": "Para um filme que não exija esforço, você busca que ele seja...",
+    "contextual_hint": "Cansado(a) - Manter"
+  },
+  {
+    "separador": "--- Cansado(a) - Processar ---",
+    "journey_option_flow_id": 127,
+    "journeyStepFlowId": 35,
+    "option_text": "...seja leve e divertido para desligar a mente e garantir risadas despretensiosas?",
+    "step_question": "Para relaxar e descarregar, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 128,
+    "journeyStepFlowId": 35,
+    "option_text": "...ofereça um conforto aconchegante e uma sensação familiar?",
+    "step_question": "Para relaxar e descarregar, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 129,
+    "journeyStepFlowId": 35,
+    "option_text": "...te permita escapar completamente da realidade?",
+    "step_question": "Para relaxar e descarregar, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 183,
+    "journeyStepFlowId": 35,
+    "option_text": "...te envolva com visuais tranquilos e uma história sem pressa?",
+    "step_question": "Para relaxar e descarregar, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Processar"
+  },
+  {
+    "separador": "--- Cansado(a) - Transformar ---",
+    "journey_option_flow_id": 134,
+    "journeyStepFlowId": 37,
+    "option_text": "...te inspire com a superação de grandes desafios e a força da resiliência?",
+    "step_question": "Para recarregar as energias e se animar, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 135,
+    "journeyStepFlowId": 37,
+    "option_text": "...te motive com a realização de sonhos ambiciosos e a busca por excelência?",
+    "step_question": "Para recarregar as energias e se animar, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 136,
+    "journeyStepFlowId": 37,
+    "option_text": "...seja uma explosão de bom humor e energia contagiante?",
+    "step_question": "Para recarregar as energias e se animar, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 137,
+    "journeyStepFlowId": 37,
+    "option_text": "...te leve a uma jornada de autodescoberta e um novo olhar sobre a vida?",
+    "step_question": "Para recarregar as energias e se animar, você busca um filme que...",
+    "contextual_hint": "Cansado(a) - Transformar"
+  },
+  {
+    "separador": "--- Feliz / Alegre - Explorar ---",
+    "journey_option_flow_id": 5,
+    "journeyStepFlowId": 3,
+    "option_text": "...apresente diferentes culturas e visões sobre a alegria e o bem-estar?",
+    "step_question": "Para explorar a felicidade em suas diferentes formas, você busca um filme que...",
+    "contextual_hint": "Feliz / Alegre - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 177,
+    "journeyStepFlowId": 3,
+    "option_text": "...explore a felicidade através de uma jornada de autodescoberta e propósito?",
+    "step_question": "Para explorar a felicidade em suas diferentes formas, você busca um filme que...",
+    "contextual_hint": "Feliz / Alegre - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 178,
+    "journeyStepFlowId": 3,
+    "option_text": "...mergulhe nas nuances e no funcionamento interno das emoções positivas?",
+    "step_question": "Para explorar a felicidade em suas diferentes formas, você busca um filme que...",
+    "contextual_hint": "Feliz / Alegre - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 179,
+    "journeyStepFlowId": 3,
+    "option_text": "...revele a alegria e o significado nos pequenos momentos e na simplicidade da vida?",
+    "step_question": "Para explorar a felicidade em suas diferentes formas, você busca um filme que...",
+    "contextual_hint": "Feliz / Alegre - Explorar"
+  },
+  {
+    "separador": "--- Feliz / Alegre - Manter ---",
+    "journey_option_flow_id": 10,
+    "journeyStepFlowId": 5,
+    "option_text": "...provoque muitas risadas com humor ácido e situações inusitadas para descontrair?",
+    "step_question": "O filme ideal pode ajudar a prolongar essa sensação e manter essa vibe, você busca que ele seja...",
+    "contextual_hint": "Feliz / Alegre - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 11,
+    "journeyStepFlowId": 5,
+    "option_text": "...um calor no coração com histórias adoráveis e reconfortantes?",
+    "step_question": "O filme ideal pode ajudar a prolongar essa sensação e manter essa vibe, você busca que ele seja...",
+    "contextual_hint": "Feliz / Alegre - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 12,
+    "journeyStepFlowId": 5,
+    "option_text": "...uma animação encantadora ou com visuais relaxantes?",
+    "step_question": "O filme ideal pode ajudar a prolongar essa sensação e manter essa vibe, você busca que ele seja...",
+    "contextual_hint": "Feliz / Alegre - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 13,
+    "journeyStepFlowId": 5,
+    "option_text": "...te encante com a beleza visual e a riqueza de detalhes?",
+    "step_question": "O filme ideal pode ajudar a prolongar essa sensação e manter essa vibe, você busca que ele seja...",
+    "contextual_hint": "Feliz / Alegre - Manter"
+  },
+  {
+    "separador": "--- Feliz / Alegre - Processar ---",
+    "journey_option_flow_id": 24,
+    "journeyStepFlowId": 2,
+    "option_text": "...que me faça rir fácil e um humor contagiante?",
+    "step_question": "Para amplificar essa alegria, que filme você busca?",
+    "contextual_hint": "Feliz / Alegre - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 25,
+    "journeyStepFlowId": 2,
+    "option_text": "...provoque um calor no coração e uma sensação adorável?",
+    "step_question": "Para amplificar essa alegria, que filme você busca?",
+    "contextual_hint": "Feliz / Alegre - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 26,
+    "journeyStepFlowId": 2,
+    "option_text": "...seja empolgante e cheio de energia?",
+    "step_question": "Para amplificar essa alegria, que filme você busca?",
+    "contextual_hint": "Feliz / Alegre - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 27,
+    "journeyStepFlowId": 2,
+    "option_text": "...me faça reviver bons momentos e uma sensação de nostalgia?",
+    "step_question": "Para amplificar essa alegria, que filme você busca?",
+    "contextual_hint": "Feliz / Alegre - Processar"
+  },
+  {
+    "separador": "--- Feliz / Alegre - Transformar ---",
+    "journey_option_flow_id": 6,
+    "journeyStepFlowId": 4,
+    "option_text": "...te ofereça pura adrenalina e ação sem parar?",
+    "step_question": "Para direcionar essa energia ou surpreender, que filme busca?",
+    "contextual_hint": "Feliz / Alegre - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 7,
+    "journeyStepFlowId": 4,
+    "option_text": "...te emocione com um romance tocante e que faça refletir sobre o amor?",
+    "step_question": "Para direcionar essa energia ou surpreender, que filme busca?",
+    "contextual_hint": "Feliz / Alegre - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 8,
+    "journeyStepFlowId": 4,
+    "option_text": "...te prenda com um mistério inteligente e reviravoltas?",
+    "step_question": "Para direcionar essa energia ou surpreender, que filme busca?",
+    "contextual_hint": "Feliz / Alegre - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 9,
+    "journeyStepFlowId": 4,
+    "option_text": "...um universo de fantasia com magia e seres incríveis?",
+    "step_question": "Para direcionar essa energia ou surpreender, que filme busca?",
+    "contextual_hint": "Feliz / Alegre - Transformar"
+  },
+  {
+    "separador": "--- Triste - Explorar ---",
+    "journey_option_flow_id": 43,
+    "journeyStepFlowId": 12,
+    "option_text": "...as complexidades psicológicas e internas da tristeza?",
+    "step_question": "Para investigar a tristeza, você busca um filme que revele...",
+    "contextual_hint": "Triste - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 44,
+    "journeyStepFlowId": 12,
+    "option_text": "...o impacto da tristeza em diferentes contextos sociais ou existenciais?",
+    "step_question": "Para investigar a tristeza, você busca um filme que revele...",
+    "contextual_hint": "Triste - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 45,
+    "journeyStepFlowId": 12,
+    "option_text": "...nuances da melancolia em histórias e personagens únicos?",
+    "step_question": "Para investigar a tristeza, você busca um filme que revele...",
+    "contextual_hint": "Triste - Explorar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 46,
+    "journeyStepFlowId": 12,
+    "option_text": "...como a tristeza pode ser um caminho para a autodescoberta ou um novo olhar sobre a vida?",
+    "step_question": "Para investigar a tristeza, você busca um filme que revele...",
+    "contextual_hint": "Triste - Explorar"
+  },
+  {
+    "separador": "--- Triste - Manter ---",
+    "journey_option_flow_id": 32,
+    "journeyStepFlowId": 9,
+    "option_text": "...a complexidade das relações humanas e o isolamento?",
+    "step_question": "Certo. Dentro dessa intensidade emocional, você se inclina mais para...",
+    "contextual_hint": "Triste - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 33,
+    "journeyStepFlowId": 9,
+    "option_text": "...uma jornada de superação pessoal em meio à adversidade?",
+    "step_question": "Certo. Dentro dessa intensidade emocional, você se inclina mais para...",
+    "contextual_hint": "Triste - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 34,
+    "journeyStepFlowId": 9,
+    "option_text": "...histórias de conexão e pertencimento para aquecer o coração?",
+    "step_question": "Certo. Dentro dessa intensidade emocional, você se inclina mais para...",
+    "contextual_hint": "Triste - Manter"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 52,
+    "journeyStepFlowId": 9,
+    "option_text": "...um drama pessoal, uma história de perda, ou algo que explore a fragilidade da condição humana?",
+    "step_question": "Certo. Dentro dessa intensidade emocional, você se inclina mais para...",
+    "contextual_hint": "Triste - Manter"
+  },
+  {
+    "separador": "--- Triste - Processar ---",
+    "journey_option_flow_id": 82,
+    "journeyStepFlowId": 23,
+    "option_text": "...desabafar e liberar emoções?",
+    "step_question": "Para elaborar essa tristeza, você busca um filme que te ajude a...",
+    "contextual_hint": "Triste - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 83,
+    "journeyStepFlowId": 23,
+    "option_text": "...encontrar inspiração e resiliência diante da dor?",
+    "step_question": "Para elaborar essa tristeza, você busca um filme que te ajude a...",
+    "contextual_hint": "Triste - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 84,
+    "journeyStepFlowId": 23,
+    "option_text": "...me sentir compreendido(a) e encontrar conforto na identificação?",
+    "step_question": "Para elaborar essa tristeza, você busca um filme que te ajude a...",
+    "contextual_hint": "Triste - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 107,
+    "journeyStepFlowId": 23,
+    "option_text": "...refletir de forma serena sobre a melancolia e a passagem do tempo?",
+    "step_question": "Para elaborar essa tristeza, você busca um filme que te ajude a...",
+    "contextual_hint": "Triste - Processar"
+  },
+  {
+    "separador": "--- Triste - Transformar ---",
+    "journey_option_flow_id": 158,
+    "journeyStepFlowId": 10,
+    "option_text": "...uma comédia leve e divertida para distrair e aliviar o humor?",
+    "step_question": "Entendi. Para esse escape, você estaria mais a fim de...",
+    "contextual_hint": "Triste - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 159,
+    "journeyStepFlowId": 10,
+    "option_text": "...uma animação divertida e colorida",
+    "step_question": "Entendi. Para esse escape, você estaria mais a fim de...",
+    "contextual_hint": "Triste - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 160,
+    "journeyStepFlowId": 10,
+    "option_text": "...uma aventura leve e sem grandes dramas?",
+    "step_question": "Entendi. Para esse escape, você estaria mais a fim de...",
+    "contextual_hint": "Triste - Transformar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 176,
+    "journeyStepFlowId": 10,
+    "option_text": "...um filme que inspire e aqueça o coração com histórias de otimismo?",
+    "step_question": "Entendi. Para esse escape, você estaria mais a fim de...",
+    "contextual_hint": "Triste - Transformar"
+  },
+  {
+    "separador": "--- SEM CONTEXTUAL HINT ---",
+    "journey_option_flow_id": 54,
+    "journeyStepFlowId": 8,
+    "option_text": "...te transporte para uma época querida ou um tempo mais simples e despreocupado?",
+    "step_question": "Para qual período de boas lembranças você gostaria de viajar hoje?",
+    "contextual_hint": "Feliz / Alegre - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 55,
+    "journeyStepFlowId": 8,
+    "option_text": "...que te lembre a magia da infância e a inocência?",
+    "step_question": "Para qual período de boas lembranças você gostaria de viajar hoje?",
+    "contextual_hint": "Feliz / Alegre - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 56,
+    "journeyStepFlowId": 8,
+    "option_text": "...que celebre amizades duradouras e momentos simples da vida?",
+    "step_question": "Para qual período de boas lembranças você gostaria de viajar hoje?",
+    "contextual_hint": "Feliz / Alegre - Processar"
+  },
+  {
+    "separador": "",
+    "journey_option_flow_id": 57,
+    "journeyStepFlowId": 8,
+    "option_text": "...que traga de volta a emoção de grandes aventuras e descobertas?",
+    "step_question": "Para qual período de boas lembranças você gostaria de viajar hoje?",
+    "contextual_hint": "Feliz / Alegre - Processar"
+  }
+]
