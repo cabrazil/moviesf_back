@@ -419,6 +419,24 @@ Exemplos Bons:
 - (busca) "aprender que o silêncio não é um vazio, mas uma nova frequência para reencontrar a própria voz."
 - (busca) "uma experiência de suspense psicológico intenso que desafia os limites do medo."
 - (busca) "entender que a verdadeira coragem reside na aceitação da própria vulnerabilidade."
+- (busca) "atravessar a turbulência emocional de uma família desfeita que encontra na música a única linguagem comum."
+- (busca) "confrontar o vazio existencial através da busca incansável por significado em um mundo que perdeu o rumo."
+- (busca) "vivenciar a fusão entre sonho e realidade onde cada escolha redefine o limite entre sanidade e loucura."
+- (busca) "mergulhar na mente de um artista atormentado que transforma dor em beleza transcendente."
+- (busca) "descobrir como a honra, enterrada na areia da arena, pode brotar como a mais pura e devastadora forma de justiça."
+
+### ⚠️ RESTRIÇÕES DE VOCABULÁRIO (PALAVRAS VICIADAS)
+
+**PROIBIÇÃO ABSOLUTA** das seguintes palavras e expressões que estão sendo usadas em excesso:
+- ❌ **"alquimia"** (substituir por: fusão, confluência, encontro, síntese, entrelaçamento, junção)
+- ❌ **"coreografia"** (substituir por: dança, balé, fluxo, ritmo, sequência, movimento)
+- ❌ **"ácido"** como adjetivo (substituir por: afiado, cortante, mordaz, penetrante, incisivo)
+- ❌ **"frenético/frenesi"** (substituir por: acelerado, vertiginoso, intenso, turbilhão, voragem)
+- ❌ **"caos"** repetido (limitar a 10% de uso - substituir por: desordem, turbulência, confusão, entropia)
+
+**REGRA**: Se estiver tentado a usar uma das palavras proibidas, PARE e escolha um sinônimo da lista acima ou crie uma metáfora original.
+
+**VARIEDADE OBRIGATÓRIA**: Se você usar "fusão" em uma reflexão, não use "confluência" ou "encontro" na próxima. Varie constantemente entre os sinônimos.
 
 ### FORMATO JSON STRICT (RIGOROSO)
 IMPORTANTE: Use APENAS aspas duplas (") para todas as chaves e valores string. JAMAIS use aspas simples.
@@ -490,6 +508,18 @@ async function rephraseReasonWithAI(originalReason: string, forcedProvider?: AIP
 
     const prompt = `
 Tarefa: Transformar a frase abaixo em uma Frase Nominal curta, poética e direta, removendo o verbo inicial e proibindo terminantemente o uso de rótulos como "Um testemunho de", "Uma crônica de", "Um estudo sobre" ou "Um retrato de".
+
+### ⚠️ RESTRIÇÕES DE VOCABULÁRIO (PALAVRAS VICIADAS)
+
+**PROIBIÇÃO ABSOLUTA** das seguintes palavras e expressões que estão sendo usadas em excesso:
+- ❌ **"alquimia"** (substituir por: fusão, confluência, encontro, síntese, entrelaçamento, junção)
+- ❌ **"coreografia"** (substituir por: dança, balé, fluxo, ritmo, sequência, movimento)
+- ❌ **"ácido"** como adjetivo (substituir por: afiado, cortante, mordaz, penetrante, incisivo)
+- ❌ **"frenético/frenesi"** (substituir por: acelerado, vertiginoso, intenso, turbilhão, voragem)
+- ❌ **"caos"** repetido (limitar a 10% de uso - substituir por: desordem, turbulência, confusão, entropia)
+- ❌ **"testemunha/testemunhar"** (substituir por: observar, contemplar, vivenciar, presenciar)
+
+**REGRA ESSENCIAL**: Se a frase original contiver alguma palavra proibida, você DEVE substituí-la por um sinônimo da lista.
 
 EXEMPLOS DE REFERÊNCIA (Siga esta cadência):
 

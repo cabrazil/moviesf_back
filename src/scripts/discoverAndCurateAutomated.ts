@@ -41,6 +41,18 @@ async function rephraseReasonWithAI(originalReason: string): Promise<string> {
 Tarefa: Transformar a frase abaixo, que inicia com um verbo, em uma Frase Nominal (começando com artigo, substantivo ou pronome).
 IMPORTANTE: O resultado final deve ter NO MÁXIMO 24 PALAVRAS. Se a frase original for muito longa, RESUMA e simplifique para caber no limite.
 
+### ⚠️ RESTRIÇÕES DE VOCABULÁRIO (PALAVRAS VICIADAS)
+
+**PROIBIÇÃO ABSOLUTA** das seguintes palavras e expressões que estão sendo usadas em excesso:
+- ❌ **"alquimia"** (substituir por: fusão, confluência, encontro, síntese, entrelaçamento, junção)
+- ❌ **"coreografia"** (substituir por: dança, balé, fluxo, ritmo, sequência, movimento)
+- ❌ **"ácido"** como adjetivo (substituir por: afiado, cortante, mordaz, penetrante, incisivo)
+- ❌ **"frenético/frenesi"** (substituir por: acelerado, vertiginoso, intenso, turbulhão, voragem)
+- ❌ **"caos"** repetido (limitar a 10% de uso - substituir por: desordem, turbulência, confusão, entropia)
+- ❌ **"testemunha/testemunhar"** (substituir por: observar, contemplar, vivenciar, presenciar)
+
+**REGRA ESSENCIAL**: Se a frase original contiver alguma palavra proibida, você DEVE substituí-la por um sinônimo da lista.
+
 Regras:
 1. Comece com Artigo + Substantivo e remova o verbo inicial.
 2. Inicie com letra MAIÚSCULA.
@@ -829,6 +841,30 @@ O frontend exibe: "Este filme é perfeito para quem busca..."
 5. **TAMANHO OBRIGATÓRIO**: Entre 15 e 24 PALAVRAS. (Ideal: 20).
 6. **RESTRIÇÃO**: Evite "QUE/ONDE" em excesso. Use no máximo UMA oração subordinada.
 7. **ESTRUTURA**: Sujeito + Verbo + Predicado poético.
+
+Exemplos Bons:
+- (busca) "aprender que o silêncio não é um vazio, mas uma nova frequência para reencontrar a própria voz."
+- (busca) "uma experiência de suspense psicológico intenso que desafia os limites do medo."
+- (busca) "entender que a verdadeira coragem reside na aceitação da própria vulnerabilidade."
+- (busca) "atravessar a turbulência emocional de uma família desfeita que encontra na música a única linguagem comum."
+- (busca) "confrontar o vazio existencial através da busca incansável por significado em um mundo que perdeu o rumo."
+- (busca) "vivenciar a fusão entre sonho e realidade onde cada escolha redefine o limite entre sanidade e loucura."
+- (busca) "mergulhar na mente de um artista atormentado que transforma dor em beleza transcendente."
+- (busca) "descobrir como a honra, enterrada na areia da arena, pode brotar como a mais pura e devastadora forma de justiça."
+
+### ⚠️ RESTRIÇÕES DE VOCABULÁRIO (PALAVRAS VICIADAS)
+
+**PROIBIÇÃO ABSOLUTA** das seguintes palavras e expressões que estão sendo usadas em excesso:
+- ❌ **"alquimia"** (substituir por: fusão, confluência, encontro, síntese, entrelaçamento, junção)
+- ❌ **"coreografia"** (substituir por: dança, balé, fluxo, ritmo, sequência, movimento)
+- ❌ **"ácido"** como adjetivo (substituir por: afiado, cortante, mordaz, penetrante, incisivo)
+- ❌ **"frenético/frenesi"** (substituir por: acelerado, vertiginoso, intenso, turbilhão, voragem)
+- ❌ **"caos"** repetido (limitar a 10% de uso - substituir por: desordem, turbulência, confusão, entropia)
+- ❌ **"testemunha/testemunhar"** (substituir por: observar, contemplar, vivenciar, presenciar)
+
+**REGRA**: Se estiver tentado a usar uma das palavras proibidas, PARE e escolha um sinônimo da lista acima ou crie uma metáfora original.
+
+**VARIEDADE OBRIGATÓRIA**: Varie constantemente entre os sinônimos. Não repita sinônimos em reflexões próximas.
 
 Exemplos Bons:
 - "aprender que o silêncio não é um vazio, mas uma nova frequência para reencontrar a própria voz."
