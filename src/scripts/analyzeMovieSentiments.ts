@@ -663,13 +663,18 @@ async function main() {
     }
 
     // --- Nova verificação de imdbRating ---
-    const rating = movie.imdbRating ? Number(movie.imdbRating) : Number(movie.vote_average || 0);
+    // --- Nova verificação de imdbRating ---
+    // Usar o maior rating entre IMDb e TMDB para ser mais justo
+    const imdbRating = movie.imdbRating ? Number(movie.imdbRating) : 0;
+    const tmdbRating = Number(movie.vote_average || 0);
+    const rating = Math.max(imdbRating, tmdbRating);
 
     if (rating < 5.6) {
-      console.log(`❌ Filme "${movie.title}" (Rating: ${rating.toFixed(1)}) não atende ao requisito de rating mínimo (5.6). Processo interrompido.`);
+      console.log(`❌ Filme "${movie.title}" (Melhor Rating: ${rating.toFixed(1)}) não atende ao requisito de rating mínimo (5.6). Processo interrompido.`);
       console.log(`   (IMDb: ${movie.imdbRating || 'N/A'}, TMDB: ${movie.vote_average || 'N/A'})`);
       return;
     }
+    // --- Fim da nova verificação ---
     // --- Fim da nova verificação ---
 
 
