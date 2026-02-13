@@ -325,7 +325,7 @@ ${libraryListFormatted.length > 0 ? libraryListFormatted.slice(0, 5).join('\n') 
 
     const response = await aiProvider.generateResponse(systemPrompt, prompt, {
       temperature: 0.5,
-      maxTokens: 1200  // Aumentado de 600 para 1200 para evitar JSON truncado
+      maxTokens: 2000  // Aumentado para 2000 para evitar JSON truncado em respostas longas
     });
 
     if (!response.success) {
@@ -335,7 +335,14 @@ ${libraryListFormatted.length > 0 ? libraryListFormatted.slice(0, 5).join('\n') 
 
     const content = response.content;
     console.log(`\nResposta do ${provider.toUpperCase()}:`);
+    console.log(`📊 Tamanho da resposta: ${content.length} caracteres`);
     console.log(content);
+
+    // Verificar se a resposta parece estar truncada
+    const seemsTruncated = !content.trim().endsWith('}') && !content.trim().endsWith('```');
+    if (seemsTruncated) {
+      console.log('⚠️ ALERTA: A resposta parece estar truncada (não termina com } ou ```)!');
+    }
 
     /**
      * Tenta reparar JSON truncado fechando chaves e colchetes abertos
@@ -409,16 +416,23 @@ ${libraryListFormatted.length > 0 ? libraryListFormatted.slice(0, 5).join('\n') 
     }
 
     try {
-      // Regex para extrair o JSON de dentro de um bloco de código Markdown
-      const jsonRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
-      const match = content.match(jsonRegex);
+      // PASSO 1: Remover blocos de código markdown primeiro (mais robusto)
+      let cleanedContent = content.trim();
 
+      // Remover ```json ou ``` do início e fim
+      cleanedContent = cleanedContent.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+
+      // PASSO 2: Encontrar o início do JSON (primeira {)
+      const jsonStart = cleanedContent.indexOf('{');
       let jsonString: string;
-      if (match && match[1]) {
-        jsonString = match[1].trim();
+
+      if (jsonStart !== -1) {
+        jsonString = cleanedContent.substring(jsonStart).trim();
+        console.log(`📝 JSON extraído (${jsonString.length} chars)`);
       } else {
-        // Se não houver markdown, tenta fazer o parse do conteúdo inteiro
-        jsonString = content.trim();
+        // Fallback: usar conteúdo inteiro se não encontrar {
+        jsonString = cleanedContent;
+        console.log('⚠️ Nenhum { encontrado, usando conteúdo completo');
       }
 
       // Tentar parse direto primeiro
