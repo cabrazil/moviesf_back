@@ -20,9 +20,13 @@ interface MovieToProcess {
   aiProvider?: 'openai' | 'deepseek' | 'gemini';
 }
 
+
+
+
 interface ProcessingResult {
   success: boolean;
   movie?: { title: string; year: number; id: string };
+  curedData?: any;
   error?: string;
 }
 
@@ -309,13 +313,39 @@ class MovieCurationOrchestrator {
       }
 
       console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
+
+      // Buscar dados finais da sugestão para retorno
+      const finalSuggestion = await prisma.movieSuggestionFlow.findFirst({
+        where: {
+          movieId: createdMovie.id,
+          journeyOptionFlowId: movie.journeyOptionFlowId
+        },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          journeyOptionFlow: {
+            include: {
+              journeyStepFlow: {
+                include: {
+                  journeyFlow: {
+                    include: {
+                      mainSentiment: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
       return {
         success: true,
         movie: {
           title: createdMovie.title,
           year: createdMovie.year || 0,
           id: createdMovie.id
-        }
+        },
+        curedData: finalSuggestion
       };
 
     } catch (error) {
@@ -886,7 +916,14 @@ async function main() {
     }
 
     const movie: MovieToProcess = parsed as MovieToProcess;
-    await orchestrator.processMovieList([movie], approveNewSubSentiments);
+    const results = await orchestrator.processMovieList([movie], approveNewSubSentiments);
+
+    // Imprimir resultado JSON para captura por ferramentas externas (n8n)
+    if (results.length > 0) {
+      console.log('\n---JSON_RESULT_START---');
+      console.log(JSON.stringify(results[0], null, 2));
+      console.log('---JSON_RESULT_END---');
+    }
 
   } catch (error) {
     console.error('❌ Erro fatal:', error);
