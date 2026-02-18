@@ -489,7 +489,7 @@ async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movie
             platforms.push(mapped.name);
           }
 
-          console.log(`Mapeando provedor: ${provider.provider_name} → ${mapped.name} (${accessType})`);
+          // Log de provedor mapeado suprimido (muito verboso)
         } else {
           console.log(`⚠️ Provedor não mapeado: ${provider.provider_name}`);
         }
@@ -631,7 +631,7 @@ async function getMovieCast(movieId: number): Promise<Array<{
       }
     }
 
-    console.log(`🎭 Encontrados ${mainCast.length} atores principais para o filme ${movieId}`);
+    console.log(`🎭 ${mainCast.length} atores principais encontrados para o filme ${movieId}`);
     return mainCast;
   } catch (error) {
     console.error(`Erro ao buscar elenco para o filme ${movieId}:`, error);
@@ -974,12 +974,9 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
       return null;
     }
 
-    // Mostrar resultados encontrados
-    console.log('\nResultados encontrados:');
-    response.data.results.slice(0, 5).forEach((movie, index) => {
-      const releaseYear = movie.release_date ? parseInt(movie.release_date.split('-')[0]) : 'N/A';
-      console.log(`${index + 1}. ${movie.title} (${movie.original_title}) - ${releaseYear}`);
-    });
+    // Mostrar primo resultado
+    const firstResult = response.data.results[0];
+    console.log(`🔍 Primeiro resultado: ${firstResult.title} (${firstResult.original_title}) - ${firstResult.release_date?.substring(0, 4) || 'N/A'}`);
 
     // Função para calcular similaridade entre strings
     function calculateSimilarity(str1: string, str2: string): number {

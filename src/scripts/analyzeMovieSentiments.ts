@@ -707,86 +707,56 @@ async function main() {
       journeyOption.option.id
     );
 
-    console.log('\n🔍 Validando sugestões da IA com o sentimento de destino (Lógica Inteligente)...');
+    console.log('🔍 Validando subsentimentos da IA...');
     const validatedSubSentiments: { suggestion: any; dbMatch: SubSentiment | null }[] = [];
 
     // Buscar TODOS os SubSentiments para validação (não apenas do analysisLens)
-    // Isso permite validar contra SubSentiments de qualquer MainSentiment que estejam na JOF
     const allSubSentiments = await prisma.subSentiment.findMany();
 
     for (const suggestion of (analysis.suggestedSubSentiments || [])) {
-      console.log(`\n🔍 Validando sugestão: "${suggestion.name}" (IA marcou como ${suggestion.isNew ? 'NOVO' : 'EXISTENTE'})${suggestion.id ? ` com ID ${suggestion.id}` : ''}`);
-
       let bestMatch: SubSentiment | null = null;
 
       // Se a IA retornou um ID (match OFFICIAL), confiar nele
       if (suggestion.id) {
         bestMatch = allSubSentiments.find(ss => ss.id === suggestion.id) || null;
 
-        if (bestMatch) {
-          console.log(`✅ Match direto por ID: "${suggestion.name}" -> "${bestMatch.name}" (ID: ${bestMatch.id})`);
-          validatedSubSentiments.push({ suggestion, dbMatch: bestMatch });
-          continue;
-        } else {
-          console.log(`⚠️ ID ${suggestion.id} não encontrado. Tentando matching semântico...`);
+        if (!bestMatch) {
+          console.log(`⚠️ ID ${suggestion.id} não encontrado para "${suggestion.name}". Tentando matching semântico...`);
         }
       }
 
       // Se não tem ID ou ID não encontrado, fazer matching semântico
-      bestMatch = findBestMatch(suggestion, allSubSentiments);
+      if (!bestMatch) {
+        bestMatch = findBestMatch(suggestion, allSubSentiments);
+      }
 
-      if (bestMatch) {
-        console.log(`✅ Match semântico: IA "${suggestion.name}" -> BD "${bestMatch.name}" (ID: ${bestMatch.id})`);
-        validatedSubSentiments.push({ suggestion, dbMatch: bestMatch });
-      } else {
-        // Se não encontrou match, tentar matching mais agressivo antes de criar novo
-        console.log(`⚠️ Match inicial não encontrado para "${suggestion.name}". Tentando matching semântico mais agressivo...`);
-
-        // Matching agressivo: verificar se alguma palavra principal do nome existe em algum subsentimento
-        const suggestionWords = suggestion.name.toLowerCase().split(/[^a-zA-Z0-9áàâãéêíóôõúç]+/).filter(w => w.length > 3);
-        let aggressiveMatch: SubSentiment | null = null;
+      if (!bestMatch) {
+        // Matching agressivo
+        const suggestionWords = suggestion.name.toLowerCase().split(/[^a-zA-Z0-9áàâãéêíóôõúç]+/).filter((w: string) => w.length > 3);
 
         for (const dbSub of allSubSentiments) {
-          const dbSubName = dbSub.name.toLowerCase();
-          const dbSubText = `${dbSubName} ${dbSub.keywords.join(' ')}`;
-
-          // Verificar se pelo menos 1 palavra principal está presente
-          const matchingWords = suggestionWords.filter(word =>
+          const dbSubText = `${dbSub.name.toLowerCase()} ${dbSub.keywords.join(' ')}`;
+          const matchingWords = suggestionWords.filter((word: string) =>
             dbSubText.includes(word) ||
             dbSub.keywords.some(kw => kw.toLowerCase().includes(word))
           );
-
           if (matchingWords.length > 0) {
-            aggressiveMatch = dbSub;
-            console.log(`✅ Match semântico agressivo encontrado: "${suggestion.name}" -> "${dbSub.name}" (palavras comuns: ${matchingWords.join(', ')})`);
+            bestMatch = dbSub;
             break;
           }
         }
 
-        if (aggressiveMatch) {
-          validatedSubSentiments.push({ suggestion, dbMatch: aggressiveMatch });
-        } else {
-          console.log(`⚠️ Nenhum match encontrado mesmo com busca agressiva para "${suggestion.name}".`);
-          // Só criar novo se realmente não encontrou nenhum match
-          validatedSubSentiments.push({ suggestion, dbMatch: null });
+        if (!bestMatch) {
+          console.log(`⚠️ Nenhum match encontrado para "${suggestion.name}" (será criado novo).`);
         }
       }
+
+      validatedSubSentiments.push({ suggestion, dbMatch: bestMatch });
     }
 
-    console.log('\nSugestões de SubSentiments (após validação):');
-    if (validatedSubSentiments.length === 0) {
-      console.log('Nenhuma sugestão da IA foi compatível com o sentimento de destino.');
-    } else {
-      validatedSubSentiments.forEach(({ suggestion, dbMatch }) => {
-        if (dbMatch) {
-          console.log(`\n- ${dbMatch.name} (Relevância: ${suggestion.relevance})`);
-          console.log(`  (Match para "${suggestion.name}")`);
-        } else {
-          console.log(`\n- ${suggestion.name} (Relevância: ${suggestion.relevance}) [NOVO]`);
-        }
-        console.log(`  Explicação IA: ${suggestion.explanation}`);
-      });
-    }
+    const matchCount = validatedSubSentiments.filter(v => v.dbMatch).length;
+    const newCount = validatedSubSentiments.filter(v => !v.dbMatch).length;
+    console.log(`✅ Matches OFICIAIS para gravação: ${matchCount}${newCount > 0 ? ` | 🆕 Novos: ${newCount}` : ''}`);
 
     console.log('\n=== GERANDO INSERTS SQL ===');
     let sqlInserts: string[] = [];
