@@ -106,9 +106,7 @@ class MovieCurationOrchestrator {
 
       if (movieFound && movieFound.tmdbId) {
         tmdbId = movieFound.tmdbId;
-        console.log(`✅ Filme já existe no banco: ${movieFound.title} (${movie.year})`);
-        console.log(`🎯 TMDB ID encontrado: ${tmdbId}`);
-        console.log(`🔄 Executando Etapa 1 para reprocessar plataformas de streaming...`);
+        console.log(`✅ Filme já existe no banco: ${movieFound.title} (${movie.year}) | TMDB: ${tmdbId}`);
       }
 
       // Etapa 1: Adicionar/Atualizar filme (sempre executa para reprocessar streaming)
@@ -130,7 +128,6 @@ class MovieCurationOrchestrator {
         }
       } else {
         tmdbId = parseInt(tmdbIdMatch[1]);
-        console.log(`🎯 TMDB ID capturado: ${tmdbId}`);
       }
 
       if (!tmdbId) {
@@ -139,24 +136,15 @@ class MovieCurationOrchestrator {
 
       // Etapa 1.5: Enriquecer dados de Oscar (Automático)
       try {
-        console.log(`🏆 Etapa 1.5: Verificando enriquecimento automático de Oscars...`);
         const oscarService = new OscarDataService();
-        // Não 'await' aqui se quisermos paralelo, mas como usamos o mesmo banco e pode causar lock, melhor await.
-        // E é rápido (só consulta texto se precisar).
         await oscarService.enrichMovieAwards(tmdbId);
       } catch (oscarError) {
         console.error('⚠️ Falha não crítica ao enriquecer Oscars:', oscarError);
-        // Não interrompe o fluxo principal
       }
 
       // Usar o AI Provider especificado ou padrão (openai)
       const finalAiProvider = movie.aiProvider || 'openai';
-      console.log(`🤖 AI Provider configurado: ${finalAiProvider.toUpperCase()}`);
-
-      // Etapa 2: Analisar sentimentos
-      console.log(`🧠 Etapa 2: Analisando sentimentos...`);
-      console.log(`🔄 Executando análise da IA (sempre executa, mesmo se já houver sentimentos)`);
-      console.log(`📝 Novos sentimentos serão adicionados, existentes serão preservados`);
+      console.log(`🤖 Etapa 2: Analisando sentimentos (${finalAiProvider.toUpperCase()})...`);
       const analysisArgs = [
         tmdbId.toString(), // Usar tmdbId 
         movie.journeyOptionFlowId.toString(),
@@ -247,88 +235,63 @@ class MovieCurationOrchestrator {
         console.log(`🔒 Etapa 5: Mantendo campos genéricos existentes (relevanceScore atual: ${shouldUpdateGenericFields.currentScore} ≤ melhor existente: ${shouldUpdateGenericFields.existingScore})`);
       }
 
-      console.log(`\n🎯 === INICIANDO ETAPA 6: ATUALIZAÇÃO DE RANKING DE RELEVANCE ===`);
-
+      // Etapa 6: Atualizar ranking de relevance
       // Buscar filme usando tmdbId (mais confiável que título/ano)
       const createdMovie = await prisma.movie.findUnique({
-        where: { tmdbId: tmdbId },
-        include: {
-          movieSuggestionFlows: {
-            where: { journeyOptionFlowId: movie.journeyOptionFlowId },
-            orderBy: { updatedAt: 'desc' },
-            take: 1
-          }
-        }
+        where: { tmdbId: tmdbId }
       });
 
       if (!createdMovie) {
         console.error(`❌ Filme não encontrado no banco de dados (tmdbId: ${tmdbId}).`);
-        // Tentar buscar por título/ano como fallback
         const fallbackMovie = await prisma.movie.findFirst({
           where: { title: movie.title, year: movie.year }
         });
         if (!fallbackMovie) {
           return { success: false, error: 'Filme não encontrado no banco de dados após o processo.' };
         }
-        console.log(`⚠️ Filme encontrado via fallback (título/ano): ${fallbackMovie.title} (ID: ${fallbackMovie.id})`);
-        // Usar o filme encontrado via fallback
-        const movieIdForRanking = fallbackMovie.id;
-        console.log(`🔄 Atualizando ranking usando ID do fallback: ${movieIdForRanking}`);
         try {
           const { updateRelevanceRankingForMovie } = await import('../utils/relevanceRanking');
-          await updateRelevanceRankingForMovie(movieIdForRanking);
+          await updateRelevanceRankingForMovie(fallbackMovie.id);
         } catch (error) {
           console.error(`❌ Erro ao atualizar ranking:`, error);
         }
-        // Continuar o fluxo normalmente
         return {
           success: true,
-          movie: {
-            title: fallbackMovie.title,
-            year: fallbackMovie.year || 0,
-            id: fallbackMovie.id
-          }
+          movie: { title: fallbackMovie.title, year: fallbackMovie.year || 0, id: fallbackMovie.id }
         };
       }
 
-      console.log(`📋 Filme encontrado: ${createdMovie.title} (ID: ${createdMovie.id}, tmdbId: ${tmdbId})`);
-
-      // Etapa 6: Atualizar ranking de relevance para garantir consistência após todo o processamento
-      // Isso é importante porque múltiplas sugestões podem ter sido criadas/atualizadas
-      // O campo relevance é atualizado baseado no relevanceScore: maior score = relevance 1
-      console.log(`🔄 Etapa 6: Atualizando ranking de relevance baseado em relevanceScore...`);
+      console.log(`🔄 Etapa 6: Atualizando ranking de relevance...`);
 
       try {
         const { updateRelevanceRankingForMovie } = await import('../utils/relevanceRanking');
-        const rankingUpdated = await updateRelevanceRankingForMovie(createdMovie.id);
-        console.log(`📊 Resultado da atualização: ${rankingUpdated ? 'SUCESSO' : 'FALHOU'}`);
-
-        if (!rankingUpdated) {
-          console.log(`⚠️ Aviso: Atualização de ranking retornou false (pode não haver sugestões com relevanceScore)`);
-        }
+        await updateRelevanceRankingForMovie(createdMovie.id);
       } catch (rankingError) {
-        console.error(`❌ Erro ao atualizar ranking de relevance:`, rankingError);
-        console.log(`⚠️ Continuando processo apesar do erro no ranking...`);
-        // Não falhar o processo inteiro se o ranking falhar
+        console.error(`❌ Erro ao atualizar ranking:`, rankingError);
       }
 
       console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
 
-      // Buscar dados finais da sugestão para retorno
+      // Buscar apenas os campos necessários para o n8n
       const finalSuggestion = await prisma.movieSuggestionFlow.findFirst({
         where: {
           movieId: createdMovie.id,
           journeyOptionFlowId: movie.journeyOptionFlowId
         },
         orderBy: { updatedAt: 'desc' },
-        include: {
+        select: {
+          relevanceScore: true,
+          reason: true,
           journeyOptionFlow: {
-            include: {
+            select: {
+              text: true,
               journeyStepFlow: {
-                include: {
+                select: {
                   journeyFlow: {
-                    include: {
-                      mainSentiment: true
+                    select: {
+                      mainSentiment: {
+                        select: { name: true }
+                      }
                     }
                   }
                 }
