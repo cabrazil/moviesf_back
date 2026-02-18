@@ -705,6 +705,7 @@ Se não houver alertas significativos, responda apenas com:
         DIRECT_URL: process.env.DIRECT_URL,
         BLOG_DATABASE_URL: process.env.BLOG_DATABASE_URL,
         BLOG_DIRECT_URL: process.env.BLOG_DIRECT_URL,
+        SILENT_ENV_LOG: 'true', // Suprimir banner de ambiente nos subprocessos
       };
 
       const child = spawn('npx', ['ts-node', scriptPath, ...args], {

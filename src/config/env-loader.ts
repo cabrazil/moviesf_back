@@ -25,7 +25,7 @@ export function loadEnvironment(): void {
   // 1. Carregar .env.{NODE_ENV} baseado no ambiente (maior prioridade)
   const envSpecificPath = path.join(projectRoot, `.env.${nodeEnv}`);
   const hasEnvSpecific = fs.existsSync(envSpecificPath);
-  
+
   if (hasEnvSpecific) {
     dotenv.config({ path: envSpecificPath, override: false });
     if (nodeEnv !== 'production') {
@@ -65,14 +65,16 @@ export function loadEnvironment(): void {
   // Log do ambiente atual
   const dbUrl = process.env.DATABASE_URL || '';
   const blogDbUrl = process.env.BLOG_DATABASE_URL || '';
-  
+
   const dbHost = dbUrl.match(/@([^:]+)/)?.[1] || 'não configurado';
   const blogDbHost = blogDbUrl.match(/@([^:]+)/)?.[1] || 'não configurado';
-  
-  // Sempre mostrar informações do banco (útil para testes locais)
-  console.log(`🌍 Ambiente: ${nodeEnv}`);
-  console.log(`📊 DB Filmes: ${dbHost}`);
-  console.log(`📝 DB Blog: ${blogDbHost}`);
+
+  // Mostrar banner de ambiente apenas se não for subprocesso silencioso
+  if (process.env.SILENT_ENV_LOG !== 'true') {
+    console.log(`🌍 Ambiente: ${nodeEnv}`);
+    console.log(`📊 DB Filmes: ${dbHost}`);
+    console.log(`📝 DB Blog: ${blogDbHost}`);
+  }
 }
 
 /**
