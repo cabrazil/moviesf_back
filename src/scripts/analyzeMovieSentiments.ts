@@ -461,8 +461,6 @@ ${libraryListFormatted.length > 0 ? libraryListFormatted.slice(0, 5).join('\n') 
               console.log(`   - ${s.name} (Relevância: ${s.relevance.toFixed(2)}): ${s.explanation}`);
             });
           }
-
-          console.log(`\n✅ Matches OFICIAIS para gravação: ${officialMatches.length}`);
         }
 
         return parsedResponse;
