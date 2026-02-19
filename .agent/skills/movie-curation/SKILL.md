@@ -43,8 +43,7 @@ O sistema de curadoria é uma ferramenta automatizada que:
 |----------|--------------|----------|
 | **OpenAI** | Coming-of-age, thrillers psicológicos, dramas complexos, lente 16 (Ansioso) | "Lady Bird", "As Vantagens de Ser Invisível" |
 | **DeepSeek** | Romance/Comédia, Família/Animação, Ação/Aventura, lentes 13 (Feliz) e 17 (Animado) | "John Wick", "Mad Max", filmes leves |
-| **Auto** | Seleção automática otimizada | Recomendado para maioria dos casos |
-
+**USe como padrão, deepseek, a menos que o usuário especifique o contrário**
 #### 3. 📊 Scripts de Processamento
 
 | Script | Função | Uso |
@@ -141,7 +140,7 @@ executeSqlFromFile.ts inserts.sql
 ### Etapa 4: Curadoria Final
 ```bash
 # Executado internamente pelo orchestrator
-discoverAndCurateAutomated.ts 245891 13 --ai-provider=auto
+discoverAndCurateAutomated.ts 245891 13 --ai-provider=deepseek
 ```
 
 **O que faz:**
@@ -159,7 +158,7 @@ npx ts-node src/scripts/orchestrator.ts \
   --journeyOptionFlowId=26 \
   --analysisLens=17 \
   --journeyValidation=13 \
-  --ai-provider=auto
+  --ai-provider=deepseek
 
 # Sistema escolhe: DEEPSEEK (ação + animado)
 # Resultado: "Adrenalina / Emoção Intensa", "Deslumbramento Visual"
@@ -187,7 +186,7 @@ npx ts-node src/scripts/orchestrator.ts \
   --journeyOptionFlowId=25 \
   --analysisLens=13 \
   --journeyValidation=13 \
-  --ai-provider=gemini
+  --ai-provider=deepseek
 
 # Gemini manual: Otimizado para romance
 # Resultado: "Doçura / Encanto", "Conforto / Aconchego Emocional"
@@ -224,7 +223,6 @@ npx ts-node src/scripts/orchestrator.ts \
 ### Estratégia Híbrida
 - **DeepSeek**: Custo ~80% menor que OpenAI
 - **OpenAI**: Reservado para casos complexos
-- **Auto**: Otimização automática custo/qualidade
 
 ### Métricas de Economia
 
@@ -338,7 +336,6 @@ AI_PROVIDER="auto"  # openai|gemini|deepseek|auto
 - **OpenAI**: Explicações mais detalhadas, menos novos subsentimentos
 - **Gemini**: Sugestões criativas, às vezes redundantes
 - **DeepSeek**: Balanceamento entre custo e qualidade
-- **Auto**: Balanceamento otimizado por contexto
 
 ## 🛠️ Ferramentas Auxiliares
 
@@ -356,9 +353,11 @@ npx ts-node src/scripts/testAIProviders.ts
 
 ### Duplicação de Sugestões
 ```bash
-# Duplicar sugestão existente para nova jornada
-npx ts-node src/scripts/duplicateMovieSuggestion.ts \
-  "John Wick" 2014 27
+# Duplicar sugestão existente para a jornada 61, exemplo
+# --journeyOptionFlowId=61 --> destino
+# --baseJourneyOptionFlowId=6 --> origem
+# para descobrir a origem precisa olhar a tabela MovieSuggestionFlow e capturar um código journeyOptionFlowId
+npx ts-node src/scripts/duplicateMovieSuggestion.ts --title="John Wick 4: Baba Yaga" --year=2023 --journeyOptionFlowId=61 --baseJourneyOptionFlowId=6
 ```
 
 ### Health Check Completo

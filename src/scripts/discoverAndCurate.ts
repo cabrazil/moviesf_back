@@ -151,27 +151,27 @@ function identifyThemes(movie: any, keywords: string[]): string[] {
   console.log(`Keywords: ${keywordsLower.slice(0, 10).join(', ')}...`);
 
   // Identificar temas baseado em palavras-chave e gêneros
-  if (synopsis.includes('superação') || synopsis.includes('superar') || 
-      synopsis.includes('crescimento') || synopsis.includes('desenvolvimento') ||
-      synopsis.includes('evolução') || synopsis.includes('transformação') ||
-      keywordsLower.includes('superação') || keywordsLower.includes('inspiração') ||
-      keywordsLower.includes('crescimento') || keywordsLower.includes('desenvolvimento')) {
+  if (synopsis.includes('superação') || synopsis.includes('superar') ||
+    synopsis.includes('crescimento') || synopsis.includes('desenvolvimento') ||
+    synopsis.includes('evolução') || synopsis.includes('transformação') ||
+    keywordsLower.includes('superação') || keywordsLower.includes('inspiração') ||
+    keywordsLower.includes('crescimento') || keywordsLower.includes('desenvolvimento')) {
     themes.push('superacao');
     console.log(`✅ Tema identificado: superacao`);
   }
 
-  if (synopsis.includes('família') || synopsis.includes('pai') || synopsis.includes('mãe') || 
-      synopsis.includes('filho') || synopsis.includes('filha') ||
-      synopsis.includes('amizade') || synopsis.includes('amigo') ||
-      synopsis.includes('relacionamento') || synopsis.includes('vínculo') ||
-      keywordsLower.includes('família') || keywordsLower.includes('pai solteiro') ||
-      keywordsLower.includes('amizade') || keywordsLower.includes('amigo')) {
+  if (synopsis.includes('família') || synopsis.includes('pai') || synopsis.includes('mãe') ||
+    synopsis.includes('filho') || synopsis.includes('filha') ||
+    synopsis.includes('amizade') || synopsis.includes('amigo') ||
+    synopsis.includes('relacionamento') || synopsis.includes('vínculo') ||
+    keywordsLower.includes('família') || keywordsLower.includes('pai solteiro') ||
+    keywordsLower.includes('amizade') || keywordsLower.includes('amigo')) {
     themes.push('familia');
     console.log(`✅ Tema identificado: familia`);
   }
 
   if (synopsis.includes('morte') || synopsis.includes('perda') || synopsis.includes('luto') ||
-      keywordsLower.includes('morte') || keywordsLower.includes('luto')) {
+    keywordsLower.includes('morte') || keywordsLower.includes('luto')) {
     themes.push('luto');
     console.log(`✅ Tema identificado: luto`);
   }
@@ -207,16 +207,16 @@ function identifyThemes(movie: any, keywords: string[]): string[] {
   }
 
   // Identificar tema histórico
-  if (synopsis.includes('guerra') || synopsis.includes('histórico') || 
-      keywordsLower.includes('guerra') || keywordsLower.includes('histórico') ||
-      keywordsLower.includes('segunda guerra mundial') || keywordsLower.includes('nazista')) {
+  if (synopsis.includes('guerra') || synopsis.includes('histórico') ||
+    keywordsLower.includes('guerra') || keywordsLower.includes('histórico') ||
+    keywordsLower.includes('segunda guerra mundial') || keywordsLower.includes('nazista')) {
     themes.push('historico');
     console.log(`✅ Tema identificado: historico`);
   }
 
   // Detecção adicional baseada em keywords específicas
   if (keywordsLower.includes('brinquedo') || keywordsLower.includes('toy') ||
-      keywordsLower.includes('boneco') || keywordsLower.includes('jogo')) {
+    keywordsLower.includes('boneco') || keywordsLower.includes('jogo')) {
     if (!themes.includes('familia')) {
       themes.push('familia');
       console.log(`✅ Tema identificado: familia (via keywords de brinquedos)`);
@@ -224,7 +224,7 @@ function identifyThemes(movie: any, keywords: string[]): string[] {
   }
 
   if (keywordsLower.includes('amizade') || keywordsLower.includes('amigo') ||
-      keywordsLower.includes('companheirismo') || keywordsLower.includes('lealdade')) {
+    keywordsLower.includes('companheirismo') || keywordsLower.includes('lealdade')) {
     if (!themes.includes('familia')) {
       themes.push('familia');
       console.log(`✅ Tema identificado: familia (via keywords de amizade)`);
@@ -232,7 +232,7 @@ function identifyThemes(movie: any, keywords: string[]): string[] {
   }
 
   if (keywordsLower.includes('aventura') || keywordsLower.includes('descoberta') ||
-      keywordsLower.includes('exploração') || keywordsLower.includes('jornada')) {
+    keywordsLower.includes('exploração') || keywordsLower.includes('jornada')) {
     if (!themes.includes('superacao')) {
       themes.push('superacao');
       console.log(`✅ Tema identificado: superacao (via keywords de aventura)`);
@@ -241,7 +241,7 @@ function identifyThemes(movie: any, keywords: string[]): string[] {
 
   const uniqueThemes = [...new Set(themes)]; // Remove duplicatas
   console.log(`\n🎯 Temas finais identificados: ${uniqueThemes.join(', ')}`);
-  
+
   return uniqueThemes;
 }
 
@@ -255,10 +255,10 @@ async function analyzeMovieWithOpenAI(movie: any, keywords: string[], availableS
 }> {
   // Identificar temas do filme
   const themes = identifyThemes(movie, keywords);
-  const requiredSubSentiments = themes.flatMap(theme => 
+  const requiredSubSentiments = themes.flatMap(theme =>
     SUB_SENTIMENTS_BY_THEME[theme]?.required || []
   );
-  const commonSubSentiments = themes.flatMap(theme => 
+  const commonSubSentiments = themes.flatMap(theme =>
     SUB_SENTIMENTS_BY_THEME[theme]?.common || []
   );
 
@@ -363,7 +363,7 @@ function question(query: string): Promise<string> {
 async function discoverMovie(movieTitle: string, movieYear: number) {
   console.log(`\n🎬 === FASE 1: DESCOBRIMENTO DO FILME ===`);
   console.log(`🔍 Buscando filme: "${movieTitle}" (${movieYear})...`);
-  
+
   // Buscar filme no banco
   const movie = await prisma.movie.findFirst({
     where: {
@@ -379,10 +379,10 @@ async function discoverMovie(movieTitle: string, movieYear: number) {
 
   console.log(`❌ Filme "${movieTitle}" (${movieYear}) não encontrado no banco`);
   const addMovie = await question("Deseja adicionar o filme ao banco? (s/n): ");
-  
+
   if (addMovie.toLowerCase() === 's') {
     console.log("🔄 Adicionando filme ao banco...");
-    
+
     // Buscar no TMDB (versão silenciosa)
     console.log("🔍 Buscando no TMDB...");
     const tmdbMovie = await searchMovieSilent(movieTitle, movieYear);
@@ -423,7 +423,7 @@ async function discoverMovie(movieTitle: string, movieYear: number) {
     // console.log(`   - Keywords: ${newMovie.keywords.length} keywords`);
     // console.log(`   - Streaming Platforms: ${newMovie.streamingPlatforms.length} plataformas`);
     // console.log(`   - Genre IDs: ${newMovie.genreIds ? newMovie.genreIds.length : 0} IDs`);
-    
+
     return newMovie;
   }
 
@@ -435,10 +435,10 @@ async function searchMovieSilent(movieTitle?: string, movieYear?: number, tmdbId
   // Temporariamente suprimir logs do console
   const originalLog = console.log;
   const originalError = console.error;
-  
-  console.log = () => {}; // Suprimir logs
-  console.error = () => {}; // Suprimir erros
-  
+
+  console.log = () => { }; // Suprimir logs
+  console.error = () => { }; // Suprimir erros
+
   try {
     const result = await searchMovie(movieTitle, movieYear, tmdbId);
     return result;
@@ -450,14 +450,14 @@ async function searchMovieSilent(movieTitle?: string, movieYear?: number, tmdbId
 }
 
 // ===== FASE 1.5: SELEÇÃO DA INTENÇÃO EMOCIONAL =====
-async function selectEmotionalIntention(mainSentimentId: number, movieGenres: string[]): Promise<{ 
-  success: boolean; 
-  emotionalIntention?: EmotionalIntention; 
-  message?: string 
+async function selectEmotionalIntention(mainSentimentId: number, movieGenres: string[]): Promise<{
+  success: boolean;
+  emotionalIntention?: EmotionalIntention;
+  message?: string
 }> {
   console.log(`\n🎭 === FASE 1.5: SELEÇÃO DA INTENÇÃO EMOCIONAL ===`);
   console.log(`🧠 Selecionando intenção emocional para o sentimento ID: ${mainSentimentId}`);
-  
+
   try {
     // 1. Buscar sentimento principal
     const mainSentiment = await prisma.mainSentiment.findUnique({
@@ -497,7 +497,7 @@ async function selectEmotionalIntention(mainSentimentId: number, movieGenres: st
 
     const choice = await question("\nDigite o número da opção: ");
     const selectedIndex = parseInt(choice) - 1;
-    
+
     if (selectedIndex < 0 || selectedIndex >= availableIntentions.length) {
       if (selectedIndex === availableIntentions.length) {
         console.log(`⏭️ Jornada tradicional selecionada`);
@@ -509,8 +509,8 @@ async function selectEmotionalIntention(mainSentimentId: number, movieGenres: st
 
     const selectedIntention = availableIntentions[selectedIndex];
     const intentionLabel = getIntentionLabel(selectedIntention.intentionType);
-    
-        console.log(`\n🎉 Intenção selecionada: ${intentionLabel}`);
+
+    console.log(`\n🎉 Intenção selecionada: ${intentionLabel}`);
     console.log(`📝 Descrição: ${selectedIntention.description}`);
 
     // 4. Validar compatibilidade apenas da intenção selecionada
@@ -566,19 +566,19 @@ async function selectEmotionalIntention(mainSentimentId: number, movieGenres: st
     } else {
       console.log(`✅ Intenção sem restrições específicas de gênero`);
     }
-    
+
     console.log(`🎬 Tom emocional: ${selectedIntention.emotionalTone}`);
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       emotionalIntention: selectedIntention as EmotionalIntention
     };
 
   } catch (error) {
     console.error('Erro na seleção da intenção emocional:', error);
-    return { 
-      success: false, 
-      message: `Erro: ${error}` 
+    return {
+      success: false,
+      message: `Erro: ${error}`
     };
   }
 }
@@ -587,7 +587,7 @@ async function selectEmotionalIntention(mainSentimentId: number, movieGenres: st
 function getIntentionLabel(intentionType: string): string {
   const labels = {
     'PROCESS': 'PROCESSAR',
-    'TRANSFORM': 'TRANSFORMAR', 
+    'TRANSFORM': 'TRANSFORMAR',
     'MAINTAIN': 'MANTER',
     'EXPLORE': 'EXPLORAR'
   };
@@ -598,7 +598,7 @@ function getIntentionLabel(intentionType: string): string {
 async function analyzeMovieSentiments(movieId: string, targetSentimentId?: number): Promise<SentimentAnalysisResult> {
   console.log(`\n🧠 === FASE 2: ANÁLISE DE SENTIMENTOS ===`);
   console.log(`📊 Analisando sentimentos para: "${movieId}"`);
-  
+
   try {
     // 1. Buscar filme no banco
     const movie = await prisma.movie.findUnique({
@@ -642,7 +642,7 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
         const targetMainSentiment = await prisma.mainSentiment.findUnique({
           where: { id: targetSentimentId }
         });
-        
+
         if (targetMainSentiment && mainSentimentGroups[targetMainSentiment.name]) {
           console.log(`\n🎯 Sentimento alvo "${targetMainSentiment.name}" já está presente.`);
           return {
@@ -669,7 +669,7 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
     }
 
     console.log(`🔄 Executando análise de sentimentos...`);
-    
+
     // 3. Buscar no TMDB
     const tmdbMovie = await searchMovie(movie.title, movie.year || undefined);
     if (!tmdbMovie) {
@@ -685,21 +685,21 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
 
     // 5. Identificar temas
     const themes = identifyThemes(tmdbMovie.movie, keywords);
-    
+
     // 6. Buscar SubSentiments disponíveis (todos, não apenas do sentimento alvo)
     const availableSubSentiments = await prisma.subSentiment.findMany();
     const subSentimentNames = availableSubSentiments.map(ss => ss.name);
 
     // 7. Filtrar SubSentiments temáticos apenas para os disponíveis
-    const requiredSubSentiments = themes.flatMap(theme => 
+    const requiredSubSentiments = themes.flatMap(theme =>
       SUB_SENTIMENTS_BY_THEME[theme]?.required || []
-    ).filter(required => 
+    ).filter(required =>
       availableSubSentiments.some(ss => ss.name === required.name)
     );
 
-    const commonSubSentiments = themes.flatMap(theme => 
+    const commonSubSentiments = themes.flatMap(theme =>
       SUB_SENTIMENTS_BY_THEME[theme]?.common || []
-    ).filter(common => 
+    ).filter(common =>
       availableSubSentiments.some(ss => ss.name === common)
     );
 
@@ -722,7 +722,7 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
 
     // Adicionar SubSentiments obrigatórios dos temas (PRIORIDADE MÁXIMA)
     const processedSubSentiments = new Set<string>(); // Para evitar duplicatas
-    
+
     for (const required of requiredSubSentiments) {
       const subSentiment = availableSubSentiments.find(ss => ss.name === required.name);
       if (subSentiment && !processedSubSentiments.has(required.name)) {
@@ -791,7 +791,7 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
         } else {
           throw new Error(`Sentimento alvo ID ${targetSentimentId} não encontrado`);
         }
-      } 
+      }
       // Senão, usar o primeiro sentimento dos SubSentiments encontrados
       else {
         const mainSentimentIds = new Set<number>();
@@ -801,7 +801,7 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
             mainSentimentIds.add(subSentiment.mainSentimentId);
           }
         });
-        
+
         targetMainSentimentId = Array.from(mainSentimentIds)[0];
         targetMainSentiment = await prisma.mainSentiment.findUnique({
           where: { id: targetMainSentimentId }
@@ -811,10 +811,10 @@ async function analyzeMovieSentiments(movieId: string, targetSentimentId?: numbe
 
       // 11. Criar registros na MovieSentiment APENAS para o sentimento alvo
       const createdSubSentiments: Array<{ name: string; score: number }> = [];
-      
+
       for (const suggestion of finalSubSentiments) {
         const subSentiment = availableSubSentiments.find(ss => ss.name === suggestion.name);
-        
+
         // FILTRO CRÍTICO: Apenas criar se o SubSentiment pertence ao sentimento alvo
         if (subSentiment && subSentiment.mainSentimentId === targetMainSentimentId) {
           // Verificar se o registro já existe
@@ -908,17 +908,17 @@ async function performTraditionalAnalysis(movie: any): Promise<SentimentAnalysis
 
 // ===== FASE 3: CURADORIA E VALIDAÇÃO DA JORNADA =====
 async function curateAndValidateJourney(
-  movieId: string, 
-  sentimentAnalysis: SentimentAnalysisResult, 
+  movieId: string,
+  sentimentAnalysis: SentimentAnalysisResult,
   emotionalIntention?: EmotionalIntention
 ): Promise<{ success: boolean; journeyPath?: JourneyPath; message?: string }> {
   console.log(`\n🎯 === FASE 3: CURADORIA E VALIDAÇÃO DA JORNADA ===`);
-  
+
   try {
     // 1. Escolher jornada baseada no sentimento
     let mainSentimentId: number;
     let sentimentSource: string;
-    
+
     // Se há intenção emocional, usar o sentimento da intenção (prioridade)
     if (emotionalIntention) {
       mainSentimentId = emotionalIntention.mainSentimentId;
@@ -933,7 +933,7 @@ async function curateAndValidateJourney(
       const mainSentiment = await prisma.mainSentiment.findFirst({
         where: { name: sentimentAnalysis.mainSentiment }
       });
-      
+
       if (mainSentiment) {
         mainSentimentId = mainSentiment.id;
         sentimentSource = `análise: ${sentimentAnalysis.mainSentiment}`;
@@ -941,19 +941,19 @@ async function curateAndValidateJourney(
       } else {
         throw new Error(`Sentimento "${sentimentAnalysis.mainSentiment}" não encontrado no banco`);
       }
-    } 
+    }
     // Última opção: escolha manual
     else {
       console.log("\n📋 Escolha o sentimento principal:");
       const mainSentiments = await prisma.mainSentiment.findMany({ orderBy: { id: 'asc' } });
-      
+
       mainSentiments.forEach((sentiment, index) => {
         console.log(`${index + 1}. ${sentiment.name} - ID: ${sentiment.id}`);
       });
 
       const choice = await question("\nDigite o número da opção: ");
       const selectedIndex = parseInt(choice) - 1;
-      
+
       if (selectedIndex < 0 || selectedIndex >= mainSentiments.length) {
         throw new Error("Opção inválida");
       }
@@ -972,7 +972,7 @@ async function curateAndValidateJourney(
 
     // 3. Descobrir jornada (agora com suporte à intenção emocional)
     const journeyPath = await discoverJourneySteps(mainSentimentId, emotionalIntention);
-    
+
     // 3. Validar última opção da jornada
     const lastStep = journeyPath.steps[journeyPath.steps.length - 1];
     const option = await prisma.journeyOptionFlow.findUnique({
@@ -992,17 +992,17 @@ async function curateAndValidateJourney(
 
     if (movieDetails) {
       const contextualValidation = await validateContextualCompatibility(
-        movieDetails, 
-        lastStep.optionId, 
+        movieDetails,
+        lastStep.optionId,
         option.text,
         emotionalIntention
       );
 
       if (!contextualValidation.compatible) {
         console.log(`❌ Validação contextual falhou: ${contextualValidation.reason}`);
-        return { 
-          success: false, 
-          message: `Incompatibilidade contextual: ${contextualValidation.reason}` 
+        return {
+          success: false,
+          message: `Incompatibilidade contextual: ${contextualValidation.reason}`
         };
       }
     }
@@ -1030,7 +1030,7 @@ async function curateAndValidateJourney(
     // 5. Buscar SubSentiments do filme
     const movieSubSentiments = await prisma.movieSentiment.findMany({
       where: { movieId: movieId },
-      include: { 
+      include: {
         subSentiment: {
           include: {
             mainSentiment: true
@@ -1043,8 +1043,8 @@ async function curateAndValidateJourney(
 
     // 6. Verificar compatibilidade
     const MIN_WEIGHT_THRESHOLD = 0.5; // Limiar mínimo para compatibilidade de peso
-    const compatibleSubSentiments = movieSubSentiments.filter(mss => 
-      optionSubSentiments.some(jofss => 
+    const compatibleSubSentiments = movieSubSentiments.filter(mss =>
+      optionSubSentiments.some(jofss =>
         jofss.subSentimentId === mss.subSentimentId && jofss.weight.toNumber() >= MIN_WEIGHT_THRESHOLD
       )
     );
@@ -1053,17 +1053,17 @@ async function curateAndValidateJourney(
     const indiferenteSentiment = await prisma.mainSentiment.findFirst({
       where: { name: "Indiferente" }
     });
-    
+
     if (indiferenteSentiment && mainSentimentId === indiferenteSentiment.id) {
       console.log(`\n🎭 Sentimento "Indiferente" detectado - aplicando lógica especial`);
       console.log(`💡 Para o estado inicial "Indiferente", qualquer subsentimento é válido`);
-      
+
       if (movieSubSentiments.length > 0) {
         console.log(`✅ Filme possui ${movieSubSentiments.length} subsentimentos - válido para jornada "Indiferente"`);
         movieSubSentiments.forEach(mss => {
           console.log(`   - ${mss.subSentiment.name} (${mss.subSentiment.mainSentiment.name})`);
         });
-        
+
         // Associar automaticamente os subsentimentos do filme à opção se não estiverem associados
         for (const mss of movieSubSentiments) {
           const existingAssociation = await prisma.journeyOptionFlowSubSentiment.findFirst({
@@ -1085,7 +1085,7 @@ async function curateAndValidateJourney(
             console.log(`   🔗 Associado automaticamente: ${mss.subSentiment.name}`);
           }
         }
-        
+
         return { success: true, journeyPath };
       } else {
         console.log(`❌ Filme não possui subsentimentos - inválido para jornada`);
@@ -1096,7 +1096,7 @@ async function curateAndValidateJourney(
     // LÓGICA NORMAL PARA OUTROS SENTIMENTOS
     if (compatibleSubSentiments.length === 0) {
       console.log(`❌ Nenhum SubSentiment compatível encontrado`);
-      
+
       // 7. RESOLUÇÃO AUTOMÁTICA: Associar SubSentiments do filme à opção
       const shouldAssociate = await question(
         `\n💡 Deseja associar os SubSentiments do filme à opção "${option.text}"? (s/n): `
@@ -1104,7 +1104,7 @@ async function curateAndValidateJourney(
 
       if (shouldAssociate.toLowerCase() === 's') {
         console.log(`🔄 Associando SubSentiments à opção...`);
-        
+
         for (const mss of movieSubSentiments) {
           // Verificar se já existe associação
           const existingAssociation = await prisma.journeyOptionFlowSubSentiment.findFirst({
@@ -1135,7 +1135,7 @@ async function curateAndValidateJourney(
         });
 
         console.log(`✅ Total de associações após atualização: ${updatedOptionSubSentiments.length}`);
-        
+
         return { success: true, journeyPath };
       } else {
         return { success: false, message: "Associação de SubSentiments rejeitada" };
@@ -1157,12 +1157,12 @@ async function curateAndValidateJourney(
 
 async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?: EmotionalIntention): Promise<JourneyPath> {
   console.log(`\n🎯 Descobrindo jornada para o sentimento ID: ${mainSentimentId}...`);
-  
+
   if (emotionalIntention) {
     const intentionLabel = getIntentionLabel(emotionalIntention.intentionType);
     console.log(`🧠 Usando intenção emocional: ${intentionLabel}`);
   }
-  
+
   // Buscar JourneyFlow
   const journeyFlow = await prisma.journeyFlow.findFirst({
     where: { mainSentimentId }
@@ -1173,11 +1173,11 @@ async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?
   }
 
   let steps: any[] = [];
-  
+
   // Se há intenção emocional, buscar steps personalizados
   if (emotionalIntention) {
     console.log(`🔍 Buscando steps personalizados para intenção ${getIntentionLabel(emotionalIntention.intentionType)}...`);
-    
+
     const customSteps = await prisma.emotionalIntentionJourneyStep.findMany({
       where: { emotionalIntentionId: emotionalIntention.id },
       include: {
@@ -1198,7 +1198,7 @@ async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?
         isRequired: cs.isRequired,
         priority: cs.priority
       }));
-      
+
       // Mostrar informações sobre personalização
       customSteps.forEach(cs => {
         if (cs.customQuestion) {
@@ -1212,7 +1212,7 @@ async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?
       console.log(`⚠️ Nenhum step personalizado encontrado, usando steps padrão da jornada`);
     }
   }
-  
+
   // Se não há steps personalizados ou não há intenção, usar steps padrão
   if (steps.length === 0) {
     console.log(`🔍 Usando steps padrão da jornada...`);
@@ -1226,17 +1226,17 @@ async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?
 
   // Começar com o primeiro step (ordem 1 ou priority 1)
   let currentStep = steps.find(s => (s.order === 1) || (s.priority === 1)) || steps[0];
-  
+
   while (currentStep) {
     // Usar pergunta personalizada se disponível
     const questionToShow = currentStep.customQuestion || currentStep.question;
     console.log(`\n📝 Passo: ${questionToShow}`);
-    
+
     // Mostrar dica contextual se disponível
     if (currentStep.contextualHint) {
       console.log(`💡 Dica: ${currentStep.contextualHint}`);
     }
-    
+
     // Buscar opções do step atual
     const options = await prisma.journeyOptionFlow.findMany({
       where: { journeyStepFlowId: currentStep.id },
@@ -1250,7 +1250,7 @@ async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?
 
     const choice = await question("\nDigite o número da opção: ");
     const selectedIndex = parseInt(choice) - 1;
-    
+
     if (selectedIndex < 0 || selectedIndex >= options.length) {
       throw new Error("Opção inválida");
     }
@@ -1280,17 +1280,17 @@ async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?
         console.log(`⚠️ Próximo step (ID: ${selectedOption.nextStepId}) não encontrado no banco.`);
         break;
       }
-    } 
+    }
     // Prioridade 2: Se não houver salto, seguir a ordem linear da jornada original
     else {
       const nextOrder = currentStep.order ? currentStep.order + 1 : null;
       const nextPriority = currentStep.priority ? currentStep.priority + 1 : null;
-      
-      nextStep = steps.find(s => 
-        (nextOrder && s.order === nextOrder) || 
+
+      nextStep = steps.find(s =>
+        (nextOrder && s.order === nextOrder) ||
         (nextPriority && s.priority === nextPriority)
       );
-      
+
       if (!nextStep) {
         console.log("✅ Não há mais steps na sequência linear da jornada.");
         break;
@@ -1300,7 +1300,7 @@ async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?
   }
 
   const mainSentiment = await prisma.mainSentiment.findUnique({ where: { id: mainSentimentId } });
-  
+
   return {
     mainSentimentId,
     mainSentimentName: mainSentiment?.name || "",
@@ -1314,7 +1314,7 @@ async function discoverJourneySteps(mainSentimentId: number, emotionalIntention?
 // ===== FASE 4: POPULAÇÃO DA SUGESTÃO =====
 async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Promise<boolean> {
   console.log(`\n🎬 === FASE 4: POPULAÇÃO DA SUGESTÃO ===`);
-  
+
   try {
     // 1. Buscar detalhes do filme
     const movieDetails = await prisma.movie.findUnique({
@@ -1350,7 +1350,7 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
 
     // 4. Criar entrada na MovieSuggestionFlow
     const lastStep = journeyPath.steps[journeyPath.steps.length - 1];
-    
+
     await prisma.movieSuggestionFlow.create({
       data: {
         movieId: movieId,
@@ -1362,7 +1362,7 @@ async function populateSuggestion(movieId: string, journeyPath: JourneyPath): Pr
 
     console.log(`✅ Sugestão criada com sucesso!`);
     console.log(`📝 Reflexão: "${reason}"`);
-    
+
     return true;
 
   } catch (error) {
@@ -1417,12 +1417,12 @@ Não repita o nome do filme.
 
 // Função para validar compatibilidade contextual entre filme e opção
 async function validateContextualCompatibility(
-  movie: any, 
-  optionId: number, 
+  movie: any,
+  optionId: number,
   optionText: string,
   emotionalIntention?: EmotionalIntention // NOVO PARÂMETRO
 ): Promise<{ compatible: boolean; reason?: string }> {
-  
+
   // Buscar detalhes da opção
   const option = await prisma.journeyOptionFlow.findUnique({
     where: { id: optionId }
@@ -1432,10 +1432,10 @@ async function validateContextualCompatibility(
     return { compatible: false, reason: "Opção não encontrada" };
   }
 
-  const movieGenres = Array.isArray(movie.genres) 
+  const movieGenres = Array.isArray(movie.genres)
     ? movie.genres.map((g: any) => typeof g === 'string' ? g.toLowerCase() : g.name?.toLowerCase()).filter(Boolean)
     : [];
-  const movieKeywords = Array.isArray(movie.keywords) 
+  const movieKeywords = Array.isArray(movie.keywords)
     ? movie.keywords.map((k: string) => k.toLowerCase())
     : [];
   const optionTextLower = optionText.toLowerCase();
@@ -1473,7 +1473,7 @@ async function validateContextualCompatibility(
       incompatibleKeywords: ['divertido', 'engraçado', 'engracado', 'ação', 'acao', 'aventura'],
       reason: "Filme de entretenimento não compatível com opção de reflexão profunda",
       // Condição para aplicar esta regra: SEMPRE aplicar, pois reflexão profunda não combina com entretenimento leve
-      applyCondition: (intention?: EmotionalIntention) => true 
+      applyCondition: (intention?: EmotionalIntention) => true
     }
   ];
 
@@ -1481,25 +1481,25 @@ async function validateContextualCompatibility(
   for (const rule of incompatibilityRules) {
     // Aplicar a regra apenas se a condição for verdadeira
     if (rule.applyCondition(emotionalIntention)) {
-      const hasIncompatibleOption = rule.optionKeywords.some(keyword => 
+      const hasIncompatibleOption = rule.optionKeywords.some(keyword =>
         new RegExp(`\b${keyword}\b`).test(optionTextLower)
       );
-      
-      const hasIncompatibleGenre = movieGenres.some((genre: string) => 
+
+      const hasIncompatibleGenre = movieGenres.some((genre: string) =>
         rule.incompatibleGenres.includes(genre)
       );
-      
-      const hasIncompatibleKeyword = movieKeywords.some((keyword: string) => 
-        rule.incompatibleKeywords.some(incompatible => 
+
+      const hasIncompatibleKeyword = movieKeywords.some((keyword: string) =>
+        rule.incompatibleKeywords.some(incompatible =>
           keyword.includes(incompatible)
         )
       );
 
       if (hasIncompatibleOption && (hasIncompatibleGenre || hasIncompatibleKeyword)) {
         console.log(`❌ Incompatibilidade detectada: ${rule.reason}`);
-        return { 
-          compatible: false, 
-          reason: rule.reason 
+        return {
+          compatible: false,
+          reason: rule.reason
         };
       }
     }
@@ -1513,17 +1513,17 @@ async function validateContextualCompatibility(
 async function main() {
   try {
     const args = process.argv.slice(2);
-    
+
     if (args.length < 2) {
-          console.log("🎬 === SISTEMA DE CURAÇÃO AUTOMÁTICA DE FILMES ===");
-    console.log("Uso: npx ts-node discoverAndCurate.ts \"Nome do Filme\" ano [sentimentoId]");
-    console.log("Exemplo: npx ts-node discoverAndCurate.ts \"Imperdoável\" 2021 14");
-    console.log("\nEste script irá:");
-    console.log("1. Descobrir/adicionar o filme ao banco");
-    console.log("1.5. Selecionar intenção emocional (PROCESSAR, TRANSFORMAR, MANTER, EXPLORAR)");
-    console.log("2. Analisar sentimentos automaticamente (ou apenas o sentimento especificado)");
-    console.log("3. Curar e validar a jornada personalizada (baseada na intenção emocional)");
-    console.log("4. Popular a sugestão final");
+      console.log("🎬 === SISTEMA DE CURAÇÃO AUTOMÁTICA DE FILMES ===");
+      console.log("Uso: npx ts-node discoverAndCurate.ts \"Nome do Filme\" ano [sentimentoId]");
+      console.log("Exemplo: npx ts-node discoverAndCurate.ts \"Imperdoável\" 2021 14");
+      console.log("\nEste script irá:");
+      console.log("1. Descobrir/adicionar o filme ao banco");
+      console.log("1.5. Selecionar intenção emocional (PROCESSAR, TRANSFORMAR, MANTER, EXPLORAR)");
+      console.log("2. Analisar sentimentos automaticamente (ou apenas o sentimento especificado)");
+      console.log("3. Curar e validar a jornada personalizada (baseada na intenção emocional)");
+      console.log("4. Popular a sugestão final");
       return;
     }
 
@@ -1554,7 +1554,7 @@ async function main() {
 
     // FASE 2: Análise de sentimentos
     const sentimentAnalysis = await analyzeMovieSentiments(movie.id, targetSentimentId);
-    
+
     if (!sentimentAnalysis.success) {
       console.log(`❌ Análise de sentimentos falhou: ${sentimentAnalysis.message}`);
       return;
@@ -1562,7 +1562,7 @@ async function main() {
 
     // FASE 3: Curadoria e validação da jornada
     const curationResult = await curateAndValidateJourney(movie.id, sentimentAnalysis, emotionalIntention);
-    
+
     if (!curationResult.success) {
       console.log(`❌ Curadoria falhou: ${curationResult.message}`);
       return;

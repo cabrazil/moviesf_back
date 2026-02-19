@@ -21,6 +21,7 @@ docker-compose.yml
 10mangos
 generated_articles/
 temp
+.agent
 
 # Scripts
 sql/*
