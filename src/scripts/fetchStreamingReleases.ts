@@ -29,6 +29,11 @@ const PROVIDER_IDS: Record<string, number> = {
   'Apple TV': 2
 };
 
+// Normaliza string: minúsculas + remove acentos (ex: 'Vídeo' -> 'video')
+function normalize(str: string): string {
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function parseArgs() {
   const args: any = {};
   process.argv.slice(2).forEach(arg => {
@@ -71,14 +76,14 @@ async function main() {
 
   if (args.providers) {
     const providerInput = (args.providers as string).trim();
-    // Busca exata primeiro, depois por substring (case-insensitive)
+    // Busca exata primeiro, depois por substring (normalizado — ignora acentos)
     const exactKey = Object.keys(PROVIDER_IDS).find(
-      k => k.toLowerCase() === providerInput.toLowerCase()
+      k => normalize(k) === normalize(providerInput)
     );
     const partialKey = !exactKey
       ? Object.keys(PROVIDER_IDS).find(k =>
-        k.toLowerCase().includes(providerInput.toLowerCase()) ||
-        providerInput.toLowerCase().includes(k.toLowerCase())
+        normalize(k).includes(normalize(providerInput)) ||
+        normalize(providerInput).includes(normalize(k))
       )
       : undefined;
 
