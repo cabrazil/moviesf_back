@@ -6,6 +6,8 @@ validateEnvironment();
 
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 // Importar todas as rotas necessárias
 import ssrRoutes from '../src/routes/ssr.routes';
@@ -22,6 +24,22 @@ import tmdbRoutes from '../src/routes/tmdb.routes';
 import newsletterRoutes from '../src/routes/newsletter.routes';
 
 const app = express();
+
+// --- Security & Rate Limiting ---
+app.set('trust proxy', 1); // Trust first proxy (useful for Vercel/Coolify proxy in front of Express)
+
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Permitir carregar imagens/recursos de outras origens
+}));
+
+const limiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: 150, // Limite de 150 requests por IP por minuto
+  message: { error: 'Muitas requisições deste IP, tente novamente mais tarde.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(limiter);
 
 // Middlewares
 app.use(cors({
