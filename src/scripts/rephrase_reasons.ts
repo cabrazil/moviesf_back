@@ -77,23 +77,18 @@ async function main() {
     provider: 'kimi' // Default provider
   };
 
-  let jofIdArg = args[0];
-  // Se o primeiro arg não começar com --, assumimos que é o ID
-  if (jofIdArg && !jofIdArg.startsWith('--')) {
-    parsedArgs.journeyOptionFlowId = parseInt(jofIdArg);
-  }
-
   for (const arg of args) {
-    if (arg.startsWith('--title=')) {
-      parsedArgs.title = arg.split('=')[1].replace(/^"|"$/g, '');
+    const argLower = arg.toLowerCase();
+    if (argLower.startsWith('--title=')) {
+      parsedArgs.title = arg.split('=')[1].replace(/^\"|\"$/g, '');
     }
-    if (arg.startsWith('--year=')) {
-      parsedArgs.year = parseInt(arg.split('=')[1].replace(/^"|"$/g, ''));
+    if (argLower.startsWith('--year=')) {
+      parsedArgs.year = parseInt(arg.split('=')[1].replace(/^\"|\"$/g, ''));
     }
-    if (arg.startsWith('--ia-provider=') || arg.startsWith('--ai-provider=')) {
-      parsedArgs.provider = arg.split('=')[1].replace(/^"|"$/g, '');
+    if (argLower.startsWith('--ai-provider=') || argLower.startsWith('--ia-provider=')) {
+      parsedArgs.provider = arg.split('=')[1].replace(/^\"|\"$/g, '');
     }
-    if (arg.startsWith('--jofId=') || arg.startsWith('-jofId=')) {
+    if (argLower.startsWith('--jofid=')) {
       parsedArgs.journeyOptionFlowId = parseInt(arg.split('=')[1]);
     }
   }
