@@ -496,6 +496,8 @@ async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movie
       }
     }
 
+    /*
+    // VERIFICAÇÃO DO YOUTUBE TEMPORARIAMENTE DESATIVADA (GERA MUITOS FALSOS POSITIVOS)
     // Verificar disponibilidade no YouTube se título e ano foram fornecidos e não foi solicitado pular
     if (!skipYouTube && movieTitle && movieYear) {
       const youtubeAvailability = await checkYouTubeAvailability(movieTitle, movieYear);
@@ -517,6 +519,7 @@ async function getMovieStreamingInfo(movieId: number, movieTitle?: string, movie
         }
       }
     }
+    */
 
     return { platforms, streamingData };
   } catch (error) {
