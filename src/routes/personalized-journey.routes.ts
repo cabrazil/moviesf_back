@@ -1,17 +1,16 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prismaApp as prisma } from '../prisma';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Personalized journey usando EmotionalIntentionJourneyStep - CORRETO
 router.get('/:sentimentId/:intentionId', async (req, res) => {
   try {
     const sentimentId = parseInt(req.params.sentimentId);
     const intentionId = parseInt(req.params.intentionId);
-    
+
     console.log(`🔍 Buscando jornada para sentimentId: ${sentimentId}, intentionId: ${intentionId}`);
-    
+
     // Buscar a intenção emocional para validar
     const emotionalIntention = await prisma.emotionalIntention.findUnique({
       where: { id: intentionId },
@@ -40,7 +39,7 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
         error: 'Fluxo de jornada não encontrado para este sentimento'
       });
     }
-    
+
     // Buscar steps da jornada usando EmotionalIntentionJourneyStep
     const journeySteps = await prisma.emotionalIntentionJourneyStep.findMany({
       where: { emotionalIntentionId: intentionId },
@@ -85,13 +84,13 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
         }
       }
     });
-    
+
     if (journeySteps.length === 0) {
       return res.status(404).json({ error: 'Nenhum passo da jornada encontrado' });
     }
-    
+
     console.log(`✅ Encontrados ${journeySteps.length} passos da jornada`);
-    
+
     // Preparar steps personalizados
     const customizedSteps = journeySteps.map((step: any) => ({
       id: step.journeyStepFlow.id,
@@ -125,7 +124,7 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
       while (hasNewSteps) {
         hasNewSteps = false;
         const referencedStepIds = new Set<string>();
-        
+
         // Coletar todos os nextStepId referenciados
         allSteps.forEach((step: any) => {
           step.options.forEach((option: any) => {
@@ -141,7 +140,7 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
 
         if (missingStepIds.length > 0) {
           console.log(`🔍 Buscando steps referenciados ausentes: ${missingStepIds.join(', ')}`);
-          
+
           const missingSteps = await prisma.journeyStepFlow.findMany({
             where: {
               journeyFlowId: journeyFlowId,
@@ -224,7 +223,7 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
 
     // Incluir steps referenciados
     const completeSteps = await includeReferencedSteps(customizedSteps, journeyFlow.id);
-    
+
     // Retornar jornada personalizada no formato esperado pelo frontend
     const response = {
       id: `${sentimentId}-${intentionId}`,
@@ -232,16 +231,16 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
       emotionalIntentionId: intentionId,
       steps: completeSteps
     };
-    
+
     console.log(`✅ Resposta final: ${response.steps.length} steps processados`);
     console.log(`📋 Steps incluídos: ${response.steps.map((s: any) => s.stepId).join(', ')}`);
-    
+
     res.json(response);
   } catch (error: any) {
     console.error('Erro ao buscar jornada personalizada:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Erro ao buscar jornada personalizada',
-      details: error.message 
+      details: error.message
     });
   }
 });

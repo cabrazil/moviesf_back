@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prismaApp as prisma } from '../prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /main-sentiments/summary
 router.get('/summary', async (req, res) => {

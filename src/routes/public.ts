@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prismaApp as prisma } from '../prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // ===============================================
 // ROTAS PÚBLICAS PARA LANDING PAGE
@@ -80,7 +79,7 @@ router.get('/filme/:slug', async (req, res) => {
 
     // Buscar filme por slug usando Prisma (sem o campo slug por enquanto)
     const movie = await prisma.movie.findFirst({
-      where: { 
+      where: {
         title: {
           contains: slug.replace(/-/g, ' '),
           mode: 'insensitive'
