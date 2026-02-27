@@ -1,58 +1,56 @@
 import { Router } from 'express';
-import { Pool } from 'pg';
+import { prismaApp as prisma } from '../prisma';
+import NodeCache from 'node-cache';
 
 const router = Router();
+const cache = new NodeCache({ stdTTL: 600 }); // Cache de 10 minutos
 
 router.get('/', async (req, res) => {
   try {
-    const { getSSLConfig } = require('../utils/ssl-config');
-    const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
-    const pool = new Pool({
-      connectionString: connectionString,
-      ssl: getSSLConfig(connectionString)
+    const cacheKey = 'streaming_platforms';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log(`⚡ Usando cache em memória para StreamingPlatforms (${(cached as any).length} itens)`);
+      return res.json(cached);
+    }
+
+    const platforms = await prisma.streamingPlatform.findMany({
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        showFilter: true,
+        logoPath: true,
+        baseUrl: true,
+        hasFreeTrial: true,
+        freeTrialDuration: true
+      }
     });
 
-    const platformsResult = await pool.query(`
-      SELECT 
-        id,
-        name,
-        category,
-        "showFilter",
-        "logoPath",
-        "baseUrl",
-        "hasFreeTrial",
-        "freeTrialDuration"
-      FROM "StreamingPlatform"
-      ORDER BY 
-        CASE "showFilter"
-          WHEN 'PRIORITY' THEN 1
-          WHEN 'SECONDARY' THEN 2
-          WHEN 'HIDDEN' THEN 3
-          ELSE 4
-        END,
-        CASE category
-          WHEN 'SUBSCRIPTION_PRIMARY' THEN 1
-          WHEN 'HYBRID' THEN 2
-          WHEN 'RENTAL_PURCHASE_PRIMARY' THEN 3
-          WHEN 'FREE_PRIMARY' THEN 4
-          ELSE 5
-        END,
-        name
-    `);
+    // Ordenação manual em memória para evitar sintaxe complexa no Prisma
+    platforms.sort((a, b) => {
+      // 1. Sort by showFilter
+      const showFilterOrder: any = { 'PRIORITY': 1, 'SECONDARY': 2, 'HIDDEN': 3 };
+      const rankA = showFilterOrder[a.showFilter] || 4;
+      const rankB = showFilterOrder[b.showFilter] || 4;
+      if (rankA !== rankB) return rankA - rankB;
 
-    await pool.end();
+      // 2. Sort by category
+      const categoryOrder: any = {
+        'SUBSCRIPTION_PRIMARY': 1,
+        'HYBRID': 2,
+        'RENTAL_PURCHASE_PRIMARY': 3,
+        'FREE_PRIMARY': 4
+      };
+      const catA = categoryOrder[a.category] || 5;
+      const catB = categoryOrder[b.category] || 5;
+      if (catA !== catB) return catA - catB;
 
-    const platforms = platformsResult.rows.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      category: row.category,
-      showFilter: row.showFilter,
-      logoPath: row.logoPath,
-      baseUrl: row.baseUrl,
-      hasFreeTrial: row.hasFreeTrial,
-      freeTrialDuration: row.freeTrialDuration
-    }));
+      // 3. Sort by name
+      return a.name.localeCompare(b.name);
+    });
 
+    cache.set(cacheKey, platforms);
     res.json(platforms);
 
   } catch (error) {

@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { prismaApp as prisma } from '../prisma';
+import NodeCache from 'node-cache';
 
 const router = Router();
+const cache = new NodeCache({ stdTTL: 600 }); // Cache de 10 minutos
 
 // ROTA SIMPLES PARA TESTE
 router.get('/test', async (req, res) => {
   try {
-    res.json({ 
+    res.json({
       message: 'Main-sentiments route funcionando!',
       timestamp: new Date().toISOString()
     });
@@ -19,7 +21,7 @@ router.get('/test', async (req, res) => {
 // ROTA PARA TESTAR ENVIRONMENT VARIABLES
 router.get('/env-test', async (req, res) => {
   try {
-    res.json({ 
+    res.json({
       message: 'Environment variables test',
       hasDatabaseUrl: !!process.env.DATABASE_URL,
       hasDirectUrl: !!process.env.DIRECT_URL,
@@ -37,14 +39,14 @@ router.get('/db-test', async (req, res) => {
   try {
     // Testar conexão simples
     const result = await prisma.$queryRaw`SELECT 1 as test`;
-    res.json({ 
+    res.json({
       message: 'Conexão com banco OK!',
       result,
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
     console.error('Erro na conexão com banco:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Erro na conexão com banco',
       details: error.message
     });
@@ -73,6 +75,13 @@ router.get('/summary', async (req, res) => {
 // Listar todos os sentimentos principais - OTIMIZADO
 router.get('/', async (req, res) => {
   try {
+    const cacheKey = 'all_main_sentiments';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log(`⚡ Usando cache em memória para MainSentiments (${(cached as any).length} itens)`);
+      return res.json(cached);
+    }
+
     const mainSentiments = await prisma.mainSentiment.findMany({
       select: {
         id: true,
@@ -84,7 +93,9 @@ router.get('/', async (req, res) => {
       },
       orderBy: { id: 'asc' }
     });
-    console.log(`✅ MainSentiments otimizado: ${mainSentiments.length} sentimentos carregados`);
+
+    cache.set(cacheKey, mainSentiments);
+    console.log(`✅ MainSentiments otimizado: ${mainSentiments.length} sentimentos carregados e salvos no cache`);
     res.json(mainSentiments);
   } catch (error) {
     console.error('Erro ao buscar sentimentos principais:', error);
