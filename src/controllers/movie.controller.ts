@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
+import { prismaApp as prisma } from '../prisma';
 
 export class MovieController {
   async getMoviesBySentiment(req: Request, res: Response): Promise<void> {

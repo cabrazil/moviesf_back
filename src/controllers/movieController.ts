@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import asyncHandler from 'express-async-handler';
 
-const prisma = new PrismaClient();
+import { prismaApp as prisma } from '../prisma';
 
 // @desc    Buscar sugestões de filmes
 // @route   GET /api/suggestions

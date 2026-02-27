@@ -1,8 +1,8 @@
 
-import { PrismaClient } from '@prisma/client';
+
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 
-const prisma = new PrismaClient();
+import { prismaApp as prisma } from '../prisma';
 
 interface OscarData {
   filmTitle: string;

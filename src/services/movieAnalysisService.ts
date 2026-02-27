@@ -1,11 +1,11 @@
 import axios from 'axios';
-import { PrismaClient, Movie, MovieSentiment, SubSentiment, MainSentiment } from '@prisma/client';
+import { Movie, MovieSentiment, SubSentiment, MainSentiment } from '@prisma/client';
 import NodeCache from 'node-cache';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const prisma = new PrismaClient();
+import { prismaApp as prisma } from '../prisma';
 const cache = new NodeCache({ stdTTL: 3600 }); // Cache por 1 hora
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;

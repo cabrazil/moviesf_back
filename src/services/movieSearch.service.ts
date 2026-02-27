@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
+import { prismaApp as prisma } from '../prisma';
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 

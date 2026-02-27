@@ -1,11 +1,11 @@
-import { PrismaClient, MainSentiment, SubSentiment } from '@prisma/client';
+import { MainSentiment, SubSentiment } from '@prisma/client';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import NodeCache from 'node-cache';
 
 dotenv.config();
 
-const prisma = new PrismaClient();
+import { prismaApp as prisma } from '../prisma';
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
