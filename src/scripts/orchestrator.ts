@@ -144,7 +144,16 @@ class MovieCurationOrchestrator {
 
       // Usar o AI Provider especificado ou padrão (openai)
       const finalAiProvider = movie.aiProvider || 'openai';
-      console.log(`🤖 Etapa 2: Analisando sentimentos (${finalAiProvider.toUpperCase()})...`);
+
+      // Etapa 1.6: Enriquecer Keywords Semânticas
+      console.log(`� Etapa 1.6: Enriquecendo keywords semânticas (${finalAiProvider.toUpperCase()})...`);
+      const enrichResult = await this.enrichMovieKeywords(tmdbId, finalAiProvider);
+      if (!enrichResult.success) {
+        console.log(`⚠️ Aviso: Falha ao enriquecer keywords: ${enrichResult.error}`);
+      } else {
+        console.log(`✅ Keywords enriquecidas com sucesso! Novas adicionadas: ${enrichResult.addedCount}`);
+      }
+      console.log(`�🤖 Etapa 2: Analisando sentimentos (${finalAiProvider.toUpperCase()})...`);
       const analysisArgs = [
         tmdbId.toString(), // Usar tmdbId 
         movie.journeyOptionFlowId.toString(),
@@ -682,6 +691,111 @@ Se não houver alertas significativos, responda apenas com:
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       return { success: false, error: `Erro ao gerar contentWarnings: ${errorMessage}` };
+    }
+  }
+
+  private async enrichMovieKeywords(tmdbId: number, aiProvider?: string): Promise<{ success: boolean; addedCount?: number; error?: string }> {
+    try {
+      // 1. Buscar filme e suas keywords/sinopse atuais
+      const movie = await prisma.movie.findUnique({
+        where: { tmdbId: tmdbId },
+        select: {
+          id: true,
+          title: true,
+          year: true,
+          description: true,
+          keywords: true
+        }
+      });
+
+      if (!movie) {
+        return { success: false, error: 'Filme não encontrado no banco' };
+      }
+
+      const currentKeywords = movie.keywords || [];
+      const description = movie.description || 'Sinopse não disponível.';
+
+      // 2. Configurar a IA
+      let provider: AIProvider = 'openai';
+      if (aiProvider === 'deepseek' || aiProvider === 'openai' || aiProvider === 'gemini') {
+        provider = aiProvider as AIProvider;
+      }
+      const config = getDefaultConfig(provider);
+      const ai = createAIProvider(config);
+
+      // 3. Montar Prompt
+      const systemPrompt = "Você é um especialista em análise cinematográfica e metadados semânticos.";
+      const prompt = `Filme: '${movie.title}' (${movie.year}).
+Keywords atuais: ${currentKeywords.join(', ')}
+Sinopse: ${description}
+
+Sua tarefa é gerar automaticamente uma lista de keywords enriquecidas para este filme.
+Você deve combinar:
+- análise semântica da sinopse
+- temas emocionais profundos
+- contexto histórico ou narrativo
+- elementos visuais ou estéticos
+
+As novas keywords devem:
+- ser em português
+- refletir elementos narrativos e emocionais
+- ser extremamente úteis para fazer matching com sub-sentimentos emocionais
+- NÃO REPETIR as keywords originais
+
+**Instrução SUPER CRÍTICA de formatação:** 
+Retorne APENAS uma lista de palavras ou frases curtas (max 3-4 palavras cada) separadas por VÍRGULA. 
+Não inclua introduções, explicações, quebras de linha ou aspas. Apenas a lista.
+Exemplo: melancolia poética, tragédia familiar, luto silencioso, arte nascida da dor, perda de um filho`;
+
+      // 4. Chamar IA
+      const response = await ai.generateResponse(systemPrompt, prompt, {
+        maxTokens: 200,
+        temperature: 0.6
+      });
+
+      if (!response.success) {
+        return { success: false, error: `Falha na IA: ${response.error}` };
+      }
+
+      // 5. Tratar resposta da IA
+      let aiText = response.content.trim();
+      // Remover eventuais blocos de código
+      aiText = aiText.replace(/```[\s\S]*?```/g, '').trim();
+
+      if (!aiText || aiText.length < 5) {
+        return { success: false, error: 'Resposta da IA vazia ou muito curta' };
+      }
+
+      // Converter para array limpando espaços
+      const rawNewKeywords = aiText.split(',').map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
+
+      // Filtrar keywords que já existem no array original
+      const newKeywords = rawNewKeywords.filter(k => !currentKeywords.map(ck => ck.toLowerCase()).includes(k));
+
+      if (newKeywords.length === 0) {
+        return { success: true, addedCount: 0 };
+      }
+
+      // 6. Atualizar no banco via SQL RAW garantindo unicidade (ARRAY_AGG e DISTINCT)
+      // Array literals in Postgres SQL raw queries require proper formatting
+      const keywordsStringLiteral = newKeywords.map(k => `'${k.replace(/'/g, "''")}'`).join(',');
+
+      const updateQuery = `
+        UPDATE "Movie" 
+        SET keywords = (
+          SELECT ARRAY_AGG(DISTINCT x) 
+          FROM UNNEST(keywords || ARRAY[${keywordsStringLiteral}]::text[]) AS x
+        )
+        WHERE id = '${movie.id}';
+      `;
+
+      await prisma.$executeRawUnsafe(updateQuery);
+
+      return { success: true, addedCount: newKeywords.length };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: `Erro inesperado: ${errorMessage}` };
     }
   }
 
