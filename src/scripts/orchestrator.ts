@@ -18,6 +18,7 @@ interface MovieToProcess {
   analysisLens: number;
   journeyValidation: number;
   aiProvider?: 'openai' | 'deepseek' | 'gemini';
+  tmdbId?: number; // opcional: quando fornecido, substitui title+year
 }
 
 
@@ -953,6 +954,13 @@ function parseNamedArgs(args: string[]): Partial<MovieToProcess> {
         if (!isNaN(validation)) parsed.journeyValidation = validation;
       }
     }
+    else if (arg.startsWith('--tmdbId=')) {
+      const tmdbIdStr = extractValue(arg, '--tmdbId=');
+      if (tmdbIdStr) {
+        const tmdbId = parseInt(removeQuotes(tmdbIdStr));
+        if (!isNaN(tmdbId)) parsed.tmdbId = tmdbId;
+      }
+    }
     else if (arg.startsWith('--ai-provider=')) {
       const provider = extractValue(arg, '--ai-provider=');
       if (provider) {
@@ -1001,8 +1009,26 @@ async function main() {
     }
 
     const parsed = parseNamedArgs(filteredArgs);
+
+    // Suporte a --tmdbId: busca título e ano no banco quando tmdbId é fornecido
+    if (parsed.tmdbId && (!parsed.title || !parsed.year)) {
+      console.log(`🔍 Buscando filme por TMDB ID: ${parsed.tmdbId}...`);
+      const existingMovie = await prisma.movie.findFirst({
+        where: { tmdbId: parsed.tmdbId },
+        select: { title: true, year: true }
+      });
+      if (existingMovie) {
+        parsed.title = existingMovie.title;
+        parsed.year = existingMovie.year || 0;
+        console.log(`✅ Filme encontrado no banco: ${parsed.title} (${parsed.year})`);
+      } else {
+        console.log(`❌ Filme com TMDB ID ${parsed.tmdbId} não encontrado no banco de dados.`);
+        return;
+      }
+    }
+
     if (!parsed.title || !parsed.year || !parsed.journeyOptionFlowId || !parsed.analysisLens || !parsed.journeyValidation) {
-      console.log('❌ Erro: Todos os parâmetros são obrigatórios (title, year, journeyOptionFlowId, analysisLens, journeyValidation). Use --help para mais informações.');
+      console.log('❌ Erro: Forneça (title + year) ou --tmdbId, mais journeyOptionFlowId, analysisLens e journeyValidation. Use --help para mais informações.');
       return;
     }
 
