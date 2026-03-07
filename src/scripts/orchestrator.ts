@@ -281,7 +281,7 @@ class MovieCurationOrchestrator {
 
       console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
 
-      // Buscar dados finais incluindo o nome real do sentimento via JourneyOptionFlow
+      // Buscar dados finais incluindo o nome real do sentimento via cadeia JourneyOptionFlow -> JourneyStepFlow -> JourneyFlow -> MainSentiment
       const finalSuggestion = await prisma.movieSuggestionFlow.findFirst({
         where: {
           movieId: createdMovie.id,
@@ -294,11 +294,14 @@ class MovieCurationOrchestrator {
           journeyOptionFlow: {
             select: {
               text: true,
-              journeyOption: {
+              journeyStepFlow: {
                 select: {
-                  emotionalIntention: true,
-                  mainSentiment: {
-                    select: { name: true }
+                  journeyFlow: {
+                    select: {
+                      mainSentiment: {
+                        select: { name: true }
+                      }
+                    }
                   }
                 }
               }
@@ -312,11 +315,8 @@ class MovieCurationOrchestrator {
         13: 'Feliz / Alegre', 14: 'Triste', 15: 'Calmo(a)',
         16: 'Ansioso(a)', 17: 'Animado(a)', 18: 'Cansado(a)'
       };
-      const jofSentimentName = finalSuggestion?.journeyOptionFlow?.journeyOption?.mainSentiment?.name;
-      const jofIntention = finalSuggestion?.journeyOptionFlow?.journeyOption?.emotionalIntention;
-      const sentimentName = jofSentimentName
-        ? `${jofSentimentName}${jofIntention ? ` - ${jofIntention}` : ''}`
-        : (lensToSentiment[movie.analysisLens] || 'Desconhecido');
+      const jofSentimentName = finalSuggestion?.journeyOptionFlow?.journeyStepFlow?.journeyFlow?.mainSentiment?.name;
+      const sentimentName = jofSentimentName || (lensToSentiment[movie.analysisLens] || 'Desconhecido');
 
       return {
         success: true,
