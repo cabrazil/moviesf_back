@@ -281,14 +281,7 @@ class MovieCurationOrchestrator {
 
       console.log(`✅ Filme processado com sucesso: ${movie.title} (${movie.year})`);
 
-      // Resolver o nome do sentimento diretamente pelo analysisLens (evita bug de cadeia de relações)
-      const lensToSentiment: Record<number, string> = {
-        13: 'Feliz / Alegre', 14: 'Triste', 15: 'Calmo(a)',
-        16: 'Ansioso(a)', 17: 'Animado(a)', 18: 'Cansado(a)'
-      };
-      const sentimentName = lensToSentiment[movie.analysisLens] || 'Desconhecido';
-
-      // Buscar apenas os campos necessários para o n8n
+      // Buscar dados finais incluindo o nome real do sentimento via JourneyOptionFlow
       const finalSuggestion = await prisma.movieSuggestionFlow.findFirst({
         where: {
           movieId: createdMovie.id,
@@ -299,10 +292,31 @@ class MovieCurationOrchestrator {
           relevanceScore: true,
           reason: true,
           journeyOptionFlow: {
-            select: { text: true }
+            select: {
+              text: true,
+              journeyOption: {
+                select: {
+                  emotionalIntention: true,
+                  mainSentiment: {
+                    select: { name: true }
+                  }
+                }
+              }
+            }
           }
         }
       });
+
+      // Resolver nome do sentimento: prefere o nome real do banco, com fallback para lensToSentiment
+      const lensToSentiment: Record<number, string> = {
+        13: 'Feliz / Alegre', 14: 'Triste', 15: 'Calmo(a)',
+        16: 'Ansioso(a)', 17: 'Animado(a)', 18: 'Cansado(a)'
+      };
+      const jofSentimentName = finalSuggestion?.journeyOptionFlow?.journeyOption?.mainSentiment?.name;
+      const jofIntention = finalSuggestion?.journeyOptionFlow?.journeyOption?.emotionalIntention;
+      const sentimentName = jofSentimentName
+        ? `${jofSentimentName}${jofIntention ? ` - ${jofIntention}` : ''}`
+        : (lensToSentiment[movie.analysisLens] || 'Desconhecido');
 
       return {
         success: true,

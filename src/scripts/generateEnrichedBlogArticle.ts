@@ -400,9 +400,9 @@ ${imagesSection}
 **METADADOS SEO (Inicie o arquivo com este bloco YAML):**
 ---
 seo_title: "[Nome do Filme]: [Foco Emocional] | Vibesfilm (Tente manter < 60 chars)"
-meta_description: "[Resumo atrativo para Google | Max 160 chars]"
-excerpt_1: "[Opção 1 de resumo curto para cards]"
-excerpt_2: "[Opção 2 de resumo curto com foco diferente]"
+meta_description: "[Resumo atrativo para Google | Max 160 chars. JAMAIS USE HTML AQUI]"
+excerpt_1: "[Opção 1 de resumo curto para cards. TEXTO PURO, SEM HTML]"
+excerpt_2: "[Opção 2 de resumo curto com foco diferente. TEXTO PURO, SEM HTML]"
 ---
 
 # [Título Criativo: Nome do Filme + Subtítulo Emocional (ex: Terror Social e Paranoia Contemporânea)]
@@ -472,12 +472,23 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
     // Enriquecer artigo com imagens e links
     let enrichedContent = response.content;
 
+    // Separa o Frontmatter do restante do corpo para não injetar HTML no YAML SEO
+    let frontmatter = '';
+    let bodyPart = enrichedContent;
+
+    const yamlRegex = /^---\n[\s\S]*?\n---\n/;
+    const match = enrichedContent.match(yamlRegex);
+    if (match) {
+      frontmatter = match[0];
+      bodyPart = enrichedContent.slice(frontmatter.length);
+    }
+
     // 1. Inserir primeira imagem logo após ## Introdução
     if (processedImages.length > 0) {
       const introEndRegex = /(<\/h3>\s*<\/p>)/;
-      if (introEndRegex.test(enrichedContent)) {
+      if (introEndRegex.test(bodyPart)) {
         const imageHtml = `\n\n<p><img src="${processedImages[0].url}" alt="${processedImages[0].alt}"></p>\n`;
-        enrichedContent = enrichedContent.replace(introEndRegex, `$1${imageHtml}`);
+        bodyPart = bodyPart.replace(introEndRegex, `$1${imageHtml}`);
         console.log('  ✓ Imagem 1 inserida após alertas');
       }
     }
@@ -485,14 +496,14 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
     // 2. Inserir segunda imagem antes da conclusão (se houver)
     if (processedImages.length > 1) {
       const conclusionRegex = /(## Sua Vibe Encontra o Filme Certo no Vibesfilm)/;
-      if (conclusionRegex.test(enrichedContent)) {
+      if (conclusionRegex.test(bodyPart)) {
         const imageHtml = `\n<p><img src="${processedImages[1].url}" alt="${processedImages[1].alt}"></p>\n\n`;
-        enrichedContent = enrichedContent.replace(conclusionRegex, `${imageHtml}$1`);
+        bodyPart = bodyPart.replace(conclusionRegex, `${imageHtml}$1`);
         console.log('  ✓ Imagem 2 inserida antes da conclusão');
       }
     }
 
-    // 3. Inserir links IMDb nos nomes
+    // 3. Inserir links IMDb nos nomes (Apenas no Corpo do Artigo)
     if (Object.keys(imdbIds).length > 0) {
       let linksInserted = 0;
       for (const [name, url] of Object.entries(imdbIds)) {
@@ -503,8 +514,8 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
         ];
 
         for (const pattern of patterns) {
-          if (pattern.test(enrichedContent)) {
-            enrichedContent = enrichedContent.replace(
+          if (pattern.test(bodyPart)) {
+            bodyPart = bodyPart.replace(
               pattern,
               `<a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a>`
             );
@@ -515,6 +526,9 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
       }
       console.log(`  ✓ ${linksInserted} link(s) IMDb inserido(s)`);
     }
+
+    // Reagrupar conteúdo com YAML protegido
+    enrichedContent = frontmatter + bodyPart;
 
     const outputDir = path.join(__dirname, '../../generated_articles');
     if (!existsSync(outputDir)) {
