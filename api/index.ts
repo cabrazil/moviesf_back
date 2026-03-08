@@ -96,8 +96,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Rotas SSR - DEVEM VIR ANTES das rotas API para não serem interceptadas
-// SSR renderiza HTML completo para bots do Google (SEO)
+// Rotas estáticas API/Sitemap devem vir ANTES de processadores coringas '/*' ou '/' não restritos
+app.use('/sitemap', sitemapRoutes);
+
+// Rotas SSR - DEVEM VIR ANTES das outras rotas API regulares para não perder metadados Google
+// Porém, DEPOIS de rotas concretas como `/health` e `/sitemap`
 app.use('/', ssrRoutes);
 
 // Rotas API (mantém como está)
@@ -112,7 +115,6 @@ app.use('/api/movie', movieDetailsRoutes);
 app.use('/api/movie', movieHeroRoutes);
 app.use('/api/tmdb', tmdbRoutes);
 app.use('/api/newsletter', newsletterRoutes);
-app.use('/sitemap', sitemapRoutes);
 
 // Handler para rotas não encontradas (404)
 app.use('*', (req, res) => {
