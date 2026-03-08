@@ -73,29 +73,24 @@ router.get('/articles.xml', async (req, res) => {
       return res.send(cached);
     }
 
-    // Buscar os publicações de Vibe/Artigos 
-    const articles = await prismaBlog.article.findMany({
-      where: {
-        status: 'published' // Apenas artigos aprovados e publicados
-      },
-      select: {
-        slug: true,
-        publishedAt: true,
-        updatedAt: true
-      },
-      orderBy: {
-        publishedAt: 'desc'
-      }
-    });
+    // Buscar os publicações de Vibe/Artigos usando Query Raw pois o schema do Blog não exporta models tipados
+    const query = `
+      SELECT slug, date, "updatedAt"
+      FROM "Article"
+      WHERE "blogId" = 3 AND published = true
+      ORDER BY date DESC
+    `;
+
+    const articles = await prismaBlog.$queryRawUnsafe(query) as any[];
 
     let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n`;
     sitemap += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
 
     articles.forEach((article) => {
-      const date = article.updatedAt || article.publishedAt || new Date();
+      const date = article.updatedAt || article.date || new Date();
       sitemap += `  <url>\n`;
       sitemap += `    <loc>${FRONTEND_URL}/blog/artigo/${article.slug}</loc>\n`;
-      sitemap += `    <lastmod>${date.toISOString()}</lastmod>\n`;
+      sitemap += `    <lastmod>${new Date(date).toISOString()}</lastmod>\n`;
       sitemap += `    <changefreq>monthly</changefreq>\n`;
       sitemap += `    <priority>0.7</priority>\n`;
       sitemap += `  </url>\n`;
