@@ -22,6 +22,7 @@ import movieDetailsRoutes from '../src/routes/movie-details-optimized.routes';
 import movieHeroRoutes from '../src/routes/movie-hero.routes';
 import tmdbRoutes from '../src/routes/tmdb.routes';
 import newsletterRoutes from '../src/routes/newsletter.routes';
+import sitemapRoutes from '../src/routes/sitemap.routes';
 
 const app = express();
 
@@ -111,6 +112,7 @@ app.use('/api/movie', movieDetailsRoutes);
 app.use('/api/movie', movieHeroRoutes);
 app.use('/api/tmdb', tmdbRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+app.use('/sitemap', sitemapRoutes);
 
 // Handler para rotas não encontradas (404)
 app.use('*', (req, res) => {
