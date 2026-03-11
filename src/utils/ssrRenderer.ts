@@ -9,10 +9,10 @@
  */
 export function renderMovieHTML(movieData: any, slug: string): string {
   const { movie, subscriptionPlatforms = [], rentalPurchasePlatforms = [] } = movieData;
-  
+
   // Converter vote_count para número e validar
   let voteCount: number | null = null;
-  
+
   // Debug: log SEMPRE (Vercel mostra console.log/warn/error)
   console.log(`🔍 [SSR] Filme ${movie.title} (${slug}):`, {
     vote_average: movie.vote_average,
@@ -21,10 +21,10 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     vote_count_null: movie.vote_count == null,
     vote_count_undefined: movie.vote_count === undefined
   });
-  
+
   if (movie.vote_count != null && movie.vote_count !== undefined) {
     let parsed: number;
-    
+
     if (typeof movie.vote_count === 'string') {
       parsed = parseInt(movie.vote_count, 10);
     } else if (typeof movie.vote_count === 'number') {
@@ -32,7 +32,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     } else {
       parsed = Number(movie.vote_count);
     }
-    
+
     // Validar se é um número válido
     if (!isNaN(parsed) && Number.isFinite(parsed) && parsed > 0) {
       voteCount = parsed;
@@ -45,27 +45,27 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     console.warn(`   vote_count value:`, movie.vote_count, `typeof:`, typeof movie.vote_count);
     console.warn(`   movie keys disponíveis:`, Object.keys(movie).filter(k => k.includes('vote') || k.includes('rating')));
   }
-  
+
   // Gerar meta tags
   // Formato: "Filme (Ano): Onde assistir e Análise Emocional | Vibesfilm"
   // Para títulos longos, usar versão mais curta para evitar truncamento
   const baseTitle = `${movie.title}${movie.year ? ` (${movie.year})` : ''}`;
   const titleLength = baseTitle.length;
-  
+
   // Se título do filme + ano > 40 caracteres, usar versão mais curta
   const title = titleLength > 40
     ? `${baseTitle}: Onde assistir | Vibesfilm`
     : `${baseTitle}: Onde assistir e Análise Emocional | Vibesfilm`;
-  
+
   // Descrição otimizada
   let description = `Descubra onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}`;
-  
+
   // Determinar tipos de acesso disponíveis
-  const hasSubscription = subscriptionPlatforms.some((p: any) => 
+  const hasSubscription = subscriptionPlatforms.some((p: any) =>
     p.accessType === 'INCLUDED_WITH_SUBSCRIPTION'
   );
   const hasRentalPurchase = rentalPurchasePlatforms.length > 0;
-  
+
   let availabilityText = '';
   if (hasSubscription && hasRentalPurchase) {
     availabilityText = ' Disponível em streaming e aluguel/compra.';
@@ -76,33 +76,33 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   } else {
     availabilityText = ' Consulte as plataformas para disponibilidade.';
   }
-  
+
   // Priorizar targetAudienceForLP (conteúdo emocional)
   if (movie.targetAudienceForLP) {
-    const emotionalDesc = movie.targetAudienceForLP.length > 120 
-      ? `${movie.targetAudienceForLP.substring(0, 120)}...` 
+    const emotionalDesc = movie.targetAudienceForLP.length > 120
+      ? `${movie.targetAudienceForLP.substring(0, 120)}...`
       : movie.targetAudienceForLP;
     description = `${description}. ${emotionalDesc}${availabilityText}`;
   } else if (movie.description) {
-    const movieDesc = movie.description.length > 100 
-      ? `${movie.description.substring(0, 100)}...` 
+    const movieDesc = movie.description.length > 100
+      ? `${movie.description.substring(0, 100)}...`
       : movie.description;
     description = `${description}. ${movieDesc}${availabilityText}`;
   } else {
     description = `${description}${availabilityText}`;
   }
-  
+
   // Limitar descrição para SEO (160 caracteres)
-  const seoDescription = description.length > 160 
-    ? `${description.substring(0, 157)}...` 
+  const seoDescription = description.length > 160
+    ? `${description.substring(0, 157)}...`
     : description;
-  
+
   // URL canônica
   const canonicalUrl = `https://vibesfilm.com/onde-assistir/${slug}`;
-  
+
   // Schema.org JSON-LD
   const allPlatforms = [...subscriptionPlatforms, ...rentalPurchasePlatforms];
-  
+
   // Remover plataformas duplicadas (mesmo nome)
   const uniquePlatforms = allPlatforms.reduce((acc: any[], platform: any) => {
     const exists = acc.find(p => p.name === platform.name);
@@ -111,7 +111,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     }
     return acc;
   }, []);
-  
+
   const offers = uniquePlatforms.map((platform: any) => ({
     "@type": "Offer",
     "availability": "https://schema.org/InStock",
@@ -119,13 +119,13 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     "name": platform.name,
     "description": `Assistir ${movie.title} no ${platform.name}`
   }));
-  
+
   // Função helper para remover campos undefined do objeto
   const removeUndefined = (obj: any): any => {
     if (obj === null || obj === undefined) return undefined;
     if (Array.isArray(obj)) return obj.map(removeUndefined).filter(item => item !== undefined);
     if (typeof obj !== 'object') return obj;
-    
+
     const cleaned: any = {};
     for (const [key, value] of Object.entries(obj)) {
       if (value !== undefined) {
@@ -172,10 +172,10 @@ export function renderMovieHTML(movieData: any, slug: string): string {
       });
     }
   }
-  
+
   // Remover campos undefined antes de serializar
   const cleanedSchema = removeUndefined(schema);
-  
+
   // Validação final: garantir que aggregateRating tenha ratingCount se existir
   if (cleanedSchema.aggregateRating) {
     if (!cleanedSchema.aggregateRating.ratingCount) {
@@ -188,7 +188,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   } else {
     console.log(`ℹ️ [SSR] aggregateRating NÃO incluído para ${movie.title} (normal se não tiver vote_count válido)`);
   }
-  
+
   // Gerar keywords
   const keywords = [
     movie.title,
@@ -197,7 +197,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     ...(movie.genres || []),
     'filmes online'
   ].join(', ');
-  
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -232,7 +232,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   </script>
   
   <!-- Meta tags adicionais -->
-  <meta name="robots" content="index, follow">
+  <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="author" content="vibesfilm">
   
   <!-- Redirect para SPA após carregar (para usuários) -->
@@ -261,24 +261,24 @@ export function renderMovieHTML(movieData: any, slug: string): string {
 export function renderArticleHTML(article: any, slug: string, articleType: 'analise' | 'lista'): string {
   const route = `/${articleType}/${slug}`;
   const canonicalUrl = `https://vibesfilm.com${route}`;
-  
+
   // Título e descrição
   const title = article.title || 'Artigo do VibesFilm Blog';
-  const description = article.description || 
+  const description = article.description ||
     (article.content ? article.content.replace(/<[^>]*>/g, '').substring(0, 160) : '');
-  
+
   // Limitar para SEO
   const seoTitle = title.length > 60 ? `${title.substring(0, 57)}...` : title;
-  const seoDescription = description.length > 160 
-    ? `${description.substring(0, 157)}...` 
+  const seoDescription = description.length > 160
+    ? `${description.substring(0, 157)}...`
     : description;
-  
+
   // Função helper para remover campos undefined (reutilizar se já não existir)
   const removeUndefinedFromSchema = (obj: any): any => {
     if (obj === null || obj === undefined) return undefined;
     if (Array.isArray(obj)) return obj.map(removeUndefinedFromSchema).filter(item => item !== undefined);
     if (typeof obj !== 'object') return obj;
-    
+
     const cleaned: any = {};
     for (const [key, value] of Object.entries(obj)) {
       if (value !== undefined) {
@@ -308,7 +308,7 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
       }
     }
   };
-  
+
   if (article.imageUrl) {
     schema.image = {
       "@type": "ImageObject",
@@ -316,20 +316,20 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
       "caption": article.imageAlt || title
     };
   }
-  
+
   if (article.date) {
     schema.datePublished = article.date;
     schema.dateModified = article.date;
   }
-  
+
   if (article.category_title) {
     schema.articleSection = article.category_title;
   }
-  
+
   if (article.tags && article.tags.length > 0) {
     schema.keywords = article.tags.map((tag: any) => tag.name).join(", ");
   }
-  
+
   // Keywords
   const keywords = [
     title,
@@ -339,7 +339,7 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
     'blog',
     ...(article.tags ? article.tags.map((tag: any) => tag.name) : [])
   ].filter(Boolean).join(', ');
-  
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -366,7 +366,7 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
   ${article.date ? `<meta property="article:published_time" content="${article.date}">` : ''}
   ${article.author_name ? `<meta property="article:author" content="${escapeHtml(article.author_name)}">` : ''}
   ${article.category_title ? `<meta property="article:section" content="${escapeHtml(article.category_title)}">` : ''}
-  ${article.tags && article.tags.length > 0 ? article.tags.map((tag: any) => 
+  ${article.tags && article.tags.length > 0 ? article.tags.map((tag: any) =>
     `<meta property="article:tag" content="${escapeHtml(tag.name)}">`
   ).join('\n  ') : ''}
   
@@ -384,7 +384,7 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
   </script>
   
   <!-- Meta tags adicionais -->
-  <meta name="robots" content="index, follow">
+  <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="author" content="${escapeHtml(article.author_name || 'VibesFilm Blog')}">
   
   <!-- Redirect para SPA após carregar (para usuários) -->
