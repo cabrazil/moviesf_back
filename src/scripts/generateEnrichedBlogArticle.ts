@@ -80,7 +80,7 @@ async function downloadAndConvertImage(imageUrl: string, outputPath: string): Pr
   const buffer = Buffer.from(response.data);
 
   await sharp(buffer)
-    .webp({ quality: 85 })
+    .webp({ quality: 92, smartSubsample: true }) // Reduz compressão excessiva (lavagem)
     .toFile(outputPath);
 }
 
@@ -195,8 +195,24 @@ async function processImages(
     return [];
   }
 
-  const bestBackdrop = images.backdrops.sort((a, b) => b.vote_average - a.vote_average)[0];
-  const bestStill = images.stills.sort((a, b) => b.vote_average - a.vote_average)[0];
+  // Novo Fiscal de Qualidade: Largura > 1200px
+  const highResBackdrops = images.backdrops.filter(img => img.width >= 1200);
+  const highResStills = images.stills.filter(img => img.width >= 1200);
+
+  // Avisa se não houver imagem em alta resolução
+  if (highResBackdrops.length === 0 && images.backdrops.length > 0) {
+    console.warn(`⚠️  Aviso de Qualidade: Nenhuma cena de fundo (backdrop) atingiu 1200px. Usando a imagem de maior média disponível.`);
+  }
+  if (highResStills.length === 0 && images.stills.length > 0) {
+    console.warn(`⚠️  Aviso de Qualidade: Nenhum frame (still) atingiu 1200px. Usando a imagem de maior média disponível.`);
+  }
+
+  // Escolhe a melhor HighRes, mas se não existir, engole o orgulho e pega a melhor LowRes
+  const bestBackdropPool = highResBackdrops.length > 0 ? highResBackdrops : images.backdrops;
+  const bestStillPool = highResStills.length > 0 ? highResStills : images.stills;
+
+  const bestBackdrop = bestBackdropPool.sort((a, b) => b.vote_average - a.vote_average)[0];
+  const bestStill = bestStillPool.sort((a, b) => b.vote_average - a.vote_average)[0];
 
   const selectedImages = [
     { type: 'backdrop' as const, data: bestBackdrop },
@@ -407,6 +423,8 @@ excerpt_2: "[Opção 2 de resumo curto com foco diferente. TEXTO PURO, SEM HTML]
 
 # [Título Criativo: Nome do Filme + Subtítulo Emocional (ex: Terror Social e Paranoia Contemporânea)]
 
+## [Subtítulo H2 (1 ou 2 frases): Um comentário explicativo, curto e atraente sobre a obra logo após o título principal]
+
 ## Introdução
 Comece com um gancho forte que defina a premissa central e o impacto imediato do filme.
 Mencione obrigatoriamente o diretor ${movie.director} e o elenco principal (${castNames}).
@@ -426,7 +444,7 @@ Nesta seção, faça a **Análise Conceitual e Semântica**.
 
 ## A Atmosfera Dominante [Use variações: "O Clima", "A Emoção Central", "A Vibe"]
 Comece com um parágrafo introdutório (2-3 frases) que descreva a sensação geral que permeia o filme, destacando qual é a emoção primária (ex: Melancolia, Tensão, Euforia).
-SOMENTE DEPOIS deste parágrafo, pule uma linha e escreva a frase exata: "Tags Emocionais Chave que definem esta experiência são:"
+SOMENTE DEPOIS deste parágrafo, pule uma linha e escreva exatamente: "### O que ressoa nesta experiência:"
 
 Depois, liste 3 **Tags Emocionais Chave** em formato HTML usando <ul> e <li>:
 ⚠️ **REGRA CRÍTICA:** Você **OBRIGATORIAMENTE** deve escolher essas tags da lista fornecida na seção "ANÁLISE DE SENTIMENTOS (IA VIBESFILM)". **NÃO INVENTE** novos nomes de sentimentos. Use *exatamente* o nome do SubSentimento fornecido (ex: "Nostalgia Positiva").
@@ -483,23 +501,23 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
       bodyPart = enrichedContent.slice(frontmatter.length);
     }
 
-    // 1. Inserir primeira imagem logo após ## Introdução
-    if (processedImages.length > 0) {
-      const introEndRegex = /(<\/h3>\s*<\/p>)/;
-      if (introEndRegex.test(bodyPart)) {
-        const imageHtml = `\n\n<p><img src="${processedImages[0].url}" alt="${processedImages[0].alt}"></p>\n`;
-        bodyPart = bodyPart.replace(introEndRegex, `$1${imageHtml}`);
-        console.log('  ✓ Imagem 1 inserida após alertas');
+    // 1. Inserir primeira imagem antes da Seção "O Que Torna..." (se a IA não inseriu sozinha)
+    if (processedImages.length > 0 && !bodyPart.includes(processedImages[0].url)) {
+      const nextH2Regex = /(## O Que Torna)/;
+      if (nextH2Regex.test(bodyPart)) {
+        const imageHtml = `<p><img src="${processedImages[0].url}" alt="${processedImages[0].alt}"></p>\n\n`;
+        bodyPart = bodyPart.replace(nextH2Regex, `${imageHtml}$1`);
+        console.log('  ✓ Imagem 1 inserida via Fallback do Script');
       }
     }
 
-    // 2. Inserir segunda imagem antes da conclusão (se houver)
-    if (processedImages.length > 1) {
+    // 2. Inserir segunda imagem antes da conclusão (se a IA não inseriu sozinha)
+    if (processedImages.length > 1 && !bodyPart.includes(processedImages[1].url)) {
       const conclusionRegex = /(## Sua Vibe Encontra o Filme Certo no Vibesfilm)/;
       if (conclusionRegex.test(bodyPart)) {
-        const imageHtml = `\n<p><img src="${processedImages[1].url}" alt="${processedImages[1].alt}"></p>\n\n`;
+        const imageHtml = `<p><img src="${processedImages[1].url}" alt="${processedImages[1].alt}"></p>\n\n`;
         bodyPart = bodyPart.replace(conclusionRegex, `${imageHtml}$1`);
-        console.log('  ✓ Imagem 2 inserida antes da conclusão');
+        console.log('  ✓ Imagem 2 inserida via Fallback do Script');
       }
     }
 
