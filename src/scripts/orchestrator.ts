@@ -52,6 +52,29 @@ class MovieCurationOrchestrator {
 
   private async processSingleMovie(movie: MovieToProcess, approveNewSubSentiments: boolean): Promise<ProcessingResult> {
     try {
+      // Auto-calibração de Lente: Se houver JOF, garantir que a lente e a validação correspondam ao sentimento correto
+      if (movie.journeyOptionFlowId) {
+        const jofDetails = await prisma.journeyOptionFlow.findUnique({
+          where: { id: movie.journeyOptionFlowId },
+          select: {
+            journeyStepFlow: {
+              select: {
+                journeyFlow: {
+                  select: { mainSentimentId: true }
+                }
+              }
+            }
+          }
+        });
+
+        const resolvedLens = jofDetails?.journeyStepFlow?.journeyFlow?.mainSentimentId;
+        if (resolvedLens && resolvedLens !== movie.analysisLens) {
+          console.log(`🎯 Auto-calibração: Ajustando lente ${movie.analysisLens} -> ${resolvedLens} para JOF ${movie.journeyOptionFlowId}`);
+          movie.analysisLens = resolvedLens;
+          movie.journeyValidation = resolvedLens;
+        }
+      }
+
       // Etapa 0: Limpar arquivo de inserts
       writeFileSync(this.insertFile, '');
       console.log(`🧹 Arquivo inserts.sql limpo.`);
