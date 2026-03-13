@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { spawn } from 'child_process';
 import path from 'path';
 import { writeFileSync } from 'fs';
+import axios from 'axios';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 import { OscarDataService } from '../services/OscarDataService';
 
@@ -270,32 +271,28 @@ class MovieCurationOrchestrator {
 
       // Etapa 6: Atualizar ranking de relevance
       // Buscar filme usando tmdbId (mais confiável que título/ano)
-      const createdMovie = await prisma.movie.findUnique({
+      let createdMovie = await prisma.movie.findUnique({
         where: { tmdbId: tmdbId }
       });
 
       if (!createdMovie) {
-        console.error(`❌ Filme não encontrado no banco de dados (tmdbId: ${tmdbId}).`);
+        console.error(`❌ Filme não encontrado no banco de dados após processamento (tmdbId: ${tmdbId}). Tentando fallback por título...`);
         const fallbackMovie = await prisma.movie.findFirst({
-          where: { title: movie.title, year: movie.year }
+          where: {
+            title: { contains: movie.title, mode: 'insensitive' },
+            year: movie.year
+          }
         });
+
         if (!fallbackMovie) {
           return { success: false, error: 'Filme não encontrado no banco de dados após o processo.' };
         }
-        try {
-          const { updateRelevanceRankingForMovie } = await import('../utils/relevanceRanking');
-          await updateRelevanceRankingForMovie(fallbackMovie.id);
-        } catch (error) {
-          console.error(`❌ Erro ao atualizar ranking:`, error);
-        }
-        return {
-          success: true,
-          movie: { title: fallbackMovie.title, year: fallbackMovie.year || 0, id: fallbackMovie.id }
-        };
+        
+        // Se encontramos pelo título, atualizar o objeto createdMovie para continuar o fluxo de retorno de dados
+        createdMovie = fallbackMovie;
       }
 
       console.log(`🔄 Etapa 6: Atualizando ranking de relevance...`);
-
       try {
         const { updateRelevanceRankingForMovie } = await import('../utils/relevanceRanking');
         await updateRelevanceRankingForMovie(createdMovie.id);
@@ -1033,20 +1030,41 @@ async function main() {
 
     const parsed = parseNamedArgs(filteredArgs);
 
-    // Suporte a --tmdbId: busca título e ano no banco quando tmdbId é fornecido
+    // Suporte a --tmdbId: busca título e ano quando tmdbId é fornecido
     if (parsed.tmdbId && (!parsed.title || !parsed.year)) {
-      console.log(`🔍 Buscando filme por TMDB ID: ${parsed.tmdbId}...`);
+      console.log(`🔍 Buscando informações para TMDB ID: ${parsed.tmdbId}...`);
+      
+      // Tentar no banco primeiro
       const existingMovie = await prisma.movie.findFirst({
         where: { tmdbId: parsed.tmdbId },
         select: { title: true, year: true }
       });
+
       if (existingMovie) {
         parsed.title = existingMovie.title;
         parsed.year = existingMovie.year || 0;
         console.log(`✅ Filme encontrado no banco: ${parsed.title} (${parsed.year})`);
       } else {
-        console.log(`❌ Filme com TMDB ID ${parsed.tmdbId} não encontrado no banco de dados.`);
-        return;
+        // Se não está no banco, buscar no TMDB para poder continuar o fluxo
+        console.log(`📡 Filme não encontrado no banco. Buscando no TMDB...`);
+        const TMDB_API_KEY = process.env.TMDB_API_KEY;
+        
+        try {
+          const response = await axios.get<{title: string, original_title: string, release_date: string}>(`https://api.themoviedb.org/3/movie/${parsed.tmdbId}`, {
+            params: { api_key: TMDB_API_KEY, language: 'pt-BR' }
+          });
+          
+          if (response.data) {
+            parsed.title = response.data.title || response.data.original_title;
+            const releaseDate = response.data.release_date;
+            parsed.year = releaseDate ? new Date(releaseDate).getFullYear() : 0;
+            console.log(`✅ Dados recuperados do TMDB: ${parsed.title} (${parsed.year})`);
+          }
+        } catch (tmdbError) {
+          console.log(`❌ Erro ao buscar dados no TMDB: ${tmdbError instanceof Error ? tmdbError.message : 'Erro desconhecido'}`);
+          // Se falhar o TMDB e não temos título, não há como continuar
+          if (!parsed.title) return;
+        }
       }
     }
 
