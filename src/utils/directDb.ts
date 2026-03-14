@@ -6,15 +6,17 @@ const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 const pool = new Pool({
   connectionString: connectionString,
   ssl: getSSLConfig(connectionString),
-  // Configurações otimizadas
-  max: 10,           // Máximo 10 conexões simultâneas
-  min: 2,            // Mínimo 2 conexões
-  idleTimeoutMillis: 30000,  // 30 segundos
-  connectionTimeoutMillis: 2000,  // 2 segundos
+  // Configurações otimizadas para evitar ETIMEDOUT
+  max: 10,                        // Máximo 10 conexões simultâneas
+  min: 1,                         // Mínimo 1 conexão
+  idleTimeoutMillis: 10000,       // 10s: fechar ociosas antes do servidor/firewall derrubar
+  connectionTimeoutMillis: 5000,  // 5s: timeout para obter conexão do pool
+  keepAlive: true,                // Enviar TCP keep-alive para manter conexão viva
+  keepAliveInitialDelayMillis: 5000, // Iniciar keep-alive após 5s de ociosidade
 });
 
 export class DirectDatabase {
-  
+
   async getMainSentiments() {
     let client;
     try {
@@ -47,7 +49,7 @@ export class DirectDatabase {
     try {
       // Log do status do pool
       console.log(`🔗 Pool status: total=${pool.totalCount}, idle=${pool.idleCount}, waiting=${pool.waitingCount}`);
-      
+
       client = await pool.connect();
       const result = await client.query(`
         SELECT 
@@ -61,7 +63,7 @@ export class DirectDatabase {
         WHERE ei."mainSentimentId" = $1
         ORDER BY ei.id ASC
       `, [sentimentId]);
-      
+
       return {
         sentimentId: sentimentId,
         sentimentName: await this.getSentimentName(sentimentId),
@@ -92,7 +94,7 @@ export class DirectDatabase {
         FROM "MainSentiment" 
         WHERE id = $1
       `, [sentimentId]);
-      
+
       return result.rows[0]?.name || 'Sentimento não encontrado';
     } catch (error) {
       console.error('Erro ao buscar nome do sentimento:', error);
@@ -145,12 +147,12 @@ export class DirectDatabase {
         // Processar opções com sugestões de filmes
         const processedOptions = await Promise.all(optionsResult.rows.map(async (option: any) => {
           let movieSuggestions = undefined;
-          
+
           if (option.is_end_state) {
             // Buscar sugestões reais de filmes para opções finais
             movieSuggestions = await this.getMovieSuggestions(option.id);
           }
-          
+
           return {
             id: option.id,
             text: option.text,

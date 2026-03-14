@@ -10,14 +10,17 @@ const cache = new NodeCache({ stdTTL: 600 });
 // URL frontend de produção (utilizada para construir a <loc> do sitemap)
 const FRONTEND_URL = 'https://vibesfilm.com';
 
-router.get('/movies.xml', async (req, res) => {
+router.get('/movies.xml', async (req, res, next) => {
+  console.log('🤖 ENTERED /movies.xml SITEMAP HANDLER');
   try {
     const cacheKey = 'sitemap_movies_xml';
     const cached = cache.get(cacheKey);
     if (cached) {
+      console.log('🤖 RETURNING FROM CACHE');
       res.header('Content-Type', 'application/xml');
       return res.send(cached);
     }
+    console.log('🤖 CACHE MISS, FETCHING DB');
 
     // Buscar todos os filmes que possuem análises/journeys no sistema
     const movies = await prismaApp.movie.findMany({

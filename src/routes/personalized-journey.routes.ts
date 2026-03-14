@@ -97,12 +97,14 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
       stepId: step.journeyStepFlow.stepId,
       order: step.journeyStepFlow.order,
       question: step.customQuestion || step.journeyStepFlow.question,
+      mobileQuestion: step.journeyStepFlow.mobileQuestion,
       priority: step.priority,
       contextualHint: step.contextualHint,
       isRequired: step.isRequired,
       options: step.journeyStepFlow.options.map((option: any) => ({
         id: option.id,
         text: option.text,
+        mobileText: option.mobileText,
         nextStepId: option.nextStepId,
         isEndState: option.isEndState,
         movieSuggestions: option.isEndState ? option.movieSuggestions.map((suggestion: any) => ({
@@ -190,12 +192,14 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
               stepId: step.stepId,
               order: step.order,
               question: step.question,
+              mobileQuestion: step.mobileQuestion,
               priority: 999, // Priority baixa para steps não personalizados
               contextualHint: null,
               isRequired: false,
               options: step.options.map((option: any) => ({
                 id: option.id,
                 text: option.text,
+                mobileText: option.mobileText,
                 nextStepId: option.nextStepId,
                 isEndState: option.isEndState,
                 movieSuggestions: option.isEndState ? option.movieSuggestions.map((suggestion: any) => ({

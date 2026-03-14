@@ -123,6 +123,7 @@ model JourneyStepFlow {
   question                       String
   createdAt                      DateTime                        @default(now())
   updatedAt                      DateTime                        @updatedAt
+  mobileQuestion                 String?
   options                        JourneyOptionFlow[]
   journeyFlow                    JourneyFlow                     @relation(fields: [journeyFlowId], references: [id])
   emotionalIntentionJourneySteps EmotionalIntentionJourneyStep[]
@@ -140,6 +141,7 @@ model JourneyOptionFlow {
   isEndState        Boolean               @default(false)
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
+  mobileText        String?
   displayTitle      String?
   summary           String?
   journeyStepFlow   JourneyStepFlow       @relation(fields: [journeyStepFlowId], references: [id])
