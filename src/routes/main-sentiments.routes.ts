@@ -150,8 +150,6 @@ router.get('/:id/journey-flow', async (req, res) => {
       }
     });
 
-    console.log('MainSentiment encontrado:', JSON.stringify(mainSentiment, null, 2));
-
     if (!mainSentiment) {
       console.log('Sentimento não encontrado');
       return res.status(404).json({ error: 'Sentimento principal não encontrado' });
@@ -162,7 +160,6 @@ router.get('/:id/journey-flow', async (req, res) => {
       return res.status(404).json({ error: 'Fluxo de jornada não encontrado' });
     }
 
-    console.log('Fluxo da jornada:', JSON.stringify(mainSentiment.journeyFlow, null, 2));
     res.json(mainSentiment.journeyFlow);
   } catch (error) {
     console.error('Erro ao buscar fluxo da jornada:', error);
