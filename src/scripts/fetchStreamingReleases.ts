@@ -44,15 +44,33 @@ function normalize(str: string): string {
 }
 
 function parseArgs() {
-  const args: any = {};
-  process.argv.slice(2).forEach(arg => {
-    if (arg.startsWith('--')) {
-      const parts = arg.substring(2).split('=');
-      const key = parts[0];
-      const value = parts.length > 1 ? parts.slice(1).join('=') : true;
+  const args: Record<string, string | boolean> = {};
+  const argv = process.argv.slice(2);
+
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index];
+    if (!arg.startsWith('--')) continue;
+
+    const option = arg.substring(2);
+    const separatorIndex = option.indexOf('=');
+
+    if (separatorIndex >= 0) {
+      const key = option.substring(0, separatorIndex);
+      const value = option.substring(separatorIndex + 1);
       args[key] = value;
+      continue;
     }
-  });
+
+    const nextArg = argv[index + 1];
+    if (nextArg && !nextArg.startsWith('--')) {
+      args[option] = nextArg;
+      index++;
+      continue;
+    }
+
+    args[option] = true;
+  }
+
   return args;
 }
 
@@ -72,6 +90,13 @@ async function main() {
   const minRating = args.min_rating ? parseFloat(args.min_rating) : MIN_RATING;
   const minVotes = args.min_votes ? parseInt(args.min_votes) : MIN_VOTES;
 
+  if (!TMDB_API_KEY) {
+    const errMsg = 'TMDB_API_KEY nao configurada no ambiente.';
+    if (jsonOutput) console.log(JSON.stringify({ error: errMsg }));
+    else console.error(errMsg);
+    return;
+  }
+
   // Filtro de data: padrão 365 dias atrás para limitar o volume
   // Pode ser sobrescrito com --days=X
   let startDate: string | undefined;
@@ -84,7 +109,7 @@ async function main() {
   let selectedProviders: string[] = [];
 
   if (args.providers) {
-    const providerInput = (args.providers as string).trim();
+    const providerInput = String(args.providers).trim();
     // Busca exata primeiro, depois por substring (normalizado — ignora acentos)
     const exactKey = Object.keys(PROVIDER_IDS).find(
       k => normalize(k) === normalize(providerInput)
