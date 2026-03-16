@@ -10,6 +10,32 @@ const MIN_RATING = 7.0;
 const MIN_VOTES = 200;
 const DEFAULT_DAYS = 365;
 
+type ParsedArgs = Record<string, string | boolean>;
+
+type ExistingMovieRef = {
+  id: string;
+  title: string;
+  slug: string | null;
+};
+
+type ReleaseMovie = {
+  tmdbId: number;
+  title: string;
+  originalTitle: string;
+  year: number;
+  releaseDate: string;
+  overview: string;
+  posterPath: string | null;
+  voteAverage: number;
+  voteCount: number;
+  popularity: number;
+  providers: string[];
+  existsInDb?: boolean;
+  movieId?: string | null;
+  movieSlug?: string | null;
+  existingMovieTitle?: string | null;
+};
+
 // Mapeamento de provedores suportados no Brasil
 const PROVIDER_IDS: Record<string, number> = {
   'Netflix': 8,
@@ -38,13 +64,13 @@ const PROVIDER_IDS: Record<string, number> = {
   'Apple TV': 2
 };
 
-// Normaliza string: minúsculas + remove acentos (ex: 'Vídeo' -> 'video')
+// Normaliza string: minusculas + remove acentos (ex: 'Video' -> 'video')
 function normalize(str: string): string {
   return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-function parseArgs() {
-  const args: Record<string, string | boolean> = {};
+function parseArgs(): ParsedArgs {
+  const args: ParsedArgs = {};
   const argv = process.argv.slice(2);
 
   for (let index = 0; index < argv.length; index++) {
@@ -74,6 +100,17 @@ function parseArgs() {
   return args;
 }
 
+function parseBooleanArg(value: string | boolean | undefined, defaultValue: boolean): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value !== 'string') return defaultValue;
+
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'sim', 's'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'n', 'nao', 'n?o'].includes(normalized)) return false;
+
+  return defaultValue;
+}
+
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
@@ -84,15 +121,41 @@ function subDays(date: Date, days: number): Date {
   return result;
 }
 
+function parseNumberArg(value: string | boolean | undefined, fallback: number): number {
+  if (typeof value !== 'string') return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getExistingMovieMap(rows: Array<{ id: string; tmdbId: number | null; title: string; slug: string | null }>) {
+  const map = new Map<number, ExistingMovieRef>();
+  for (const row of rows) {
+    if (row.tmdbId == null) continue;
+    map.set(row.tmdbId, {
+      id: row.id,
+      title: row.title,
+      slug: row.slug
+    });
+  }
+  return map;
+}
+
 async function main() {
   const args = parseArgs();
-  const jsonOutput = args.json === true || args.json === 'true';
-  const minRatingArg = typeof args.min_rating === 'string' ? args.min_rating : undefined;
-  const minVotesArg = typeof args.min_votes === 'string' ? args.min_votes : undefined;
-  const daysArg = typeof args.days === 'string' ? args.days : undefined;
+  const jsonOutput = parseBooleanArg(args.json, false);
 
-  const minRating = minRatingArg ? parseFloat(minRatingArg) : MIN_RATING;
-  const minVotes = minVotesArg ? parseInt(minVotesArg) : MIN_VOTES;
+  const minRating = parseNumberArg(args.min_rating, MIN_RATING);
+  const minVotes = parseNumberArg(args.min_votes, MIN_VOTES);
+  const daysToSearch = parseNumberArg(args.days, DEFAULT_DAYS);
+
+  const includeExistingArg = args['include-existing'] ?? args.include_existing;
+  const onlyNewArg = args['only-new'] ?? args.only_new;
+
+  let onlyNew = parseBooleanArg(onlyNewArg, true);
+  const includeExisting = parseBooleanArg(includeExistingArg, false);
+  if (includeExisting && onlyNewArg === undefined) {
+    onlyNew = false;
+  }
 
   if (!TMDB_API_KEY) {
     const errMsg = 'TMDB_API_KEY nao configurada no ambiente.';
@@ -101,20 +164,16 @@ async function main() {
     return;
   }
 
-  // Filtro de data: padrão 365 dias atrás para limitar o volume
-  // Pode ser sobrescrito com --days=X
-  let startDate: string | undefined;
-  const daysToSearch = daysArg ? parseInt(daysArg) : DEFAULT_DAYS;
-  startDate = formatDate(subDays(new Date(), daysToSearch));
-  if (!jsonOutput) console.log(`📅 Filtrando a partir de: ${startDate} (últimos ${daysToSearch} dias)`);
+  const startDate = formatDate(subDays(new Date(), daysToSearch));
+  if (!jsonOutput) console.log(`Filtrando a partir de: ${startDate} (ultimos ${daysToSearch} dias)`);
 
-  // --- Resolução do Provedor ---
+  // --- Resolucao do Provedor ---
   let providerIds: number[] = [];
   let selectedProviders: string[] = [];
 
   if (args.providers) {
     const providerInput = String(args.providers).trim();
-    // Busca exata primeiro, depois por substring (normalizado — ignora acentos)
+    // Busca exata primeiro, depois por substring (normalizado)
     const exactKey = Object.keys(PROVIDER_IDS).find(
       k => normalize(k) === normalize(providerInput)
     );
@@ -130,7 +189,7 @@ async function main() {
       providerIds.push(PROVIDER_IDS[resolvedKey]);
       selectedProviders.push(resolvedKey);
     } else {
-      const errMsg = `⚠️ Provedor não reconhecido: "${providerInput}". Use um dos: ${Object.keys(PROVIDER_IDS).join(', ')}`;
+      const errMsg = `Provedor nao reconhecido: "${providerInput}". Use um dos: ${Object.keys(PROVIDER_IDS).join(', ')}`;
       if (jsonOutput) console.log(JSON.stringify({ error: errMsg }));
       else console.error(errMsg);
       return;
@@ -143,16 +202,16 @@ async function main() {
   let page = 1;
   let totalPages = 1;
   const providerFilter = providerIds.join('|');
-  const allMovies: any[] = [];
+  const candidateMovies: ReleaseMovie[] = [];
 
   if (!jsonOutput) {
-    console.log(`🎬 Buscando filmes disponíveis em: ${selectedProviders.join(', ')}`);
-    console.log(`⭐️ Rating mínimo: ${minRating} | Votos mínimos: ${minVotes}`);
+    console.log(`Buscando filmes em: ${selectedProviders.join(', ')}`);
+    console.log(`Rating minimo: ${minRating} | Votos minimos: ${minVotes}`);
   }
 
   do {
     try {
-      const params: any = {
+      const params: Record<string, string | number | boolean> = {
         api_key: TMDB_API_KEY,
         language: 'pt-BR',
         sort_by: 'vote_average.desc',
@@ -162,58 +221,87 @@ async function main() {
         watch_region: 'BR',
         with_watch_providers: providerFilter,
         'vote_count.gte': minVotes,
-        'vote_average.gte': minRating
+        'vote_average.gte': minRating,
+        'primary_release_date.gte': startDate
       };
-
-      // Filtro de data opcional
-      if (startDate) {
-        params['primary_release_date.gte'] = startDate;
-      }
 
       const response = await axios.get(`${TMDB_API_URL}/discover/movie`, { params });
       const data = response.data as any;
-      const results = data.results;
-      totalPages = data.total_pages;
+      const results = data.results || [];
+      totalPages = data.total_pages || 1;
 
-      if (!jsonOutput) console.log(`   Página ${page}/${Math.min(totalPages, 5)} — ${results.length} filmes`);
+      if (!jsonOutput) console.log(`Pagina ${page}/${Math.min(totalPages, 5)} - ${results.length} filmes`);
 
       for (const movie of results) {
         const processed = await processMovie(movie, selectedProviders, minRating);
-        if (processed) allMovies.push(processed);
+        if (processed) candidateMovies.push(processed);
       }
 
       page++;
     } catch (e) {
-      if (!jsonOutput) console.error(`Erro na página ${page}:`, e);
+      if (!jsonOutput) console.error(`Erro na pagina ${page}:`, e);
       break;
     }
   } while (page <= totalPages && page <= 5);
 
-  if (jsonOutput) {
-    console.log(JSON.stringify(allMovies, null, 2));
-  } else {
-    console.log(`\n✅ ${allMovies.length} filmes encontrados (novos, fora da base).`);
-    allMovies.forEach(m => {
-      console.log(`  🍿 ${m.title} (${m.year}) ⭐️${m.voteAverage} | ${m.providers.join(', ')}`);
-    });
-  }
-}
+  const uniqueTmdbIds = [...new Set(candidateMovies.map(movie => movie.tmdbId))];
+  const existingRows = uniqueTmdbIds.length > 0
+    ? await prisma.movie.findMany({
+      where: { tmdbId: { in: uniqueTmdbIds } },
+      select: {
+        id: true,
+        tmdbId: true,
+        title: true,
+        slug: true
+      }
+    })
+    : [];
 
-async function processMovie(tmdbMovie: any, targetProviders: string[], minRating: number) {
-  if (!tmdbMovie.release_date) return null;
+  const existingMovieMap = getExistingMovieMap(existingRows);
 
-  // 1. Filtro de rating antecipado (TMDB já filtra, mas garantir consistência)
-  if (tmdbMovie.vote_average < minRating) return null;
+  const validatedMovies = candidateMovies.map(movie => {
+    const existing = existingMovieMap.get(movie.tmdbId);
 
-  // 2. Verificar se o filme JÁ EXISTE na base de dados pelo tmdbId → IGNORAR
-  const existing = await prisma.movie.findFirst({
-    where: { tmdbId: tmdbMovie.id },
-    select: { id: true }
+    return {
+      ...movie,
+      existsInDb: !!existing,
+      movieId: existing?.id ?? null,
+      movieSlug: existing?.slug ?? null,
+      existingMovieTitle: existing?.title ?? null
+    };
   });
 
-  if (existing) return null; // Já temos → ignora
+  const finalMovies = onlyNew
+    ? validatedMovies.filter(movie => !movie.existsInDb)
+    : validatedMovies;
 
-  // 3. Confirmar provedores específicos via endpoint de watch providers
+  if (jsonOutput) {
+    console.log(JSON.stringify(finalMovies, null, 2));
+    return;
+  }
+
+  const existingCount = validatedMovies.filter(movie => movie.existsInDb).length;
+  const newCount = validatedMovies.length - existingCount;
+
+  console.log(`Validacao DB: ${validatedMovies.length} candidatos | ${newCount} novos | ${existingCount} existentes`);
+  console.log(`Resultado final: ${finalMovies.length} filmes (onlyNew=${onlyNew})`);
+
+  finalMovies.forEach(movie => {
+    const status = movie.existsInDb
+      ? `[EXISTE id=${movie.movieId ?? '-'} tmdb=${movie.tmdbId}]`
+      : `[NOVO tmdb=${movie.tmdbId}]`;
+
+    console.log(`  ${status} ${movie.title} (${movie.year}) rating=${movie.voteAverage} providers=${movie.providers.join(', ')}`);
+  });
+}
+
+async function processMovie(tmdbMovie: any, targetProviders: string[], minRating: number): Promise<ReleaseMovie | null> {
+  if (!tmdbMovie.release_date) return null;
+
+  // Filtro de rating antecipado (TMDB ja filtra, mas mantemos consistencia)
+  if (tmdbMovie.vote_average < minRating) return null;
+
+  // Confirmar provedores via endpoint de watch providers
   let availableProviders: string[] = [];
   try {
     const providerRes = await axios.get(
@@ -229,8 +317,8 @@ async function processMovie(tmdbMovie: any, targetProviders: string[], minRating
         (targetProviders.length === 0 || targetProviders.includes(key))
       );
     }
-  } catch (e) {
-    // Ignora erro de provider — usa os providers do discover como fallback
+  } catch (_e) {
+    // Fallback: assume provedores do filtro inicial
     availableProviders = targetProviders;
   }
 
