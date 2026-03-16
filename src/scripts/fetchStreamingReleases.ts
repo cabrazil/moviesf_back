@@ -87,8 +87,12 @@ function subDays(date: Date, days: number): Date {
 async function main() {
   const args = parseArgs();
   const jsonOutput = args.json === true || args.json === 'true';
-  const minRating = args.min_rating ? parseFloat(args.min_rating) : MIN_RATING;
-  const minVotes = args.min_votes ? parseInt(args.min_votes) : MIN_VOTES;
+  const minRatingArg = typeof args.min_rating === 'string' ? args.min_rating : undefined;
+  const minVotesArg = typeof args.min_votes === 'string' ? args.min_votes : undefined;
+  const daysArg = typeof args.days === 'string' ? args.days : undefined;
+
+  const minRating = minRatingArg ? parseFloat(minRatingArg) : MIN_RATING;
+  const minVotes = minVotesArg ? parseInt(minVotesArg) : MIN_VOTES;
 
   if (!TMDB_API_KEY) {
     const errMsg = 'TMDB_API_KEY nao configurada no ambiente.';
@@ -100,7 +104,7 @@ async function main() {
   // Filtro de data: padrão 365 dias atrás para limitar o volume
   // Pode ser sobrescrito com --days=X
   let startDate: string | undefined;
-  const daysToSearch = args.days ? parseInt(args.days) : DEFAULT_DAYS;
+  const daysToSearch = daysArg ? parseInt(daysArg) : DEFAULT_DAYS;
   startDate = formatDate(subDays(new Date(), daysToSearch));
   if (!jsonOutput) console.log(`📅 Filtrando a partir de: ${startDate} (últimos ${daysToSearch} dias)`);
 
