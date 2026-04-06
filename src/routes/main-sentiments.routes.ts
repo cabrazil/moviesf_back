@@ -56,6 +56,13 @@ router.get('/db-test', async (req, res) => {
 // ROTA DE SUMMARY PRIMEIRO!
 router.get('/summary', async (req, res) => {
   try {
+    const cacheKey = 'main_sentiments_summary';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log('⚡ Usando cache em memória para MainSentiments Summary');
+      return res.json(cached);
+    }
+
     const sentiments = await prisma.mainSentiment.findMany({
       select: {
         id: true,
@@ -65,6 +72,9 @@ router.get('/summary', async (req, res) => {
       },
       orderBy: { id: 'asc' },
     });
+
+    cache.set(cacheKey, sentiments);
+    console.log(`✅ MainSentiments Summary: ${sentiments.length} sentimentos carregados e salvos no cache`);
     res.json(sentiments);
   } catch (error) {
     console.error('Erro ao buscar sentimentos principais:', error);
