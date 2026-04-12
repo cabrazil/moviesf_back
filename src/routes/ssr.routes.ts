@@ -82,6 +82,64 @@ router.get('/onde-assistir/:slug', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /filme/:slug
+ * SSR para página editorial do filme
+ */
+router.get('/filme/:slug', async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const userAgent = req.headers['user-agent'];
+
+    console.log(`🎬 SSR - Requisição para página editorial do filme: ${slug}`);
+    console.log(`🤖 User-Agent: ${userAgent}`);
+
+    const bot = isBot(userAgent);
+
+    if (bot) {
+      console.log(`✅ Bot detectado, gerando HTML SSR editorial para: ${slug}`);
+
+      try {
+        const movieData = await movieHeroService.getMovieHero(slug);
+        const html = renderMovieHTML(movieData, slug, 'editorial');
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(html);
+      } catch (error: any) {
+        console.error(`❌ Erro ao gerar HTML SSR editorial para filme ${slug}:`, error);
+
+        if (error.code === 'MOVIE_NOT_FOUND') {
+          return res.status(404).send(`
+            <!DOCTYPE html>
+            <html lang="pt-BR">
+            <head>
+              <meta charset="UTF-8">
+              <title>Filme não encontrado | Vibesfilm</title>
+            </head>
+            <body>
+              <h1>Filme não encontrado</h1>
+              <p>O filme solicitado não foi encontrado.</p>
+            </body>
+            </html>
+          `);
+        }
+
+        throw error;
+      }
+    }
+
+    console.log(`👤 Usuário normal, redirecionando para frontend SPA`);
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
+    return res.redirect(302, `${frontendUrl}/filme/${slug}`);
+
+  } catch (error) {
+    console.error('❌ Erro no SSR editorial de filme:', error);
+
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
+    return res.redirect(302, `${frontendUrl}/filme/${req.params.slug}`);
+  }
+});
+
+/**
  * GET /analise/:slug
  * SSR para artigos de análise
  */
@@ -210,4 +268,3 @@ router.get('/lista/:slug', async (req: Request, res: Response) => {
 });
 
 export default router;
-

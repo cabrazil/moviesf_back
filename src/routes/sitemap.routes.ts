@@ -10,59 +10,91 @@ const cache = new NodeCache({ stdTTL: 600 });
 // URL frontend de produção (utilizada para construir a <loc> do sitemap)
 const FRONTEND_URL = 'https://vibesfilm.com';
 
-router.get('/movies.xml', async (req, res, next) => {
-  console.log('🤖 ENTERED /movies.xml SITEMAP HANDLER');
-  try {
-    const cacheKey = 'sitemap_movies_xml';
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      console.log('🤖 RETURNING FROM CACHE');
-      res.header('Content-Type', 'application/xml');
-      return res.send(cached);
-    }
-    console.log('🤖 CACHE MISS, FETCHING DB');
+type MovieSitemapRoute = {
+  cacheKey: string;
+  pathPrefix: string;
+  changefreq: string;
+  priority: string;
+  logLabel: string;
+};
 
-    // Buscar todos os filmes que possuem análises/journeys no sistema
-    const movies = await prismaApp.movie.findMany({
-      where: {
-        movieSentiments: {
-          some: {} // Apenas filmes validados que já receberam sentimentos
-        }
-      },
-      select: {
-        slug: true,
-        updatedAt: true
-      },
-      orderBy: {
-        updatedAt: 'desc'
-      }
-    });
-
-    let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-    sitemap += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
-
-    movies.forEach((movie) => {
-      // Use updatedAt se existir, senão data atual
-      const lastMod = movie.updatedAt ? movie.updatedAt.toISOString() : new Date().toISOString();
-      const slug = movie.slug ? movie.slug : 'undefined-slug';
-
-      sitemap += `  <url>\n`;
-      sitemap += `    <loc>${FRONTEND_URL}/onde-assistir/${slug}</loc>\n`;
-      sitemap += `    <lastmod>${lastMod}</lastmod>\n`;
-      sitemap += `    <changefreq>weekly</changefreq>\n`;
-      sitemap += `    <priority>0.8</priority>\n`;
-      sitemap += `  </url>\n`;
-    });
-
-    sitemap += `</urlset>`;
-
-    cache.set(cacheKey, sitemap);
-
+async function generateMovieSitemap(res: any, route: MovieSitemapRoute) {
+  const cached = cache.get(route.cacheKey);
+  if (cached) {
     res.header('Content-Type', 'application/xml');
-    res.send(sitemap);
+    return res.send(cached);
+  }
 
+  const movies = await prismaApp.movie.findMany({
+    where: {
+      slug: {
+        not: null
+      },
+      movieSentiments: {
+        some: {}
+      }
+    },
+    select: {
+      slug: true,
+      updatedAt: true
+    },
+    orderBy: {
+      updatedAt: 'desc'
+    }
+  });
+
+  let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  sitemap += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+  movies.forEach((movie) => {
+    if (!movie.slug) {
+      return;
+    }
+
+    const lastMod = movie.updatedAt ? movie.updatedAt.toISOString() : new Date().toISOString();
+
+    sitemap += `  <url>\n`;
+    sitemap += `    <loc>${FRONTEND_URL}${route.pathPrefix}${movie.slug}</loc>\n`;
+    sitemap += `    <lastmod>${lastMod}</lastmod>\n`;
+    sitemap += `    <changefreq>${route.changefreq}</changefreq>\n`;
+    sitemap += `    <priority>${route.priority}</priority>\n`;
+    sitemap += `  </url>\n`;
+  });
+
+  sitemap += `</urlset>`;
+
+  cache.set(route.cacheKey, sitemap);
+
+  res.header('Content-Type', 'application/xml');
+  return res.send(sitemap);
+}
+
+router.get('/movies.xml', async (req, res, next) => {
+  try {
+    await generateMovieSitemap(res, {
+      cacheKey: 'sitemap_movies_xml',
+      pathPrefix: '/filme/',
+      changefreq: 'weekly',
+      priority: '0.9',
+      logLabel: 'editorial'
+    });
   } catch (error) {
     console.error('Erro ao gerar sitemap de movies:', error);
+    res.status(500).send('Erro interno do servidor');
+  }
+});
+
+router.get('/movie-landings.xml', async (req, res) => {
+  try {
+    await generateMovieSitemap(res, {
+      cacheKey: 'sitemap_movie_landings_xml',
+      pathPrefix: '/onde-assistir/',
+      changefreq: 'weekly',
+      priority: '0.7',
+      logLabel: 'landing'
+    });
+  } catch (error) {
+    console.error('Erro ao gerar sitemap de landing pages:', error);
     res.status(500).send('Erro interno do servidor');
   }
 });

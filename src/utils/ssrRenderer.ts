@@ -7,8 +7,13 @@
 /**
  * Gera HTML completo para landing page de filme
  */
-export function renderMovieHTML(movieData: any, slug: string): string {
+export function renderMovieHTML(
+  movieData: any,
+  slug: string,
+  routeType: 'landing' | 'editorial' = 'landing'
+): string {
   const { movie, subscriptionPlatforms = [], rentalPurchasePlatforms = [] } = movieData;
+  const isEditorial = routeType === 'editorial';
 
   // Converter vote_count para número e validar
   let voteCount: number | null = null;
@@ -53,12 +58,16 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   const titleLength = baseTitle.length;
 
   // Se título do filme + ano > 40 caracteres, usar versão mais curta
-  const title = titleLength > 40
-    ? `${baseTitle}: Onde assistir | Vibesfilm`
-    : `${baseTitle}: Onde assistir e Análise Emocional | Vibesfilm`;
+  const title = isEditorial
+    ? `${baseTitle}: Análise e Onde Assistir | Vibesfilm`
+    : titleLength > 40
+      ? `${baseTitle}: Onde assistir | Vibesfilm`
+      : `${baseTitle}: Onde assistir e Análise Emocional | Vibesfilm`;
 
   // Descrição otimizada
-  let description = `Descubra onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}`;
+  let description = isEditorial
+    ? `Análise e guia de onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}`
+    : `Descubra onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}`;
 
   // Determinar tipos de acesso disponíveis
   const hasSubscription = subscriptionPlatforms.some((p: any) =>
@@ -98,7 +107,8 @@ export function renderMovieHTML(movieData: any, slug: string): string {
     : description;
 
   // URL canônica
-  const canonicalUrl = `https://vibesfilm.com/onde-assistir/${slug}`;
+  const routePath = isEditorial ? `/filme/${slug}` : `/onde-assistir/${slug}`;
+  const canonicalUrl = `https://vibesfilm.com${routePath}`;
 
   // Schema.org JSON-LD
   const allPlatforms = [...subscriptionPlatforms, ...rentalPurchasePlatforms];
@@ -192,6 +202,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   // Gerar keywords
   const keywords = [
     movie.title,
+    ...(isEditorial ? ['análise de filme'] : []),
     'streaming',
     'onde assistir',
     ...(movie.genres || []),
@@ -217,14 +228,16 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   <meta property="og:description" content="${escapeHtml(seoDescription)}">
   <meta property="og:image" content="${movie.thumbnail || ''}">
   <meta property="og:url" content="${canonicalUrl}">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="vibesfilm">
+  <meta property="og:type" content="${isEditorial ? 'article' : 'video.movie'}">
+  <meta property="og:site_name" content="VibesFilm">
+  <meta property="og:locale" content="pt_BR">
   
   <!-- Twitter Card tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(title)}">
   <meta name="twitter:description" content="${escapeHtml(seoDescription)}">
   <meta name="twitter:image" content="${movie.thumbnail || ''}">
+  <meta name="twitter:url" content="${canonicalUrl}">
   
   <!-- Schema.org markup -->
   <script type="application/ld+json">
@@ -239,7 +252,7 @@ export function renderMovieHTML(movieData: any, slug: string): string {
   <script>
     // Se não for bot, redirecionar para frontend SPA
     if (!navigator.userAgent.match(/Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot/i)) {
-      window.location.href = 'https://vibesfilm.com/onde-assistir/${slug}';
+      window.location.href = 'https://vibesfilm.com${routePath}';
     }
   </script>
 </head>
@@ -426,4 +439,3 @@ export function isBot(userAgent: string | undefined): boolean {
   if (!userAgent) return false;
   return /Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot/i.test(userAgent);
 }
-
