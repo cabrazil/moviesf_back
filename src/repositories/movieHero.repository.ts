@@ -194,12 +194,19 @@ export class MovieHeroRepository {
       SELECT 
         msf.reason,
         msf."relevanceScore",
-        ms_main.name as "mainSentimentName"
+        ms_main.name as "mainSentimentName",
+        jof.text as "journeyOptionText",
+        jof."displayTitle" as "journeyDisplayTitle",
+        jsf.question as "journeyStepQuestion",
+        ei."intentionType" as "intentionType",
+        eijs."contextualHint" as "contextualHint"
       FROM "MovieSuggestionFlow" msf
       LEFT JOIN "JourneyOptionFlow" jof ON msf."journeyOptionFlowId" = jof.id
       LEFT JOIN "JourneyStepFlow" jsf ON jof."journeyStepFlowId" = jsf.id
       LEFT JOIN "JourneyFlow" jf ON jsf."journeyFlowId" = jf.id
       LEFT JOIN "MainSentiment" ms_main ON jf."mainSentimentId" = ms_main.id
+      LEFT JOIN "EmotionalIntentionJourneyStep" eijs ON jsf.id = eijs."journeyStepFlowId"
+      LEFT JOIN "EmotionalIntention" ei ON eijs."emotionalIntentionId" = ei.id
       WHERE msf."movieId" = $1
       ORDER BY msf."relevanceScore" DESC
     `;
@@ -354,8 +361,13 @@ export class MovieHeroRepository {
     return rows.map(row => ({
       reason: row.reason,
       relevance: parseFloat(row.relevanceScore) || 0,
+      intentionType: row.intentionType || null,
+      contextualHint: row.contextualHint || null,
       journeyOptionFlow: {
+        text: row.journeyOptionText || '',
+        displayTitle: row.journeyDisplayTitle || null,
         journeyStepFlow: {
+          question: row.journeyStepQuestion || '',
           journeyFlow: {
             mainSentiment: {
               name: row.mainSentimentName || 'A Reflexão'

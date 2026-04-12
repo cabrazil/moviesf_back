@@ -423,16 +423,17 @@ excerpt_2: "[Opção 2 de resumo curto com foco diferente. TEXTO PURO, SEM HTML]
 
 # [Título Criativo: Nome do Filme + Subtítulo Emocional (ex: Terror Social e Paranoia Contemporânea)]
 
-## [Subtítulo H2 (1 ou 2 frases): Um comentário explicativo, curto e atraente sobre a obra logo após o título principal]
+## [Subtítulo H2 Curto e Impactante]
+[Escreva logo abaixo do subtítulo UMA ÚNICA FRASE ou parágrafo minúsculo (máx. 2 linhas) contendo um "gancho" que desperte curiosidade atraente sobre a emoção da obra. PROIBIDO citar nomes do elenco ou diretor nesta seção de Subtítulo]
 
 ## Introdução
-Comece com um gancho forte que defina a premissa central e o impacto imediato do filme.
-Mencione obrigatoriamente o diretor ${movie.director} e o elenco principal (${castNames}).
-Termine este parágrafo definindo a "Vibe" geral da obra com uma frase de impacto (ex: "No Vibesfilm, este não é apenas um filme de terror — é uma imersão emocional...").
+Desenvolva a introdução em **pelo menos 2 parágrafos** bem estruturados.
+No primeiro parágrafo, defina a premissa central e o impacto imediato do filme. É OBRIGATÓRIO citar o diretor (${movie.director}) e o elenco principal (${castNames}) diretamente no corpo deste primeiro parágrafo da introdução.
+No segundo parágrafo, aprofunde o tom da obra e prepare o leitor para o que sentirá, terminando com uma frase que defina a "Vibe" geral (ex: "No Vibesfilm, este não é apenas um filme — é uma imersão emocional...").
 
-<h3>⚠️Alertas e Cuidados: ${movie.title} (${movie.year})</h3>
-<p>Um parágrafo empático contextualizando os alertas ("${movie.contentWarnings}").</p>
-⚠️ IMPORTANTE: Se o filme for sutil ou introspectivo (como dramas psicológicos), EVITE tom clínico, pathologizante ou excessivamente alarmista. Foque na carga emocional e na intensidade dos sentimentos, não apenas em "gatilhos", a menos que haja violência gráfica ou abuso explícito.
+<h3>⚠️ Alertas e Cuidados: ${movie.title} (${movie.year})</h3>
+<p>Reescreva o seguinte alerta de forma objetiva, direta e em no máximo 2 frases curtas: "${movie.contentWarnings}".</p>
+⚠️ IMPORTANTE: NÃO invente textos teatrais, ensaios filosóficos ou drama excessivo aqui. Apenas informe ao leitor de forma amigável e direta o que ele encontra na obra em termos de alertas de conteúdo. Se referir apenas aos dados do alerta.
 
 ## O Que Torna "${movie.title}" Tão [Adjetivo Dinâmico]?
 **IMPORTANTE:** Escolha um adjetivo que defina o filme no título desta seção (ex: "Impactante", "Contemplativo", "Perturbador", "Especial").

@@ -100,8 +100,13 @@ export interface SimilarMovie {
 export interface SuggestionFlow {
   reason: string;
   relevance: number;
+  intentionType?: string | null;
+  contextualHint?: string | null;
   journeyOptionFlow: {
+    text: string;
+    displayTitle: string | null;
     journeyStepFlow: {
+      question: string;
       journeyFlow: {
         mainSentiment: {
           name: string;
