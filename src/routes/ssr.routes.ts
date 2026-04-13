@@ -267,4 +267,68 @@ router.get('/lista/:slug', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /artigo/:slug
+ * GET /blog/artigo/:slug
+ * SSR para artigos (redireciona para o tipo correto após buscar dados)
+ */
+const articleBotHandler = async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const userAgent = req.headers['user-agent'];
+    
+    console.log(`📝 SSR - Requisição para artigo (genérico): ${slug}`);
+    
+    const bot = isBot(userAgent);
+    
+    if (bot) {
+      console.log(`✅ Bot detectado, buscando tipo do artigo para SSR: ${slug}`);
+      
+      try {
+        const result = await blogService.getPostBySlug(slug);
+        
+        if (!result.success || !result.data) {
+          return res.status(404).send(`
+            <!DOCTYPE html>
+            <html lang="pt-BR">
+            <head>
+              <meta charset="UTF-8">
+              <title>Artigo não encontrado | VibesFilm Blog</title>
+            </head>
+            <body>
+              <h1>Artigo não encontrado</h1>
+              <p>O artigo solicitado não foi encontrado.</p>
+            </body>
+            </html>
+          `);
+        }
+        
+        const article = result.data;
+        const type = article.type || 'analise'; // default para analise
+        
+        const html = renderArticleHTML(article, slug, type as any);
+        
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(html);
+        
+      } catch (error) {
+        console.error(`❌ Erro ao gerar HTML SSR para artigo genérico ${slug}:`, error);
+        throw error;
+      }
+    }
+    
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
+    return res.redirect(302, `${frontendUrl}/artigo/${slug}`);
+  } catch (error) {
+    console.error('❌ Erro no SSR genérico de artigo:', error);
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
+    return res.redirect(302, `${frontendUrl}/artigo/${req.params.slug}`);
+  }
+};
+
+router.get('/artigo/:slug', articleBotHandler);
+router.get('/blog/artigo/:slug', articleBotHandler);
+router.get('/blog/analise/:slug', async (req, res) => res.redirect(302, `/analise/${req.params.slug}`));
+router.get('/blog/lista/:slug', async (req, res) => res.redirect(302, `/lista/${req.params.slug}`));
+
 export default router;
