@@ -330,9 +330,15 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
     };
   }
 
-  if (article.date) {
-    schema.datePublished = article.date;
-    schema.dateModified = article.date;
+  // Resolver data de publicação (pode vir como Date, string ou undefined)
+  const rawDate = article.date || article.published_at || article.createdAt || article.created_at;
+  const isoDate = rawDate
+    ? (rawDate instanceof Date ? rawDate.toISOString() : new Date(rawDate).toISOString())
+    : null;
+
+  if (isoDate) {
+    schema.datePublished = isoDate;
+    schema.dateModified = isoDate;
   }
 
   if (article.category_title) {
