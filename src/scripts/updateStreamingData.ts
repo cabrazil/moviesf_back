@@ -186,11 +186,12 @@ async function updateMovieStreamingData(movie: MovieWithStreaming): Promise<void
     const tmdbData = await getTMDBStreamingData(movie.tmdbId);
 
     // Buscar dados YouTube
-    const youtubeData = await checkYouTubeAvailability(movie.title, movie.year ?? undefined);
+    // const youtubeData = await checkYouTubeAvailability(movie.title, movie.year ?? undefined);
 
     // Combinar dados
     const allStreamingData = [...tmdbData];
 
+    /*
     if (youtubeData.available) {
       const isOldMovie = (movie.year ?? 0) < 1970;
       const youtubePlatform = isOldMovie ? 'YouTube (Gratuito)' : 'YouTube';
@@ -202,6 +203,7 @@ async function updateMovieStreamingData(movie: MovieWithStreaming): Promise<void
         });
       });
     }
+    */
 
     // Remover dados antigos
     await prisma.movieStreamingPlatform.deleteMany({
