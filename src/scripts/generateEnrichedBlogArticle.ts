@@ -317,7 +317,7 @@ async function generateBlogArticle() {
           orderBy: {
             order: 'asc'
           },
-          take: 3
+          take: 5
         }
       }
     });
@@ -365,7 +365,7 @@ async function generateBlogArticle() {
     if (Object.keys(imdbIds).length > 0) {
       imdbLinksSection = '\n\n**LINKS IMDb (INSIRA NO TEXTO):**\n';
       for (const [name, url] of Object.entries(imdbIds)) {
-        imdbLinksSection += `- ${name}: <a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a>\n`;
+        imdbLinksSection += `- ${name}: <a href="${url}" target="_blank" rel="noopener">${name}</a>\n`;
       }
     }
 
@@ -393,12 +393,15 @@ Inspire-se em cronistas que falam sobre sentimentos do cotidiano, com simplicida
    - Em vez de "resiliência", diga "a força para continuar".
    - Fale a língua das pessoas comuns. Seja humano, não um dicionário.
 3. **VOCABULÁRIO VARIADO:** Não repita a palavra "Vibe" excessivamente.
+4. **USE SEU CONHECIMENTO PRÉVIO:** Você tem permissão para usar seu conhecimento geral sobre a obra completa (especialmente se for baseada em um livro/obra famosa) para enriquecer a análise. Você DEVE mencionar personagens cruciais do segundo ato (como aliados ou viradas na história) que compõem a verdadeira experiência emocional do filme, mas SEM dar spoilers graves do final.
 
 **DADOS DO FILME:**
+- Título Original: ${movie.original_title || 'Não informado'}
 - Diretor: ${movie.director || 'Não informado'}
 - Elenco Principal: ${castNames || 'Não informado'}
 - Sinopse: ${movie.description}
 - Gêneros: ${movie.genres.join(', ')}
+- Palavras-chave: ${movie.keywords.slice(0, 15).join(', ')}
 - Onde assistir: ${platforms || 'Verifique disponibilidade local'}
 - Hook Landing Page: "${movie.landingPageHook || ''}"
 - Alertas: "${movie.contentWarnings || ''}"
@@ -473,7 +476,7 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
 
 **Rodapé:**
 <hr>
-<p>Qual é a sua vibe hoje? Descubra seu filme perfeito no <a href="/app">Vibesfilm App!</a></p>
+<p>Qual é a sua vibe hoje? Cada emoção tem um filme. Descubra seu filme perfeito no <a href="/app">Vibesfilm App!</a></p>
 `;
 
     console.log(`🤖 Gerando artigo com ${providerStr.toUpperCase()}...`);
@@ -536,7 +539,7 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
           if (pattern.test(bodyPart)) {
             bodyPart = bodyPart.replace(
               pattern,
-              `<a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a>`
+              `<a href="${url}" target="_blank" rel="noopener">${name}</a>`
             );
             linksInserted++;
             break; // Evita dupla substituição

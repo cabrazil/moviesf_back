@@ -65,6 +65,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
         id: true,
         title: true,
         year: true,
+        original_title: true,
         description: true,
         keywords: true
       }
@@ -87,6 +88,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
         id: true,
         title: true,
         year: true,
+        original_title: true,
         description: true,
         keywords: true
       }
@@ -110,6 +112,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
             id: true,
             title: true,
             year: true,
+            original_title: true,
             description: true,
             keywords: true
           }
@@ -315,6 +318,7 @@ async function auditMovieWithAI(
   movie: {
     title: string;
     year: number | null;
+    original_title?: string | null;
     description: string | null;
     keywords: string[];
   },
@@ -340,8 +344,13 @@ Sua tarefa é auditar se o filme abaixo se encaixa nos conceitos específicos da
 
 ### 🎬 DADOS DO FILME (FONTE A)
 - Título: ${movie.title} (${movie.year})
+- Título Original: ${movie.original_title || 'Não informado'}
 - Sinopse: ${movie.description || "Sem sinopse"}
 - Keywords do Filme: ${movie.keywords.join(', ')}
+
+### 🧠 CONHECIMENTO EXPANDIDO E PLOT TWISTS (MUITO IMPORTANTE)
+Como a Sinopse e as Keywords geralmente ocultam reviravoltas do segundo ato, aliados surpresa e resoluções, você TEM PERMISSÃO TOTAL para usar seu próprio conhecimento sobre a trama completa do filme (e do livro base, se houver). 
+Se a Lista de DNA possuir temas como "Conexão Humana", "Amizade", "Colaboração" ou "Sacrifício" e você souber que isso ocorre fortemente do meio para o fim da obra, você DEVE reconhecer e dar peso ALTO a esses sentimentos, mesmo que a sinopse original sugira apenas isolamento.
 
 **LENTE DE ANÁLISE PRINCIPAL:** ${userSentimentContext}
 **DEFINIÇÃO DA LENTE (KEYWORDS):** ${userSentimentKeywords.length > 0 ? userSentimentKeywords.join(', ') : 'Nenhuma keyword definida'}
