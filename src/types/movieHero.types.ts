@@ -41,7 +41,7 @@ export interface StreamingPlatform {
   hasFreeTrial: boolean;
   freeTrialDuration: number;
   baseUrl: string;
-  accessType: 'INCLUDED_WITH_SUBSCRIPTION' | 'RENTAL' | 'PURCHASE';
+  accessType: 'INCLUDED_WITH_SUBSCRIPTION' | 'RENTAL' | 'PURCHASE' | 'FREE_WITH_ADS' | 'HYBRID_OR_UNKNOWN';
 }
 
 export interface EmotionalTag {
