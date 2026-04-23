@@ -24,6 +24,7 @@ interface TMDBWatchProviders {
       rent?: Array<{ provider_name: string }>;
       buy?: Array<{ provider_name: string }>;
       free?: Array<{ provider_name: string }>;
+      ads?: Array<{ provider_name: string }>;
     };
   };
 }
@@ -77,10 +78,11 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'MGM Plus Amazon Channel': { name: 'MGM+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'MGM+ Apple TV Channel': { name: 'MGM+', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'YouTube Premium': { name: 'YouTube', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
-  'YouTube (Gratuito)': { name: 'YouTube (Gratuito)', accessType: 'FREE_WITH_ADS' }
+  'YouTube (Gratuito)': { name: 'YouTube (Gratuito)', accessType: 'FREE_WITH_ADS' },
+  'Mercado Play': { name: 'Mercado Play' }
 };
 
-function getAccessTypeFromTMDB(providerType: 'flatrate' | 'buy' | 'rent' | 'free', providerName: string): string {
+function getAccessTypeFromTMDB(providerType: 'flatrate' | 'buy' | 'rent' | 'free' | 'ads', providerName: string): string {
   // Primeiro, verificar mapeamento específico
   const mapped = TMDB_PROVIDER_MAPPING[providerName];
   if (mapped && mapped.accessType) {
@@ -96,6 +98,7 @@ function getAccessTypeFromTMDB(providerType: 'flatrate' | 'buy' | 'rent' | 'free
     case 'rent':
       return 'RENTAL';
     case 'free':
+    case 'ads':
       return 'FREE_WITH_ADS';
     default:
       return 'HYBRID_OR_UNKNOWN';
@@ -113,14 +116,15 @@ async function getTMDBStreamingData(tmdbId: number): Promise<Array<{ platform: s
       { type: 'flatrate', providers: response.data.results?.BR?.flatrate || [] },
       { type: 'buy', providers: response.data.results?.BR?.buy || [] },
       { type: 'rent', providers: response.data.results?.BR?.rent || [] },
-      { type: 'free', providers: response.data.results?.BR?.free || [] }
+      { type: 'free', providers: response.data.results?.BR?.free || [] },
+      { type: 'ads', providers: response.data.results?.BR?.ads || [] }
     ];
 
     for (const { type, providers } of providerTypes) {
       for (const provider of providers) {
         const mapped = TMDB_PROVIDER_MAPPING[provider.provider_name];
         if (mapped) {
-          const accessType = getAccessTypeFromTMDB(type as 'flatrate' | 'buy' | 'rent' | 'free', provider.provider_name);
+          const accessType = getAccessTypeFromTMDB(type as 'flatrate' | 'buy' | 'rent' | 'free' | 'ads', provider.provider_name);
           streamingData.push({
             platform: mapped.name,
             accessType

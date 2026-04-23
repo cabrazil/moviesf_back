@@ -61,7 +61,8 @@ const PROVIDER_IDS: Record<string, number> = {
   'Oldflix': 499,
   'Looke': 47,
   'Google Play': 3,
-  'Apple TV': 2
+  'Apple TV': 2,
+  'Mercado Play': 2302
 };
 
 // Normaliza string: minusculas + remove acentos (ex: 'Video' -> 'video')

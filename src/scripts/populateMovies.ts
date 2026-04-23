@@ -382,6 +382,7 @@ const TMDB_PROVIDER_MAPPING: Record<string, { name: string; accessType?: string 
   'Microsoft Store': { name: 'Microsoft Store' }, // accessType removido - usar fallback
   'YouTube': { name: 'YouTube (Gratuito)', accessType: 'FREE_WITH_ADS' },
   'Pluto TV': { name: 'Pluto TV', accessType: 'FREE_WITH_ADS' },
+  'Mercado Play': { name: 'Mercado Play' },
   'Globoplay': { name: 'Globoplay', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Telecine': { name: 'Telecine', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },
   'Telecine Amazon Channel': { name: 'Telecine', accessType: 'INCLUDED_WITH_SUBSCRIPTION' },

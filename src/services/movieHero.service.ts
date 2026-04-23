@@ -65,7 +65,7 @@ export class MovieHeroService {
 
     // Organizar plataformas por tipo de acesso
     const subscriptionPlatforms = movieData.platforms.filter(
-      (p: StreamingPlatform) => p.accessType === 'INCLUDED_WITH_SUBSCRIPTION'
+      (p: StreamingPlatform) => p.accessType === 'INCLUDED_WITH_SUBSCRIPTION' || p.accessType === 'FREE_WITH_ADS'
     );
 
     const rentalPurchasePlatforms = movieData.platforms.filter(
@@ -78,7 +78,7 @@ export class MovieHeroService {
       movieData.oscarNominations
     );
 
-    console.log(`✅ Dados processados: ${subscriptionPlatforms.length} plataformas de assinatura, ${rentalPurchasePlatforms.length} de aluguel/compra`);
+    console.log(`✅ Dados processados: ${subscriptionPlatforms.length} plataformas de assinatura/gratuito, ${rentalPurchasePlatforms.length} de aluguel/compra`);
 
     return {
       ...movieData,
