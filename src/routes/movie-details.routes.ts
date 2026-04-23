@@ -129,6 +129,9 @@ router.get('/:id/details', async (req, res) => {
         sp.name
     `, [id]);
 
+    console.log(`📡 [RAW DEBUG] Plataformas para o filme ${id}:`, JSON.stringify(platformsResult.rows, null, 2));
+    console.log(`📡 [DEBUG] Plataformas encontradas para o filme ${id}:`, platformsResult.rows.map(r => ({ name: r.name, access: r.accessType })));
+
     let sentimentsResult;
     try {
       sentimentsResult = await pool.query(`
@@ -231,16 +234,31 @@ router.get('/:id/details', async (req, res) => {
       isMain: mainTrailerResult.rows[0].isMain
     } : null;
 
-    const subscriptionPlatforms = platformsResult.rows.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      category: row.category,
-      logoPath: row.logoPath,
-      hasFreeTrial: row.hasFreeTrial,
-      freeTrialDuration: row.freeTrialDuration,
-      baseUrl: row.baseUrl,
-      accessType: row.accessType
-    }));
+    const subscriptionPlatforms = platformsResult.rows
+      .filter((row: any) => row.accessType === 'INCLUDED_WITH_SUBSCRIPTION')
+      .map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        category: row.category,
+        logoPath: row.logoPath,
+        hasFreeTrial: row.hasFreeTrial,
+        freeTrialDuration: row.freeTrialDuration,
+        baseUrl: row.baseUrl,
+        accessType: row.accessType
+      }));
+
+    const rentalPurchasePlatforms = platformsResult.rows
+      .filter((row: any) => row.accessType === 'RENTAL' || row.accessType === 'PURCHASE' || row.accessType === 'FREE_WITH_ADS')
+      .map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        category: row.category,
+        logoPath: row.logoPath,
+        hasFreeTrial: row.hasFreeTrial,
+        freeTrialDuration: row.freeTrialDuration,
+        baseUrl: row.baseUrl,
+        accessType: row.accessType
+      }));
 
     const pillarArticles = pillarArticlesResult.rows.map((row: any) => ({
       id: row.id,
@@ -274,7 +292,8 @@ router.get('/:id/details', async (req, res) => {
         mainTrailer: mainTrailer,
         pillarArticles: pillarArticles
       },
-      subscriptionPlatforms
+      subscriptionPlatforms,
+      rentalPurchasePlatforms
     });
   } catch (error) {
     console.error('Erro ao buscar detalhes do filme:', error);

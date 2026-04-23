@@ -78,7 +78,7 @@ export class MovieHeroService {
       movieData.oscarNominations
     );
 
-    console.log(`✅ Dados processados: ${subscriptionPlatforms.length} plataformas de assinatura/gratuito, ${rentalPurchasePlatforms.length} de aluguel/compra`);
+    console.log(`✅ Dados processados: ${subscriptionPlatforms.length} assinatura/gratuito, ${rentalPurchasePlatforms.length} aluguel/compra`);
 
     return {
       ...movieData,

@@ -25,17 +25,17 @@ const getPool = (): Pool => {
 router.get('/:id/details', async (req, res) => {
   const startTime = Date.now();
   console.log(`🚀 [${new Date().toISOString()}] Iniciando busca de filme: ${req.params.id}`);
-  
+
   try {
     const { id } = req.params;
-    
+
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
       return res.status(400).json({ error: 'ID inválido' });
     }
-    
+
     const pool = getPool();
-    
+
     // Query otimizada: buscar dados básicos do filme
     const movieQueryStart = Date.now();
     const movieResult = await pool.query(`
@@ -61,7 +61,7 @@ router.get('/:id/details', async (req, res) => {
       FROM "Movie" m
       WHERE m.id = $1
     `, [id]);
-    
+
     console.log(`⏱️ Query filme: ${Date.now() - movieQueryStart}ms`);
 
     if (movieResult.rows.length === 0) {
@@ -70,10 +70,10 @@ router.get('/:id/details', async (req, res) => {
 
     const movie = movieResult.rows[0];
     console.log(`✅ Filme encontrado: ${movie.title}`);
-    
+
     // Executar queries em paralelo para melhor performance
     const parallelQueriesStart = Date.now();
-    
+
     const [
       platformsResult,
       sentimentsResult,
@@ -106,7 +106,7 @@ router.get('/:id/details', async (req, res) => {
         console.error('❌ Erro ao buscar plataformas:', err);
         return { rows: [] };
       }),
-      
+
       // Sentimentos (simplificado)
       pool.query(`
         SELECT 
@@ -125,7 +125,7 @@ router.get('/:id/details', async (req, res) => {
         console.error('❌ Erro ao buscar sentimentos:', err);
         return { rows: [] };
       }),
-      
+
       // Elenco principal (limitado)
       pool.query(`
         SELECT 
@@ -141,7 +141,7 @@ router.get('/:id/details', async (req, res) => {
         console.error('❌ Erro ao buscar elenco:', err);
         return { rows: [] };
       }),
-      
+
       // Trailer principal
       pool.query(`
         SELECT 
@@ -160,9 +160,9 @@ router.get('/:id/details', async (req, res) => {
         return { rows: [] };
       })
     ]);
-    
+
     console.log(`⏱️ Queries paralelas: ${Date.now() - parallelQueriesStart}ms`);
-    
+
     // Query de prêmios Oscar (opcional - só se necessário)
     let oscarAwards = null;
     if (movie.awardsSummary) {
@@ -189,13 +189,13 @@ router.get('/:id/details', async (req, res) => {
           ORDER BY year DESC, type DESC, category_name
           LIMIT 20
         `, [id]);
-        
+
         console.log(`⏱️ Query Oscar: ${Date.now() - oscarQueryStart}ms`);
-        
+
         if (oscarAwardsResult.rows.length > 0) {
           const wins: any[] = [];
           const nominations: any[] = [];
-          
+
           oscarAwardsResult.rows.forEach((row: any) => {
             if (row.type === 'win') {
               wins.push({
@@ -211,7 +211,7 @@ router.get('/:id/details', async (req, res) => {
               });
             }
           });
-          
+
           oscarAwards = {
             wins,
             nominations,
@@ -223,22 +223,22 @@ router.get('/:id/details', async (req, res) => {
         console.error('❌ Erro ao buscar prêmios Oscar:', oscarError);
       }
     }
-    
+
     // Processar resultados
     const processingStart = Date.now();
-    
+
     const emotionalTags = sentimentsResult.rows.map((row: any) => ({
       mainSentiment: row.mainSentimentName,
       subSentiment: row.subSentimentName,
       relevance: parseFloat(row.relevance) || 0
     }));
-    
+
     const mainCast = castResult.rows.map((row: any) => ({
       actorName: row.actorName,
       characterName: row.characterName,
       order: row.order
     }));
-    
+
     const mainTrailer = mainTrailerResult.rows.length > 0 ? {
       key: mainTrailerResult.rows[0].key,
       name: mainTrailerResult.rows[0].name,
@@ -248,22 +248,39 @@ router.get('/:id/details', async (req, res) => {
       isMain: mainTrailerResult.rows[0].isMain
     } : null;
 
-    const subscriptionPlatforms = platformsResult.rows.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      category: row.category,
-      logoPath: row.logoPath,
-      hasFreeTrial: row.hasFreeTrial,
-      freeTrialDuration: row.freeTrialDuration,
-      baseUrl: row.baseUrl,
-      accessType: row.accessType
-    }));
+    console.log(`📡 [RAW DEBUG] Plataformas para o filme ${id}:`, JSON.stringify(platformsResult.rows, null, 2));
+
+    const subscriptionPlatforms = platformsResult.rows
+      .filter((row: any) => row.accessType === 'INCLUDED_WITH_SUBSCRIPTION' || row.accessType === 'FREE_WITH_ADS')
+      .map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        category: row.category,
+        logoPath: row.logoPath,
+        hasFreeTrial: row.hasFreeTrial,
+        freeTrialDuration: row.freeTrialDuration,
+        baseUrl: row.baseUrl,
+        accessType: row.accessType
+      }));
+
+    const rentalPurchasePlatforms = platformsResult.rows
+      .filter((row: any) => row.accessType === 'RENTAL' || row.accessType === 'PURCHASE')
+      .map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        category: row.category,
+        logoPath: row.logoPath,
+        hasFreeTrial: row.hasFreeTrial,
+        freeTrialDuration: row.freeTrialDuration,
+        baseUrl: row.baseUrl,
+        accessType: row.accessType
+      }));
 
     console.log(`⏱️ Processamento: ${Date.now() - processingStart}ms`);
-    
+
     const totalTime = Date.now() - startTime;
     console.log(`🎯 Total da requisição: ${totalTime}ms`);
-    
+
     res.json({
       movie: {
         id: movie.id,
@@ -290,6 +307,7 @@ router.get('/:id/details', async (req, res) => {
         mainTrailer: mainTrailer
       },
       subscriptionPlatforms,
+      rentalPurchasePlatforms,
       performance: {
         totalTime: totalTime,
         movieQuery: movieQueryStart - startTime,
@@ -298,7 +316,7 @@ router.get('/:id/details', async (req, res) => {
         processing: Date.now() - processingStart
       }
     });
-    
+
   } catch (error) {
     console.error('❌ Erro ao buscar detalhes do filme:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
