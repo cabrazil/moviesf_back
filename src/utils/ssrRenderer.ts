@@ -106,8 +106,8 @@ export function renderMovieHTML(
     ? `${description.substring(0, 157)}...`
     : description;
 
-  // URL canônica
-  const routePath = isEditorial ? `/filme/${slug}` : `/onde-assistir/${slug}`;
+  // URL canônica consolidada (Sempre usar /onde-assistir/ para evitar conteúdo duplicado)
+  const routePath = `/onde-assistir/${slug}`;
   const canonicalUrl = `https://vibesfilm.com${routePath}`;
 
   // Schema.org JSON-LD
@@ -258,11 +258,54 @@ export function renderMovieHTML(
 </head>
 <body>
   <div id="root">
-    <h1>${escapeHtml(movie.title)}${movie.year ? ` (${movie.year})` : ''}</h1>
-    <p>${escapeHtml(seoDescription)}</p>
-    ${movie.description ? `<p>${escapeHtml(movie.description.substring(0, 500))}</p>` : ''}
-    ${movie.thumbnail ? `<img src="${movie.thumbnail}" alt="${escapeHtml(movie.title)}" style="max-width: 100%; height: auto;">` : ''}
-    <p>Plataformas disponíveis: ${uniquePlatforms.map((p: any) => p.name).join(', ')}</p>
+    <header>
+      <h1>${escapeHtml(movie.title)}${movie.year ? ` (${movie.year})` : ''}</h1>
+      <p><strong>${escapeHtml(seoDescription)}</strong></p>
+    </header>
+
+    <main>
+      <section id="detalhes">
+        <h2>Sobre o filme</h2>
+        ${movie.description ? `<p>${escapeHtml(movie.description)}</p>` : ''}
+        ${movie.thumbnail ? `<img src="${movie.thumbnail}" alt="${escapeHtml(movie.title)}" style="max-width: 300px; height: auto; border-radius: 8px;">` : ''}
+      </section>
+
+      <section id="onde-assistir">
+        <h2>Onde assistir ${escapeHtml(movie.title)}</h2>
+        <p>Disponível nas seguintes plataformas: ${uniquePlatforms.length > 0 ? uniquePlatforms.map((p: any) => p.name).join(', ') : 'Consulte disponibilidade local.'}</p>
+      </section>
+
+      ${movie.emotionalTags && movie.emotionalTags.length > 0 ? `
+      <section id="vibe-emocional">
+        <h2>Vibe e Sentimentos</h2>
+        <ul>
+          ${movie.emotionalTags.map((t: any) => `<li><strong>${escapeHtml(t.mainSentiment)}</strong>: ${escapeHtml(t.subSentiment)}</li>`).join('\n          ')}
+        </ul>
+      </section>` : ''}
+
+      ${movie.oscarAwards && (movie.oscarAwards.totalWins > 0 || movie.oscarAwards.totalNominations > 0) ? `
+      <section id="premios">
+        <h2>Reconhecimentos e Prêmios</h2>
+        <p>${movie.title} possui ${movie.oscarAwards.totalWins} vitórias e ${movie.oscarAwards.totalNominations} indicações ao Oscar.</p>
+      </section>` : ''}
+
+      ${movie.mainCast && movie.mainCast.length > 0 ? `
+      <section id="elenco">
+        <h2>Elenco Principal</h2>
+        <ul>
+          ${movie.mainCast.slice(0, 10).map((c: any) => `<li>${escapeHtml(c.actorName)} como ${escapeHtml(c.characterName)}</li>`).join('\n          ')}
+        </ul>
+      </section>` : ''}
+      
+      <section id="direcao">
+        <p>Direção: ${escapeHtml(movie.director || 'Informação não disponível')}</p>
+        <p>Gêneros: ${escapeHtml(movie.genres?.join(', ') || 'Informação não disponível')}</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>Encontre o filme certo para o seu momento no VibesFilm.</p>
+    </footer>
   </div>
 </body>
 </html>`;
@@ -419,7 +462,7 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
     <h1>${escapeHtml(title)}</h1>
     <p>${escapeHtml(seoDescription)}</p>
     ${article.imageUrl ? `<img src="${article.imageUrl}" alt="${escapeHtml(article.imageAlt || title)}" style="max-width: 100%; height: auto;">` : ''}
-    ${article.content ? `<div>${article.content.substring(0, 1000)}...</div>` : ''}
+    ${article.content ? `<div>${article.content}</div>` : ''}
   </div>
 </body>
 </html>`;
