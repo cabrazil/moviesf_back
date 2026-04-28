@@ -6,6 +6,7 @@ import { searchMovie } from './populateMovies';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 import * as fs from 'fs';
 import * as path from 'path';
+import { inferEntryType } from '../utils/emotionalEntryType';
 
 const prisma = new PrismaClient();
 
@@ -815,6 +816,21 @@ async function main() {
           );
         }
       });
+
+      // Calcular e adicionar o UPDATE do emotionalEntryType
+      const MIN_RELEVANCE = 0.90;
+      const qualifiedSubNames = validatedSubSentiments
+        .filter(v => v.suggestion.relevance >= MIN_RELEVANCE)
+        .map(v => v.suggestion.name);
+
+      if (qualifiedSubNames.length > 0) {
+        const inferredType = inferEntryType(qualifiedSubNames);
+        sqlInserts.push(
+          `-- Atualiza o custo de entrada emocional do filme`,
+          `UPDATE "Movie" SET "emotionalEntryType" = '${inferredType}' WHERE "id" = '${movie.id}';`
+        );
+        console.log(`\n🧠 Inferência de Entrada Emocional: ${inferredType} (baseado em ${qualifiedSubNames.length} sinais >= ${MIN_RELEVANCE})`);
+      }
 
       if (sqlInserts.length > 0) {
         const insertFilePath = path.join(__dirname, '../../inserts.sql');

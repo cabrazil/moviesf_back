@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 
 import { prismaApp as prisma } from '../prisma';
+import { calcFinalScore, IntentionType, EmotionalEntryType } from '../utils/emotionalEntryType';
 
 // @desc    Buscar sugestões de filmes
 // @route   GET /api/suggestions
@@ -37,6 +38,17 @@ export const getMovieSuggestions = asyncHandler(async (req: Request, res: Respon
       };
     }
 
+    // Buscar o tipo de intenção para passar para o cálculo do score
+    let userIntentionType: IntentionType | null = null;
+    if (intentionId) {
+      const intention = await prisma.emotionalIntention.findUnique({
+        where: { id: Number(intentionId) }
+      });
+      if (intention) {
+        userIntentionType = intention.intentionType as IntentionType;
+      }
+    }
+
     const suggestions = await prisma.movieSuggestionFlow.findMany({
       where: whereClause,
       include: {
@@ -55,7 +67,8 @@ export const getMovieSuggestions = asyncHandler(async (req: Request, res: Respon
             rottenTomatoesRating: true,
             metacriticRating: true,
             runtime: true,
-            certification: true
+            certification: true,
+            emotionalEntryType: true
           }
         },
         journeyOptionFlow: {
@@ -71,15 +84,34 @@ export const getMovieSuggestions = asyncHandler(async (req: Request, res: Respon
             }
           }
         }
-      },
-      orderBy: {
-        movie: {
-          imdbRating: 'desc'
-        }
       }
     });
+
+    // Mapear, aplicar ajuste emocional e reordenar
+    const finalSuggestions = suggestions.map(sug => {
+      const relevanceScore = sug.relevanceScore ? Number(sug.relevanceScore) : 0;
+      const entryType = sug.movie?.emotionalEntryType as EmotionalEntryType | null;
+
+      const finalScore = calcFinalScore(relevanceScore, entryType, userIntentionType);
+
+      return {
+        ...sug,
+        relevanceScore: finalScore, // Sobrescreve pelo novo score calibrado (pode ser retornado como originalScore também, se o front preferir)
+        originalRelevanceScore: relevanceScore
+      };
+    });
+
+    // Reordenar pelo novo score, caindo para imdbRating caso empatem
+    finalSuggestions.sort((a, b) => {
+      if (b.relevanceScore !== a.relevanceScore) {
+        return b.relevanceScore - a.relevanceScore;
+      }
+      const imdbA = a.movie?.imdbRating ? parseFloat(a.movie.imdbRating) : 0;
+      const imdbB = b.movie?.imdbRating ? parseFloat(b.movie.imdbRating) : 0;
+      return imdbB - imdbA;
+    });
     
-    res.json(suggestions);
+    res.json(finalSuggestions);
   } catch (error) {
     console.error('Erro ao buscar sugestões:', error);
     res.status(500).json({ error: 'Erro ao buscar sugestões' });

@@ -36,6 +36,7 @@ model Movie {
   contentWarnings        String?
   targetAudienceForLP    String?
   awardsSummary          String?
+  emotionalEntryType     EmotionalEntryType?
   movieSentiments        MovieSentiment[]
   movieSuggestionFlows   MovieSuggestionFlow[]
   platforms              MovieStreamingPlatform[]
@@ -439,6 +440,12 @@ model MoviePillarArticle {
   @@index([movieId])
   @@index([blogArticleId])
   @@map("MoviePillarArticle")
+}
+
+enum EmotionalEntryType {
+  ALIGNED
+  TRANSITIONAL
+  COMPLEX
 }
 
 enum IntentionType {
