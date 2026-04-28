@@ -106,8 +106,8 @@ export const getMovieSuggestions = asyncHandler(async (req: Request, res: Respon
       if (b.relevanceScore !== a.relevanceScore) {
         return b.relevanceScore - a.relevanceScore;
       }
-      const imdbA = a.movie?.imdbRating ? parseFloat(a.movie.imdbRating) : 0;
-      const imdbB = b.movie?.imdbRating ? parseFloat(b.movie.imdbRating) : 0;
+      const imdbA = a.movie?.imdbRating ? Number(a.movie.imdbRating) : 0;
+      const imdbB = b.movie?.imdbRating ? Number(b.movie.imdbRating) : 0;
       return imdbB - imdbA;
     });
     
