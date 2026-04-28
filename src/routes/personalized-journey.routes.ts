@@ -1,5 +1,6 @@
 import express from 'express';
 import { prismaApp as prisma } from '../prisma';
+import { calcFinalScore } from '../utils/emotionalEntryType';
 
 const router = express.Router();
 
@@ -63,6 +64,7 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
                         vote_average: true,
                         thumbnail: true,
                         genres: true,
+                        emotionalEntryType: true,
                         platforms: {
                           select: {
                             accessType: true,
@@ -107,13 +109,26 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
         mobileText: option.mobileText,
         nextStepId: option.nextStepId,
         isEndState: option.isEndState,
-        movieSuggestions: option.isEndState ? option.movieSuggestions.map((suggestion: any) => ({
-          id: suggestion.id,
-          reason: suggestion.reason,
-          relevance: suggestion.relevance,
-          relevanceScore: suggestion.relevanceScore,
-          movie: suggestion.movie
-        })) : undefined
+        movieSuggestions: option.isEndState && option.movieSuggestions ? option.movieSuggestions.map((suggestion: any) => {
+          const baseScore = suggestion.relevanceScore ? Number(suggestion.relevanceScore) : 0;
+          const finalScore = calcFinalScore(baseScore, suggestion.movie?.emotionalEntryType, emotionalIntention!.intentionType as any);
+
+          return {
+            id: suggestion.id,
+            reason: suggestion.reason,
+            relevance: suggestion.relevance,
+            originalRelevanceScore: baseScore,
+            relevanceScore: finalScore,
+            movie: suggestion.movie
+          };
+        }).sort((a: any, b: any) => {
+          if (b.relevanceScore !== a.relevanceScore) {
+            return b.relevanceScore - a.relevanceScore;
+          }
+          const imdbA = a.movie?.imdbRating ? Number(a.movie.imdbRating) : 0;
+          const imdbB = b.movie?.imdbRating ? Number(b.movie.imdbRating) : 0;
+          return imdbB - imdbA;
+        }) : undefined
       }))
     }));
 
@@ -166,6 +181,7 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
                           vote_average: true,
                           thumbnail: true,
                           genres: true,
+                          emotionalEntryType: true,
                           platforms: {
                             select: {
                               accessType: true,
@@ -202,13 +218,26 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
                 mobileText: option.mobileText,
                 nextStepId: option.nextStepId,
                 isEndState: option.isEndState,
-                movieSuggestions: option.isEndState ? option.movieSuggestions.map((suggestion: any) => ({
-                  id: suggestion.id,
-                  reason: suggestion.reason,
-                  relevance: suggestion.relevance,
-                  relevanceScore: suggestion.relevanceScore,
-                  movie: suggestion.movie
-                })) : undefined
+                movieSuggestions: option.isEndState && option.movieSuggestions ? option.movieSuggestions.map((suggestion: any) => {
+                  const baseScore = suggestion.relevanceScore ? Number(suggestion.relevanceScore) : 0;
+                  const finalScore = calcFinalScore(baseScore, suggestion.movie?.emotionalEntryType, emotionalIntention!.intentionType as any);
+
+                  return {
+                    id: suggestion.id,
+                    reason: suggestion.reason,
+                    relevance: suggestion.relevance,
+                    originalRelevanceScore: baseScore,
+                    relevanceScore: finalScore,
+                    movie: suggestion.movie
+                  };
+                }).sort((a: any, b: any) => {
+                  if (b.relevanceScore !== a.relevanceScore) {
+                    return b.relevanceScore - a.relevanceScore;
+                  }
+                  const imdbA = a.movie?.imdbRating ? Number(a.movie.imdbRating) : 0;
+                  const imdbB = b.movie?.imdbRating ? Number(b.movie.imdbRating) : 0;
+                  return imdbB - imdbA;
+                }) : undefined
               }))
             }));
 
