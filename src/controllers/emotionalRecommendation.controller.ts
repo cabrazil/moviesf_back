@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 
 
 import { prismaApp as prisma } from '../prisma';
+import { calcFinalScore } from '../utils/emotionalEntryType';
 
 interface Movie {
   id: string;
@@ -224,23 +225,37 @@ export class EmotionalRecommendationController {
             text: option.text,
             nextStepId: option.nextStepId,
             isEndState: option.isEndState,
-            movieSuggestions: option.movieSuggestions?.map((ms: any) => ({
-              id: ms.id,
-              movie: {
-                ...ms.movie,
-                platforms: ms.movie.platforms?.map((p: any) => ({
-                  streamingPlatformId: p.streamingPlatformId,
-                  accessType: p.accessType,
-                  streamingPlatform: {
-                    id: p.streamingPlatform.id,
-                    name: p.streamingPlatform.name,
-                    category: p.streamingPlatform.category,
-                    logoPath: p.streamingPlatform.logoPath
-                  }
-                }))
-              },
-              reason: ms.reason
-            }))
+            movieSuggestions: option.movieSuggestions?.map((ms: any) => {
+              const baseScore = ms.relevanceScore ? Number(ms.relevanceScore) : 0;
+              const finalScore = calcFinalScore(baseScore, ms.movie?.emotionalEntryType, emotionalIntention.intentionType);
+              
+              return {
+                id: ms.id,
+                relevanceScore: finalScore,
+                originalRelevanceScore: baseScore,
+                movie: {
+                  ...ms.movie,
+                  platforms: ms.movie.platforms?.map((p: any) => ({
+                    streamingPlatformId: p.streamingPlatformId,
+                    accessType: p.accessType,
+                    streamingPlatform: {
+                      id: p.streamingPlatform.id,
+                      name: p.streamingPlatform.name,
+                      category: p.streamingPlatform.category,
+                      logoPath: p.streamingPlatform.logoPath
+                    }
+                  }))
+                },
+                reason: ms.reason
+              };
+            }).sort((a: any, b: any) => {
+              if (b.relevanceScore !== a.relevanceScore) {
+                return b.relevanceScore - a.relevanceScore;
+              }
+              const imdbA = a.movie?.imdbRating ? Number(a.movie.imdbRating) : 0;
+              const imdbB = b.movie?.imdbRating ? Number(b.movie.imdbRating) : 0;
+              return imdbB - imdbA;
+            })
           }))
         }));
 
@@ -266,23 +281,37 @@ export class EmotionalRecommendationController {
           text: option.text,
           nextStepId: option.nextStepId,
           isEndState: option.isEndState,
-          movieSuggestions: option.movieSuggestions?.map((ms: any) => ({
-            id: ms.id,
-            movie: {
-              ...ms.movie,
-              platforms: ms.movie.platforms?.map((p: any) => ({
-                streamingPlatformId: p.streamingPlatformId,
-                accessType: p.accessType,
-                streamingPlatform: {
-                  id: p.streamingPlatform.id,
-                  name: p.streamingPlatform.name,
-                  category: p.streamingPlatform.category,
-                  logoPath: p.streamingPlatform.logoPath
-                }
-              }))
-            },
-            reason: ms.reason
-          }))
+          movieSuggestions: option.movieSuggestions?.map((ms: any) => {
+            const baseScore = ms.relevanceScore ? Number(ms.relevanceScore) : 0;
+            const finalScore = calcFinalScore(baseScore, ms.movie?.emotionalEntryType, emotionalIntention.intentionType);
+            
+            return {
+              id: ms.id,
+              relevanceScore: finalScore,
+              originalRelevanceScore: baseScore,
+              movie: {
+                ...ms.movie,
+                platforms: ms.movie.platforms?.map((p: any) => ({
+                  streamingPlatformId: p.streamingPlatformId,
+                  accessType: p.accessType,
+                  streamingPlatform: {
+                    id: p.streamingPlatform.id,
+                    name: p.streamingPlatform.name,
+                    category: p.streamingPlatform.category,
+                    logoPath: p.streamingPlatform.logoPath
+                  }
+                }))
+              },
+              reason: ms.reason
+            };
+          }).sort((a: any, b: any) => {
+            if (b.relevanceScore !== a.relevanceScore) {
+              return b.relevanceScore - a.relevanceScore;
+            }
+            const imdbA = a.movie?.imdbRating ? Number(a.movie.imdbRating) : 0;
+            const imdbB = b.movie?.imdbRating ? Number(b.movie.imdbRating) : 0;
+            return imdbB - imdbA;
+          })
         }))
       }));
 
@@ -352,23 +381,37 @@ export class EmotionalRecommendationController {
                   text: option.text,
                   nextStepId: option.nextStepId,
                   isEndState: option.isEndState,
-                  movieSuggestions: option.movieSuggestions?.map((ms: any) => ({
-                    id: ms.id,
-                    movie: {
-                      ...ms.movie,
-                      platforms: ms.movie.platforms?.map((p: any) => ({
-                        streamingPlatformId: p.streamingPlatformId,
-                        accessType: p.accessType,
-                        streamingPlatform: {
-                          id: p.streamingPlatform.id,
-                          name: p.streamingPlatform.name,
-                          category: p.streamingPlatform.category,
-                          logoPath: p.streamingPlatform.logoPath
-                        }
-                      }))
-                    },
-                    reason: ms.reason
-                  }))
+                  movieSuggestions: option.movieSuggestions?.map((ms: any) => {
+                    const baseScore = ms.relevanceScore ? Number(ms.relevanceScore) : 0;
+                    const finalScore = calcFinalScore(baseScore, ms.movie?.emotionalEntryType, emotionalIntention!.intentionType);
+                    
+                    return {
+                      id: ms.id,
+                      relevanceScore: finalScore,
+                      originalRelevanceScore: baseScore,
+                      movie: {
+                        ...ms.movie,
+                        platforms: ms.movie.platforms?.map((p: any) => ({
+                          streamingPlatformId: p.streamingPlatformId,
+                          accessType: p.accessType,
+                          streamingPlatform: {
+                            id: p.streamingPlatform.id,
+                            name: p.streamingPlatform.name,
+                            category: p.streamingPlatform.category,
+                            logoPath: p.streamingPlatform.logoPath
+                          }
+                        }))
+                      },
+                      reason: ms.reason
+                    };
+                  }).sort((a: any, b: any) => {
+                    if (b.relevanceScore !== a.relevanceScore) {
+                      return b.relevanceScore - a.relevanceScore;
+                    }
+                    const imdbA = a.movie?.imdbRating ? Number(a.movie.imdbRating) : 0;
+                    const imdbB = b.movie?.imdbRating ? Number(b.movie.imdbRating) : 0;
+                    return imdbB - imdbA;
+                  })
                 }))
               }));
 

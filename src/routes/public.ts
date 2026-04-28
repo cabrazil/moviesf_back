@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prismaApp as prisma } from '../prisma';
+import { calcFinalScore } from '../utils/emotionalEntryType';
 
 const router = Router();
 
@@ -264,7 +265,37 @@ router.get('/jornadas/:slug', async (req, res) => {
       return res.status(404).json({ error: 'Jornada não encontrada' });
     }
 
-    res.json(journey);
+    const intentionType = slug.toUpperCase() as any;
+
+    // Ajustar o relevanceScore em cada sugestão de filme
+    const adjustedJourney = {
+      ...journey,
+      steps: journey.steps.map(step => ({
+        ...step,
+        options: step.options.map(option => ({
+          ...option,
+          movieSuggestions: option.movieSuggestions?.map((ms: any) => {
+            const baseScore = ms.relevanceScore ? Number(ms.relevanceScore) : 0;
+            const finalScore = calcFinalScore(baseScore, ms.movie?.emotionalEntryType, intentionType);
+            return {
+              ...ms,
+              relevanceScore: finalScore,
+              originalRelevanceScore: baseScore
+            };
+          }).sort((a: any, b: any) => {
+            // Reordenar pelo novo score, caindo para imdbRating caso empatem
+            if (b.relevanceScore !== a.relevanceScore) {
+              return b.relevanceScore - a.relevanceScore;
+            }
+            const imdbA = a.movie?.imdbRating ? Number(a.movie.imdbRating) : 0;
+            const imdbB = b.movie?.imdbRating ? Number(b.movie.imdbRating) : 0;
+            return imdbB - imdbA;
+          })
+        }))
+      }))
+    };
+
+    res.json(adjustedJourney);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao carregar dados da jornada' });
   }
