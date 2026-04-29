@@ -1,8 +1,29 @@
 import { Router } from 'express';
 import { prismaApp as prisma } from '../prisma';
 import { createAIProvider, getDefaultConfig } from '../utils/aiProvider';
+import { randomUUID } from 'crypto';
 
 const router = Router();
+
+// ====================================================
+// Armazenamento temporário em memória (TTL: 30 min)
+// Guarda o newHook entre /preview e /confirm-pending
+// ====================================================
+interface PendingHook {
+  movieId: string;
+  title: string;
+  newHook: string;
+  expiresAt: number;
+}
+const pendingStore = new Map<string, PendingHook>();
+
+// Limpar entradas expiradas a cada 10 minutos
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of pendingStore.entries()) {
+    if (value.expiresAt < now) pendingStore.delete(key);
+  }
+}, 10 * 60 * 1000);
 
 // ====================================================
 // Helper: gera novo landingPageHook via IA
@@ -78,7 +99,17 @@ router.post('/preview', async (req, res) => {
 
     const newHook = await generateHook(movie, provider);
 
+    // Salvar no pendingStore para o fluxo do Telegram
+    const pendingId = randomUUID();
+    pendingStore.set(pendingId, {
+      movieId: movie.id,
+      title: movie.title,
+      newHook,
+      expiresAt: Date.now() + 30 * 60 * 1000 // 30 minutos
+    });
+
     return res.json({
+      pendingId,         // usado no callback_data dos botões Telegram
       movieId: movie.id,
       title: movie.title,
       year: movie.year,
@@ -121,4 +152,49 @@ router.post('/confirm', async (req, res) => {
   }
 });
 
+// ====================================================
+// POST /api/rephrase-hook/confirm-pending/:pendingId
+// Usado pelo Telegram callback: confirma ou cancela
+// Body: { action: 'confirm' | 'cancel' }
+// Retorna: { success, title, updatedHook? }
+// ====================================================
+router.post('/confirm-pending/:pendingId', async (req, res) => {
+  try {
+    const { pendingId } = req.params;
+    const { action } = req.body;
+
+    const pending = pendingStore.get(pendingId);
+    if (!pending) {
+      return res.status(404).json({ error: 'Sessão expirada ou inválida. Execute /hook novamente.' });
+    }
+
+    if (action === 'cancel') {
+      pendingStore.delete(pendingId);
+      return res.json({ success: true, cancelled: true, title: pending.title });
+    }
+
+    if (action === 'confirm') {
+      const updated = await prisma.movie.update({
+        where: { id: pending.movieId },
+        data: { landingPageHook: pending.newHook },
+        select: { id: true, title: true, landingPageHook: true }
+      });
+
+      pendingStore.delete(pendingId);
+
+      return res.json({
+        success: true,
+        title: updated.title,
+        updatedHook: updated.landingPageHook
+      });
+    }
+
+    return res.status(400).json({ error: 'Action deve ser "confirm" ou "cancel".' });
+  } catch (error: any) {
+    console.error('Erro em /rephrase-hook/confirm-pending:', error);
+    return res.status(500).json({ error: 'Erro interno ao processar confirmação.' });
+  }
+});
+
 export default router;
+
