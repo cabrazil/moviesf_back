@@ -1,0 +1,1 @@
+import { prismaApp } from './src/prisma'; async function fix() { await prismaApp.$queryRaw`UPDATE \"EmotionalIntentionJourneyStep\" SET \"contextualHint\" = REPLACE(\"contextualHint\", 'Triste', 'Introspectivo(a)') WHERE \"contextualHint\" LIKE '%Triste%'`; console.log('Done'); } fix();
