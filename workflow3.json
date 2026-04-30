@@ -1,0 +1,401 @@
+{
+  "name": "Vibesfilm: /hook Unificado",
+  "nodes": [
+    {
+      "id": "uni-001",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "vibesfilm-hook-unified-01",
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram Bot Vibesfilm"
+        }
+      }
+    },
+    {
+      "id": "uni-002",
+      "name": "Detectar Tipo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nif (data.callback_query) {\n  const cq = data.callback_query;\n  const parts = (cq.data || '').split(':');\n  return [{ json: {\n    eventType: 'callback',\n    action: parts[0] || '',\n    pendingId: parts[1] || '',\n    chatId: cq.message.chat.id,\n    callbackQueryId: cq.id\n  }}];\n}\n\nconst text = data.message?.text || '';\nconst chatId = data.message?.chat?.id;\nreturn [{ json: { eventType: 'command', text, chatId } }];"
+      }
+    },
+    {
+      "id": "uni-003",
+      "name": "É Callback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-type",
+              "leftValue": "={{ $json.eventType }}",
+              "rightValue": "callback",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "uni-004",
+      "name": "É /hook?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        860,
+        160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-hook",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "/hook",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith",
+                "name": "filter.operator.startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "uni-005",
+      "name": "Parsear Comando",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        160
+      ],
+      "parameters": {
+        "jsCode": "const data = $('Detectar Tipo').first().json;\nconst args = data.text.replace(/^\\/hook\\s*/i, '').trim();\nconst yearMatch = args.match(/\\b(\\d{4})\\s*$/);\nconst year = yearMatch ? parseInt(yearMatch[1]) : null;\nconst title = yearMatch ? args.replace(yearMatch[0], '').trim() : args;\nreturn [{ json: { title, year, chatId: data.chatId } }];"
+      }
+    },
+    {
+      "id": "uni-006",
+      "name": "Preview Hook IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.vibesfilm.com/api/rephrase-hook/preview",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $('Parsear Comando').first().json.title, year: $('Parsear Comando').first().json.year, provider: 'deepseek' }) }}"
+      }
+    },
+    {
+      "id": "uni-007",
+      "name": "Montar Mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        160
+      ],
+      "parameters": {
+        "jsCode": "const preview = $input.first().json;\nconst chatId = $('Parsear Comando').first().json.chatId;\n\nif (preview.error) {\n  return [{ json: { chatId, text: `❌ ${preview.error}`, pendingId: null, hasError: true } }];\n}\n\nconst text = `🎬 *${preview.title}* (${preview.year})\\n\\n🔴 *Antes:*\\n_${preview.oldHook}_\\n\\n🟢 *Novo hook gerado:*\\n_${preview.newHook}_\\n\\nDeseja atualizar?`;\n\nreturn [{ json: { chatId, text, pendingId: preview.pendingId, hasError: false } }];"
+      }
+    },
+    {
+      "id": "uni-008",
+      "name": "Enviar com Botões",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1740,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/botSEU_TOKEN_AQUI/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chatId, text: $json.text, parse_mode: 'Markdown', reply_markup: $json.hasError ? {} : { inline_keyboard: [[{ text: '✅ Sim, Atualizar', callback_data: 'confirm:' + $json.pendingId }, { text: '❌ Cancelar', callback_data: 'cancel:' + $json.pendingId }]] } }) }}"
+      }
+    },
+    {
+      "id": "uni-009",
+      "name": "Confirmar ou Cancelar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        440
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.vibesfilm.com/api/rephrase-hook/confirm-pending/{{ $json.pendingId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ action: $json.action }) }}"
+      }
+    },
+    {
+      "id": "uni-010",
+      "name": "Montar Resposta Callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        440
+      ],
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconst callbackData = $('Detectar Tipo').first().json;\n\nlet text;\nif (result.error) {\n  text = `⚠️ ${result.error}`;\n} else if (callbackData.action === 'confirm') {\n  text = `✅ Hook de *${result.title}* atualizado!\\n\\n_${result.updatedHook}_`;\n} else {\n  text = `❌ Operação cancelada. Nenhuma alteração salva.`;\n}\n\nreturn [{ json: { chatId: callbackData.chatId, text, callbackQueryId: callbackData.callbackQueryId } }];"
+      }
+    },
+    {
+      "id": "uni-011",
+      "name": "Responder Callback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        440
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/botSEU_TOKEN_AQUI/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chatId, text: $json.text, parse_mode: 'Markdown' }) }}"
+      }
+    },
+    {
+      "id": "uni-012",
+      "name": "Answer Callback Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        440
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/botSEU_TOKEN_AQUI/answerCallbackQuery",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $json.callbackQueryId }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Detectar Tipo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Tipo": {
+      "main": [
+        [
+          {
+            "node": "É Callback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Callback?": {
+      "main": [
+        [
+          {
+            "node": "Confirmar ou Cancelar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "É /hook?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É /hook?": {
+      "main": [
+        [
+          {
+            "node": "Parsear Comando",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Parsear Comando": {
+      "main": [
+        [
+          {
+            "node": "Preview Hook IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preview Hook IA": {
+      "main": [
+        [
+          {
+            "node": "Montar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Enviar com Botões",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar ou Cancelar": {
+      "main": [
+        [
+          {
+            "node": "Montar Resposta Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Resposta Callback": {
+      "main": [
+        [
+          {
+            "node": "Responder Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder Callback": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

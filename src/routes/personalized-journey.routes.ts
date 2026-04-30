@@ -75,6 +75,14 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
                               }
                             }
                           }
+                        },
+                        movieSentiments: {
+                          select: {
+                            relevance: true,
+                            subSentiment: { select: { name: true } }
+                          },
+                          orderBy: { relevance: 'desc' },
+                          take: 2
                         }
                       }
                     }
@@ -192,6 +200,14 @@ router.get('/:sentimentId/:intentionId', async (req, res) => {
                                 }
                               }
                             }
+                          },
+                          movieSentiments: {
+                            select: {
+                              relevance: true,
+                              subSentiment: { select: { name: true } }
+                            },
+                            orderBy: { relevance: 'desc' },
+                            take: 2
                           }
                         }
                       }
