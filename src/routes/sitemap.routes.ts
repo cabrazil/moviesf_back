@@ -182,7 +182,7 @@ router.get('/categories.xml', async (req, res) => {
       SELECT slug, "updatedAt"
       FROM "Category"
       WHERE "blogId" = 3
-      ORDER BY name ASC
+      ORDER BY title ASC
     `;
 
     const categories = await prismaBlog.$queryRawUnsafe(query) as any[];
