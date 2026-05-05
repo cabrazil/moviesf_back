@@ -278,8 +278,12 @@ async function main() {
     return;
   }
 
+  const allTime = parseBooleanArg(args['all-time'] ?? args.all_time, false);
   const startDate = formatDate(subDays(new Date(), daysToSearch));
-  if (!jsonOutput) console.log(`Filtrando a partir de: ${startDate} (ultimos ${daysToSearch} dias)`);
+  if (!jsonOutput) {
+    if (allTime) console.log(`📅 Filtrando: TODO O TEMPO (melhores do catálogo, ignorando data de lançamento)`);
+    else console.log(`📅 Filtrando a partir de: ${startDate} (ultimos ${daysToSearch} dias no cinema)`);
+  }
 
   // --- Resolucao do Provedor ---
   let providerIds: number[] = [];
@@ -335,9 +339,12 @@ async function main() {
         watch_region: 'BR',
         with_watch_providers: providerFilter,
         'vote_count.gte': minVotes,
-        'vote_average.gte': minRating,
-        'primary_release_date.gte': startDate
+        'vote_average.gte': minRating
       };
+
+      if (!allTime) {
+        params['primary_release_date.gte'] = startDate;
+      }
 
       const response = await axios.get(`${TMDB_API_URL}/discover/movie`, { params });
       const data = response.data as any;
