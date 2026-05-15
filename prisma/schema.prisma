@@ -11,7 +11,7 @@ datasource db {
 
 model Movie {
   id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title                  String                   @unique @db.VarChar(255)
+  title                  String                   @db.VarChar(255)
   year                   Int?
   director               String?                  @db.VarChar(255)
   genres                 String[]
@@ -49,6 +49,7 @@ model Movie {
   quotes                 Quote[]
   pillarArticles         MoviePillarArticle[]
 
+  @@unique([title, year])
   @@index([title])
   @@index([year])
   @@index([tmdbId])

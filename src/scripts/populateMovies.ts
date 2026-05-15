@@ -564,6 +564,7 @@ function getCharacterType(name: string): string {
   if (/[\u08A0-\u08FF]/.test(name)) return 'árabe suplementar';
   if (/[\uFB50-\uFDFF]/.test(name)) return 'formas de apresentação árabe';
   if (/[\uFE70-\uFEFF]/.test(name)) return 'formas especiais árabes';
+  if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\u3400-\u4DBF]/.test(name)) return 'japonês/chinês';
   return 'desconhecido';
 }
 
@@ -609,27 +610,12 @@ async function getMovieCast(movieId: number): Promise<Array<{
       }))
       .sort((a, b) => a.order - b.order); // Ordenar por ordem de aparição
 
-    // Debug: Mostrar dados brutos para atores com nomes em caracteres especiais
-    const specialActors = response.data.cast.filter(actor =>
-      /[\u0590-\u05FF\u0600-\u06FF\uAC00-\uD7AF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(actor.name) && actor.order <= 15
-    );
-    if (specialActors.length > 0) {
-      console.log(`🔍 Debug - Atores com nomes especiais encontrados:`);
-      specialActors.forEach(actor => {
-        const charType = getCharacterType(actor.name);
-        console.log(`  - Order ${actor.order}: "${actor.name}" (${charType}) como "${actor.character}"`);
-      });
-    }
-
     // Corrigir nomes em caracteres especiais para inglês
     for (let i = 0; i < mainCast.length; i++) {
       const actor = mainCast[i];
-      if (/[\u0590-\u05FF\u0600-\u06FF\uAC00-\uD7AF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(actor.name)) {
-        const charType = getCharacterType(actor.name);
-        console.log(`🔄 Corrigindo nome ${charType}: "${actor.name}"`);
+      if (/[\u0590-\u05FF\u0600-\u06FF\uAC00-\uD7AF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\u3400-\u4DBF]/.test(actor.name)) {
         const englishName = await getActorNameInEnglish(actor.tmdbId);
         if (englishName) {
-          console.log(`✅ Nome corrigido: "${actor.name}" → "${englishName}"`);
           mainCast[i] = { ...actor, name: englishName };
         }
       }
