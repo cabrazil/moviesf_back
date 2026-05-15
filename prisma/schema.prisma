@@ -443,6 +443,19 @@ model MoviePillarArticle {
   @@map("MoviePillarArticle")
 }
 
+model DailyCuration {
+  id              Int      @id @default(autoincrement())
+  buttonTitle     String   @db.VarChar(255)
+  buttonMicrocopy String   @db.VarChar(255)
+  headerPhrase    String   @db.VarChar(255)
+  movieIds        String[] // Usar UUIDs (Strings) dos filmes
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("DailyCuration")
+}
+
 enum EmotionalEntryType {
   ALIGNED
   TRANSITIONAL
