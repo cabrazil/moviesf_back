@@ -529,20 +529,26 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
     if (Object.keys(imdbIds).length > 0) {
       let linksInserted = 0;
       for (const [name, url] of Object.entries(imdbIds)) {
-        // Buscar padrão: **Nome** ou Nome ( evitando links duplicados)
+        // Escapar caracteres especiais de regex e flexibilizar espaços/hífens
+        // Ex: "Bong Joon Ho" aceitará "Bong Joon-ho", "Bong Joon Ho", "bong joon ho", etc.
+        const flexibleNamePattern = name
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escapar símbolos de regex primeiro
+          .replace(/[-\s]/g, '[-\\s]');          // Tornar hífens e espaços intercambiáveis
+
         const patterns = [
-          new RegExp(`\\*\\*${name}\\*\\*(?!<)`, 'g'),
-          new RegExp(`\\b${name}\\b(?![^<]*>|[^<]*<\/a>)`, 'g')
+          new RegExp(`\\*\\*${flexibleNamePattern}\\*\\*(?!<)`, 'gi'),
+          new RegExp(`\\b${flexibleNamePattern}\\b(?![^<]*>|[^<]*<\/a>)`, 'gi')
         ];
 
         for (const pattern of patterns) {
           if (pattern.test(bodyPart)) {
-            bodyPart = bodyPart.replace(
-              pattern,
-              `<a href="${url}" target="_blank" rel="noopener">${name}</a>`
-            );
+            bodyPart = bodyPart.replace(pattern, (match) => {
+              // Limpar a marcação de negrito mantendo a escrita exata do texto
+              const cleanMatch = match.replace(/\*\*/g, '');
+              return `<a href="${url}" target="_blank" rel="noopener">${cleanMatch}</a>`;
+            });
             linksInserted++;
-            break; // Evita dupla substituição
+            break; // Evita dupla substituição para o mesmo nome
           }
         }
       }

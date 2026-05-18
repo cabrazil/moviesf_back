@@ -450,6 +450,9 @@ model DailyCuration {
   headerPhrase    String   @db.VarChar(255)
   movieIds        String[] // Usar UUIDs (Strings) dos filmes
   isActive        Boolean  @default(true)
+  startDate       DateTime @default(now())
+  endDate         DateTime
+  priority        Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

@@ -7,14 +7,20 @@ const prisma = new PrismaClient();
 // Rota: GET /api/daily-curation/today
 router.get('/today', async (req, res) => {
   try {
-    // Busca a curadoria ativa mais recente
+    const now = new Date();
+
+    // Busca a curadoria ativa cuja data atual esteja entre startDate e endDate
+    // Ordena pela maior prioridade, e em caso de empate, a que começou mais recentemente
     const dailyCuration = await prisma.dailyCuration.findFirst({
       where: {
-        isActive: true
+        isActive: true,
+        startDate: { lte: now },
+        endDate: { gte: now }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: [
+        { priority: 'desc' },
+        { startDate: 'desc' }
+      ]
     });
 
     if (!dailyCuration) {
