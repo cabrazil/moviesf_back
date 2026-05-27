@@ -215,6 +215,10 @@ export function renderMovieHTML(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6851520236157623"
+       crossorigin="anonymous"></script>
+  
   <!-- Meta tags básicas -->
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(seoDescription)}">
@@ -407,6 +411,10 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6851520236157623"
+       crossorigin="anonymous"></script>
   
   <!-- Meta tags básicas -->
   <title>${escapeHtml(seoTitle)} | VibesFilm Blog</title>
