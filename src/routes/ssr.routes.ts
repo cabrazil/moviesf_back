@@ -53,6 +53,45 @@ router.get('/ssr-home', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /
+ * Alias da home SSR — recebe requisições de bots via nginx (proxy_pass sem URI)
+ * proxy_pass http://backend:3333 → backend recebe GET / → serve SSR home para bots
+ */
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const userAgent = req.headers['user-agent'];
+    const bot = isBot(userAgent);
+
+    console.log(`🏠 SSR - Requisição raiz (/)`);
+    console.log(`🤖 User-Agent: ${userAgent}`);
+
+    if (bot) {
+      console.log(`✅ Bot detectado na raiz (/), buscando posts recentes...`);
+
+      const postsResult = await blogService.getPosts({ page: 1, limit: 12 });
+
+      if (!postsResult.success || !postsResult.data) {
+        throw new Error('Falha ao buscar posts para a home');
+      }
+
+      const posts = (postsResult.data as any).articles || [];
+      const html = renderHomeHTML(posts);
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    }
+
+    // Humanos vêm via SPA pelo nginx — mas se chegarem direto ao backend, redireciona
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
+    return res.redirect(302, frontendUrl);
+  } catch (error) {
+    console.error('❌ Erro no SSR da raiz (/):', error);
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
+    return res.redirect(302, frontendUrl);
+  }
+});
+
+/**
  * GET /onde-assistir/:slug
  * SSR para landing pages de filmes
  */

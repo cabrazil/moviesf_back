@@ -221,10 +221,8 @@ async function generatePillarArticle() {
     
     **A Essência da Aceitação**: Uma frase final marcante (ou micro-parágrafo) destacando o momento ou a verdade inevitável da existência com a qual a obra nos convida a fazer as pazes.
     
-    <p>📖 <a href="/blog/artigo/[Slug do Filme da requisição]">Análise emocional completa de [Título do Filme]</a></p>
+    <p>📖 <a href="/artigo/[Slug do Filme da requisição]">Análise emocional completa de [Título do Filme]</a></p>
     <p>🎬 <a href="/onde-assistir/[Slug do Filme da requisição]">Onde Assistir Agora</a></p>
-
-    (Repita essa exata mesma estrutura para TODOS os filmes listados no contexto).de-assistir/[Slug do Filme da requisição]">Onde Assistir Agora</a></p>
 
     (Repita essa exata mesma estrutura para TODOS os filmes listados no contexto).
 
