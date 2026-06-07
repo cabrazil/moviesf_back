@@ -590,20 +590,6 @@ export function renderHomeHTML(posts: any[]): string {
 </body>
 </html>`;
 }
-
-/**
- * Escapa HTML para prevenir XSS
- */
-function escapeHtml(text: string): string {
-  if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
 /**
  * Detecta se a requisição é de um bot
  */
