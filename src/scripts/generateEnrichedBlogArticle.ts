@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import './scripts-helper';
 import { PrismaClient } from '@prisma/client';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync } from 'fs';
 import path from 'path';
 import { createAIProvider, getDefaultConfig } from '../utils/aiProvider';
 import sharp from 'sharp';
@@ -42,7 +42,7 @@ function parseArgs(): CLIArgs {
 
   process.argv.slice(2).forEach(arg => {
     if (arg.startsWith('--title=')) {
-      args.title = arg.split('=')[1].replace(/^["']|["']$/g, '');
+      args.title = arg.substring(arg.indexOf('=') + 1).replace(/^["']|["']$/g, '');
     } else if (arg.startsWith('--year=')) {
       args.year = parseInt(arg.split('=')[1]);
     } else if (arg.startsWith('--ai-provider=')) {
@@ -86,7 +86,7 @@ async function downloadAndConvertImage(imageUrl: string, outputPath: string): Pr
 
 async function uploadToSupabase(localPath: string, remotePath: string): Promise<string | null> {
   try {
-    const fileBuffer = require('fs').readFileSync(localPath);
+    const fileBuffer = readFileSync(localPath);
 
     const { data, error } = await supabase.storage
       .from('movie-images')
@@ -163,6 +163,7 @@ async function fetchIMDbIds(movieId: number): Promise<{ [key: string]: string }>
         );
 
         if (personResponse.data.imdb_id) {
+          // Padrão canônico internacional de URL de pessoas no IMDb
           imdbIds[person.name] = `https://www.imdb.com/name/${personResponse.data.imdb_id}/`;
         }
       } catch (error) {
@@ -195,19 +196,17 @@ async function processImages(
     return [];
   }
 
-  // Novo Fiscal de Qualidade: Largura > 1200px
+  // Fiscal de Qualidade: Largura >= 1200px
   const highResBackdrops = images.backdrops.filter(img => img.width >= 1200);
   const highResStills = images.stills.filter(img => img.width >= 1200);
 
-  // Avisa se não houver imagem em alta resolução
   if (highResBackdrops.length === 0 && images.backdrops.length > 0) {
-    console.warn(`⚠️  Aviso de Qualidade: Nenhuma cena de fundo (backdrop) atingiu 1200px. Usando a imagem de maior média disponível.`);
+    console.warn(`⚠️  Aviso de Qualidade: Nenhuma cena de fundo (backdrop) atingiu 1200px. Usando a de maior média.`);
   }
   if (highResStills.length === 0 && images.stills.length > 0) {
-    console.warn(`⚠️  Aviso de Qualidade: Nenhum frame (still) atingiu 1200px. Usando a imagem de maior média disponível.`);
+    console.warn(`⚠️  Aviso de Qualidade: Nenhum frame (still) atingiu 1200px. Usando o de maior média.`);
   }
 
-  // Escolhe a melhor HighRes, mas se não existir, engole o orgulho e pega a melhor LowRes
   const bestBackdropPool = highResBackdrops.length > 0 ? highResBackdrops : images.backdrops;
   const bestStillPool = highResStills.length > 0 ? highResStills : images.stills;
 
@@ -222,6 +221,12 @@ async function processImages(
   const processedImages: ProcessedImage[] = [];
   const actorNames = movie.cast.map((c: any) => c.actor.name);
 
+  // Pasta temporária dentro do workspace para conformidade higiênica e evitar uso do /tmp global
+  const tempDir = path.join(__dirname, '../temp');
+  if (!existsSync(tempDir)) {
+    mkdirSync(tempDir, { recursive: true });
+  }
+
   for (let i = 0; i < selectedImages.length; i++) {
     const { type, data } = selectedImages[i];
     const imageNum = i + 1;
@@ -229,7 +234,7 @@ async function processImages(
     console.log(`  [${imageNum}/${selectedImages.length}] Processando ${type}...`);
 
     const tmdbImageUrl = `https://image.tmdb.org/t/p/original${data.file_path}`;
-    const tempPath = `/tmp/tmdb_${movie.tmdbId}_${type}.webp`;
+    const tempPath = path.join(tempDir, `tmdb_${movie.tmdbId}_${type}.webp`);
 
     await downloadAndConvertImage(tmdbImageUrl, tempPath);
     console.log(`    ✓ Download e conversão WebP`);
@@ -255,7 +260,7 @@ async function processImages(
       originalUrl: tmdbImageUrl
     });
 
-    require('fs').unlinkSync(tempPath);
+    unlinkSync(tempPath);
   }
 
   console.log(`✅ ${processedImages.length} imagem(ns) processada(s)\n`);
@@ -274,6 +279,25 @@ async function generateBlogArticle() {
   console.log(`🎬 Gerando artigo enriquecido para: "${args.title}" ${args.year ? `(${args.year})` : ''}`);
 
   try {
+    // 1. Validar homônimos e duplicidade antes de iniciar processamentos caros
+    const matchingMoviesCount = await prisma.movie.count({
+      where: {
+        title: { equals: args.title, mode: 'insensitive' }
+      }
+    });
+
+    if (matchingMoviesCount > 1 && !args.year) {
+      console.log(`⚠️  Atenção: Encontramos ${matchingMoviesCount} filmes com o título "${args.title}" no banco!`);
+      const duplicates = await prisma.movie.findMany({
+        where: { title: { equals: args.title, mode: 'insensitive' } },
+        select: { title: true, year: true }
+      });
+      duplicates.forEach(d => console.log(`   - ${d.title} (${d.year})`));
+      console.error(`❌ Erro: Especifique o ano do filme usando --year=AAAA para evitar ambiguidade.`);
+      process.exit(1);
+    }
+
+    // Buscar dados do filme
     const movie = await prisma.movie.findFirst({
       where: {
         title: { contains: args.title, mode: 'insensitive' },
@@ -360,10 +384,11 @@ async function generateBlogArticle() {
 
     const platforms = movie.platforms.map(p => p.streamingPlatform.name).join(', ');
     const castNames = movie.cast.map(c => c.actor.name).join(', ');
+    const movieSlug = movie.slug || movie.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
     let imdbLinksSection = '';
     if (Object.keys(imdbIds).length > 0) {
-      imdbLinksSection = '\n\n**LINKS IMDb (INSIRA NO TEXTO):**\n';
+      imdbLinksSection = '\n\n**LINKS IMDb DISPONÍVEIS:**\n';
       for (const [name, url] of Object.entries(imdbIds)) {
         imdbLinksSection += `- ${name}: <a href="${url}" target="_blank" rel="noopener">${name}</a>\n`;
       }
@@ -419,9 +444,9 @@ ${imagesSection}
 **METADADOS SEO (Inicie o arquivo com este bloco YAML):**
 ---
 seo_title: "[Nome do Filme]: [Foco Emocional] | Vibesfilm (Tente manter < 60 chars)"
-meta_description: "[Resumo atrativo para Google | Max 160 chars. JAMAIS USE HTML AQUI]"
-excerpt_1: "[Opção 1 de resumo curto para cards. TEXTO PURO, SEM HTML]"
-excerpt_2: "[Opção 2 de resumo curto com foco diferente. TEXTO PURO, SEM HTML]"
+meta_description: "[Resumo atrativo para Google | Max 160 chars. JAMAIS USE HTML OU MARKDOWN AQUI - TEXTO PURO]"
+excerpt_1: "[Opção 1 de resumo curto para cards. TEXTO PURO, SEM HTML OU MARKDOWN]"
+excerpt_2: "[Opção 2 de resumo curto com foco diferente. TEXTO PURO, SEM HTML OU MARKDOWN]"
 ---
 
 # [Título Criativo: Nome do Filme + Subtítulo Emocional (ex: Terror Social e Paranoia Contemporânea)]
@@ -472,7 +497,7 @@ Em seguida, escolha 2 ou 3 das "Jornadas Emocionais" fornecidas nos dados e tran
 
 ## Sua Vibe Encontra o Filme Certo no Vibesfilm
 Conclusão emocional. Reforce que o Vibesfilm entende que cinema é mais que entretenimento.
-Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /onde-assistir/${movie.title} com texto '${movie.title} (${movie.year})']."
+Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /onde-assistir/${movieSlug} com texto '${movie.title} (${movie.year})']."
 
 **Rodapé:**
 <hr>
@@ -581,4 +606,8 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
   }
 }
 
-generateBlogArticle();
+if (require.main === module) {
+  generateBlogArticle();
+}
+
+export { generateBlogArticle };

@@ -490,9 +490,124 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Gera HTML completo para a página inicial (Home) do blog
+ */
+export function renderHomeHTML(posts: any[]): string {
+  const title = "VibesFilm - Cada emoção tem um filme";
+  const description = "O cinema é a bússola para o que você sente. Encontre o filme perfeito para a sua vibe atual, leia análises detalhadas e descubra onde assistir.";
+  const canonicalUrl = "https://vibesfilm.com/";
+  
+  const postsHtml = posts.map((post: any) => {
+    const isList = post.category_slug === 'lista' || post.type === 'lista';
+    const postRoute = `/${isList ? 'lista' : 'analise'}/${post.slug}`;
+    const postDate = post.date ? new Date(post.date).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    }) : '';
+    
+    return `
+      <article style="margin-bottom: 40px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
+        <h2><a href="${postRoute}" style="color: #011627; text-decoration: none;">${escapeHtml(post.title)}</a></h2>
+        <p style="color: #666; font-size: 0.9rem;">Publicado em ${postDate} por ${escapeHtml(post.author_name || 'VibesFilm')}</p>
+        ${post.imageUrl ? `<img src="${post.imageUrl}" alt="${escapeHtml(post.imageAlt || post.title)}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0;">` : ''}
+        <p>${escapeHtml(post.description || '')}</p>
+        <a href="${postRoute}" style="font-weight: bold; color: #E91E63; text-decoration: none;">Ler análise completa →</a>
+      </article>
+    `;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6851520236157623"
+       crossorigin="anonymous"></script>
+  
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(description)}">
+  <link rel="canonical" href="${canonicalUrl}">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:url" content="${canonicalUrl}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="VibesFilm">
+  <meta property="og:locale" content="pt_BR">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(title)}">
+  <meta name="twitter:description" content="${escapeHtml(description)}">
+  
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  
+  <script>
+    // Se não for bot, redirecionar para o frontend SPA normal
+    if (!navigator.userAgent.match(/Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
+      window.location.href = '${canonicalUrl}';
+    }
+  </script>
+</head>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #FDFFFC;">
+  <header style="border-bottom: 2px solid #011627; padding-bottom: 20px; margin-bottom: 30px;">
+    <h1 style="color: #011627; margin-bottom: 5px;">VibesFilm</h1>
+    <p style="font-size: 1.1rem; color: #555; margin-top: 0;">Cada emoção tem um filme.</p>
+    <nav>
+      <a href="/" style="margin-right: 15px; font-weight: bold; color: #011627; text-decoration: none;">Blog Home</a>
+      <a href="/sobre" style="margin-right: 15px; color: #555; text-decoration: none;">Sobre</a>
+      <a href="/contato" style="margin-right: 15px; color: #555; text-decoration: none;">Contato</a>
+      <a href="/privacidade" style="margin-right: 15px; color: #555; text-decoration: none;">Privacidade</a>
+      <a href="/termos" style="color: #555; text-decoration: none;">Termos de Uso</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="apresentacao" style="margin-bottom: 40px; background-color: #f7f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #011627;">
+      <h2>Descubra Filmes pela sua Vibe Emocional</h2>
+      <p>O VibesFilm ajuda você a encontrar o filme perfeito com base no seu estado emocional atual e intenção (processar, transformar, manter ou explorar sentimentos). Conecte-se com narrativas de forma profunda.</p>
+      <p><strong>Quer experimentar nossa ferramenta de recomendação personalizada?</strong> Acesse <a href="/app" style="color: #E91E63; font-weight: bold; text-decoration: none;">VibesFilm App</a>.</p>
+    </section>
+
+    <section id="artigos-recentes">
+      <h2 style="border-bottom: 1px solid #011627; padding-bottom: 10px; color: #011627;">Últimas Análises de Filmes</h2>
+      ${postsHtml}
+    </section>
+  </main>
+
+  <footer style="margin-top: 60px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 0.9rem; color: #777; text-align: center;">
+    <p>© 2026 VibesFilm. Todos os direitos reservados.</p>
+    <p>
+      <a href="/privacidade" style="color: #777; text-decoration: underline;">Política de Privacidade</a> | 
+      <a href="/termos" style="color: #777; text-decoration: underline;">Termos de Uso</a> | 
+      <a href="/cookies" style="color: #777; text-decoration: underline;">Cookies</a>
+    </p>
+  </footer>
+</body>
+</html>`;
+}
+
+/**
+ * Escapa HTML para prevenir XSS
+ */
+function escapeHtml(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Detecta se a requisição é de um bot
  */
 export function isBot(userAgent: string | undefined): boolean {
   if (!userAgent) return false;
-  return /Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot/i.test(userAgent);
+  return /Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i.test(userAgent);
 }

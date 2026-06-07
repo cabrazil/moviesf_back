@@ -8,10 +8,49 @@
 import { Router, Request, Response } from 'express';
 import { movieHeroService } from '../services/movieHero.service';
 import { BlogPrismaService } from '../services/blogPrismaService';
-import { renderMovieHTML, renderArticleHTML, isBot } from '../utils/ssrRenderer';
+import { renderMovieHTML, renderArticleHTML, renderHomeHTML, isBot } from '../utils/ssrRenderer';
 
 const router = Router();
 const blogService = new BlogPrismaService();
+
+/**
+ * GET /ssr-home
+ * SSR para a página inicial (Home) do blog - exclusivo para Bots
+ */
+router.get('/ssr-home', async (req: Request, res: Response) => {
+  try {
+    const userAgent = req.headers['user-agent'];
+    const bot = isBot(userAgent);
+    
+    console.log(`🏠 SSR - Requisição para home do blog (ssr-home)`);
+    console.log(`🤖 User-Agent: ${userAgent}`);
+    
+    if (bot) {
+      console.log(`✅ Bot detectado na home, buscando posts recentes...`);
+      
+      const postsResult = await blogService.getPosts({ page: 1, limit: 12 });
+      
+      if (!postsResult.success || !postsResult.data) {
+        throw new Error('Falha ao buscar posts para a home do blog');
+      }
+      
+      const posts = (postsResult.data as any).articles || [];
+      const html = renderHomeHTML(posts);
+      
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    }
+    
+    // Para humanos: redirecionar para a home do frontend SPA
+    console.log(`👤 Usuário normal, redirecionando para a home do frontend SPA`);
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
+    return res.redirect(302, frontendUrl);
+  } catch (error) {
+    console.error('❌ Erro no SSR da home:', error);
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
+    return res.redirect(302, frontendUrl);
+  }
+});
 
 /**
  * GET /onde-assistir/:slug
