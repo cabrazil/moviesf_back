@@ -1,12 +1,11 @@
 /// <reference types="node" />
 import './scripts-helper';
-import { PrismaClient } from '@prisma/client';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { createAIProvider, getDefaultConfig } from '../utils/aiProvider';
 import axios from 'axios';
+import { prismaApp as prisma, prismaBlog } from '../prisma';
 
-const prisma = new PrismaClient();
 
 // Interface para argumentos CLI
 interface CLIArgs {
@@ -141,10 +140,33 @@ async function generatePillarArticle() {
       const safeTitle = movie.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       const imageUrl = `https://dadrodpfylduydjbdxpy.supabase.co/storage/v1/object/public/movie-images/blog-articles/${safeTitle}_${movie.year}_1.webp`;
 
+      // Tenta buscar o slug do artigo real já publicado no blog
+      let articleSlug = movie.slug || movie.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      try {
+        const movieSlugBase = movie.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const dbArticles = await prismaBlog.$queryRawUnsafe(`
+          SELECT slug 
+          FROM "Article" 
+          WHERE "blogId" = 3 
+            AND published = true 
+            AND (slug LIKE $1 OR title ILIKE $2)
+          LIMIT 1
+        `, `%${movieSlugBase}%`, `%${movie.title}%`) as any[];
+
+        if (dbArticles && dbArticles.length > 0) {
+          articleSlug = dbArticles[0].slug;
+          console.log(`🔗 Slug do blog encontrado para "${movie.title}": ${articleSlug}`);
+        } else {
+          console.log(`⚠️ Nenhum artigo do blog correspondente a "${movie.title}" foi encontrado. Usando slug padrão: ${articleSlug}`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Erro ao consultar o banco de dados do blog:`, err);
+      }
+
       moviesData.push({
         title: movie.title,
         year: movie.year,
-        slug: movie.slug || movie.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        slug: articleSlug,
         vibe: topSentiment?.subSentiment?.name || 'Aceitação Profunda',
         hook: hook,
         synopsis: movie.description,

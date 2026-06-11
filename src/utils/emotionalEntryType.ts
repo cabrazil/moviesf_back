@@ -187,6 +187,6 @@ export function calcFinalScore(
   const adjustment = getEntryAdjustment(entryType, intentionType, userMood);
   const finalScore = relevanceScore + adjustment;
 
-  // Garantir range 0.0–10.0
-  return Math.min(Math.max(finalScore, 0.0), 10.0);
+  // Garantir range 0.0–9.99 (teto em 9.99 para evitar score perfeito enganoso)
+  return Math.min(Math.max(finalScore, 0.0), 9.99);
 }
