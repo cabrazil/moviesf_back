@@ -135,7 +135,7 @@ router.get('/articles.xml', async (req, res) => {
 
     // Buscar os publicações de Vibe/Artigos usando Query Raw pois o schema do Blog não exporta models tipados
     const query = `
-      SELECT slug, date, "updatedAt"
+      SELECT slug, date, "updatedAt", "type"
       FROM "Article"
       WHERE "blogId" = 3 AND published = true
       ORDER BY date DESC
@@ -148,8 +148,9 @@ router.get('/articles.xml', async (req, res) => {
 
     articles.forEach((article) => {
       const date = article.updatedAt || article.date || new Date();
+      const type = article.type === 'lista' ? 'lista' : 'analise';
       sitemap += `  <url>\n`;
-      sitemap += `    <loc>${FRONTEND_URL}/blog/artigo/${article.slug}</loc>\n`;
+      sitemap += `    <loc>${FRONTEND_URL}/${type}/${article.slug}</loc>\n`;
       sitemap += `    <lastmod>${new Date(date).toISOString()}</lastmod>\n`;
       sitemap += `    <changefreq>monthly</changefreq>\n`;
       sitemap += `    <priority>0.7</priority>\n`;
@@ -193,7 +194,7 @@ router.get('/categories.xml', async (req, res) => {
     categories.forEach((cat) => {
       const date = cat.updatedAt || new Date();
       sitemap += `  <url>\n`;
-      sitemap += `    <loc>${FRONTEND_URL}/blog/categoria/${cat.slug}</loc>\n`;
+      sitemap += `    <loc>${FRONTEND_URL}/categoria/${cat.slug}</loc>\n`;
       sitemap += `    <lastmod>${new Date(date).toISOString()}</lastmod>\n`;
       sitemap += `    <changefreq>monthly</changefreq>\n`;
       sitemap += `    <priority>0.6</priority>\n`;
@@ -235,7 +236,7 @@ router.get('/tags.xml', async (req, res) => {
     tags.forEach((tag) => {
       const date = tag.updatedAt || new Date();
       sitemap += `  <url>\n`;
-      sitemap += `    <loc>${FRONTEND_URL}/blog/tag/${tag.slug}</loc>\n`;
+      sitemap += `    <loc>${FRONTEND_URL}/tag/${tag.slug}</loc>\n`;
       sitemap += `    <lastmod>${new Date(date).toISOString()}</lastmod>\n`;
       sitemap += `    <changefreq>monthly</changefreq>\n`;
       sitemap += `    <priority>0.5</priority>\n`;
