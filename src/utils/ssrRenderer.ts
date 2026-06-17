@@ -249,7 +249,7 @@ export function renderMovieHTML(
   </script>
   
   <!-- Meta tags adicionais -->
-  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="robots" content="noindex, follow">
   <meta name="author" content="vibesfilm">
   
   <!-- Redirect para SPA após carregar (para usuários) -->

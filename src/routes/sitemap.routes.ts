@@ -15,8 +15,8 @@ router.get('/index.xml', (req, res) => {
   xml += `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
   
   const sitemaps = [
-    'movies.xml',
-    'movie-landings.xml',
+    // 'movies.xml',
+    // 'movie-landings.xml',
     'articles.xml',
     'categories.xml',
     'tags.xml'
