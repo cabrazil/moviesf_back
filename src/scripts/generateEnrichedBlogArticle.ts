@@ -1,12 +1,14 @@
 /// <reference types="node" />
 import './scripts-helper';
 import { PrismaClient } from '@prisma/client';
+import { prismaBlog } from '../prisma';
 import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync } from 'fs';
 import path from 'path';
 import { createAIProvider, getDefaultConfig } from '../utils/aiProvider';
 import sharp from 'sharp';
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
+
 
 const prisma = new PrismaClient();
 
@@ -22,6 +24,9 @@ interface CLIArgs {
   aiProvider?: 'openai' | 'deepseek' | 'gemini';
   model?: string;
   skipImages?: boolean;
+  insertDb?: boolean;
+  blogId?: number;
+  published?: boolean;
 }
 
 interface TMDBImage {
@@ -51,10 +56,120 @@ function parseArgs(): CLIArgs {
       args.model = arg.split('=')[1];
     } else if (arg === '--skip-images') {
       args.skipImages = true;
+    } else if (arg === '--insert-db') {
+      args.insertDb = true;
+    } else if (arg.startsWith('--blog-id=')) {
+      args.blogId = parseInt(arg.split('=')[1]);
+    } else if (arg === '--publish') {
+      args.published = true;
     }
   });
 
   return args;
+}
+
+function parseYaml(yamlString: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const lines = yamlString.split('\n');
+  lines.forEach(line => {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex !== -1) {
+      const key = line.substring(0, colonIndex).trim();
+      let value = line.substring(colonIndex + 1).trim();
+      value = value.replace(/^["']|["']$/g, '').trim();
+      result[key] = value;
+    }
+  });
+  return result;
+}
+
+async function getOrCreateAuthor(blogId: number): Promise<number> {
+  let author = await prismaBlog.author.findFirst({
+    where: { blogId, isAi: true }
+  });
+
+  if (!author) {
+    author = await prismaBlog.author.findFirst({
+      where: { blogId }
+    });
+  }
+
+  if (!author) {
+    author = await prismaBlog.author.create({
+      data: {
+        name: 'Vibesfilm AI',
+        role: 'Crítico de Cinema Inteligente',
+        imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200&auto=format&fit=crop',
+        bio: 'Inteligência Artificial especializada em decodificar as vibes e emoções contidas no cinema.',
+        isAi: true,
+        blogId
+      }
+    });
+    console.log(`  ✓ Autor padrão criado (ID: ${author.id})`);
+  }
+
+  return author.id;
+}
+
+async function getOrCreateCategory(blogId: number): Promise<number> {
+  const preferredSlug = 'analises';
+  let category = await prismaBlog.category.findFirst({
+    where: { blogId, slug: preferredSlug }
+  });
+
+  if (!category) {
+    category = await prismaBlog.category.findFirst({
+      where: { blogId }
+    });
+  }
+
+  if (!category) {
+    category = await prismaBlog.category.create({
+      data: {
+        title: 'Análises',
+        slug: preferredSlug,
+        description: 'Análises emocionais e conceituais de grandes obras do cinema.',
+        blogId
+      }
+    });
+    console.log(`  ✓ Categoria padrão criada (ID: ${category.id})`);
+  }
+
+  return category.id;
+}
+
+async function getOrCreateTags(blogId: number, sentiments: string[], genres: string[]): Promise<number[]> {
+  const tagIds: number[] = [];
+  const tagNames = [...new Set([...sentiments, ...genres])].slice(0, 5);
+
+  for (const name of tagNames) {
+    const slug = name.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+      
+    if (!slug) continue;
+
+    let tag = await prismaBlog.tag.findFirst({
+      where: { blogId, slug }
+    });
+
+    if (!tag) {
+      tag = await prismaBlog.tag.create({
+        data: {
+          name,
+          slug,
+          aiRelated: true,
+          blogId
+        }
+      });
+    }
+
+    tagIds.push(tag.id);
+  }
+
+  return tagIds;
 }
 
 async function fetchTMDBImages(movieId: number): Promise<{ backdrops: TMDBImage[], stills: TMDBImage[] }> {
@@ -268,6 +383,38 @@ async function processImages(
   return processedImages;
 }
 
+function cleanAndValidateSEO(frontmatter: string): string {
+  let newFrontmatter = frontmatter;
+
+  const titleMatch = frontmatter.match(/seo_title:\s*(.*)/);
+  if (titleMatch) {
+    let titleVal = titleMatch[1].trim().replace(/^["']|["']$/g, '').trim();
+    if (titleVal.length > 60) {
+      console.warn(`⚠️  SEO Title excede 60 caracteres (${titleVal.length} chars). Truncando...`);
+      const brand = " | Vibesfilm";
+      if (titleVal.endsWith(brand)) {
+        const maxTextLen = 60 - brand.length;
+        titleVal = titleVal.substring(0, maxTextLen).trim() + brand;
+      } else {
+        titleVal = titleVal.substring(0, 60);
+      }
+      newFrontmatter = newFrontmatter.replace(/seo_title:\s*(.*)/, `seo_title: "${titleVal.replace(/"/g, '\\"')}"`);
+    }
+  }
+
+  const descMatch = frontmatter.match(/meta_description:\s*(.*)/);
+  if (descMatch) {
+    let descVal = descMatch[1].trim().replace(/^["']|["']$/g, '').trim();
+    if (descVal.length > 160) {
+      console.warn(`⚠️  Meta Description excede 160 caracteres (${descVal.length} chars). Truncando...`);
+      descVal = descVal.substring(0, 157).trim() + "...";
+      newFrontmatter = newFrontmatter.replace(/meta_description:\s*(.*)/, `meta_description: "${descVal.replace(/"/g, '\\"')}"`);
+    }
+  }
+
+  return newFrontmatter;
+}
+
 async function generateBlogArticle() {
   const args = parseArgs();
 
@@ -354,7 +501,7 @@ async function generateBlogArticle() {
 
     console.log(`✅ Filme encontrado: ${movie.title} (${movie.year})`);
 
-    const providerStr = args.aiProvider || 'openai';
+    const providerStr = args.aiProvider || 'deepseek';
     const aiConfig = getDefaultConfig(providerStr as any);
     if (args.model) {
       aiConfig.model = args.model;
@@ -419,6 +566,18 @@ Inspire-se em cronistas que falam sobre sentimentos do cotidiano, com simplicida
    - Fale a língua das pessoas comuns. Seja humano, não um dicionário.
 3. **VOCABULÁRIO VARIADO:** Não repita a palavra "Vibe" excessivamente.
 4. **USE SEU CONHECIMENTO PRÉVIO:** Você tem permissão para usar seu conhecimento geral sobre a obra completa (especialmente se for baseada em um livro/obra famosa) para enriquecer a análise. Você DEVE mencionar personagens cruciais do segundo ato (como aliados ou viradas na história) que compõem a verdadeira experiência emocional do filme, mas SEM dar spoilers graves do final.
+5. **TERMOS CLICHÊS PROIBIDOS:** Está terminantemente proibido o uso das seguintes expressões (e suas variações ou sinônimos óbvios):
+   - "soco no estômago" / "soco no estomago"
+   - "não é para qualquer momento" / "não é para qualquer hora"
+   - "não é apenas um filme" / "não se trata de apenas um filme"
+   - "fica com você" / "fica com o espectador"
+   - "a genialidade de"
+   - "não saem com os créditos" / "não terminam com os créditos"
+   - "filmes que ficam" / "daqueles que ficam"
+   Busque descrições originais e sinceras sobre o impacto emocional do filme, sem recorrer a estas fórmulas prontas.
+6. **LIMITES RÍGIDOS DE CARACTERES PARA METADADOS (CRÍTICO):**
+   - O campo "seo_title" no bloco de metadados deve ter no MÁXIMO 60 caracteres (incluindo o nome do filme, o foco emocional e a marca " | Vibesfilm"). Planeje o texto para caber nesse limite.
+   - O campo "meta_description" no bloco de metadados deve ter no MÁXIMO 160 caracteres. Resuma a essência do filme e a sua atração emocional de maneira concisa e cativante.
 
 **DADOS DO FILME:**
 - Título Original: ${movie.original_title || 'Não informado'}
@@ -443,8 +602,8 @@ ${imagesSection}
 
 **METADADOS SEO (Inicie o arquivo com este bloco YAML):**
 ---
-seo_title: "[Nome do Filme]: [Foco Emocional] | Vibesfilm (Tente manter < 60 chars)"
-meta_description: "[Resumo atrativo para Google | Max 160 chars. JAMAIS USE HTML OU MARKDOWN AQUI - TEXTO PURO]"
+seo_title: "[Nome do Filme]: [Foco Emocional] | Vibesfilm (MÁXIMO 60 caracteres)"
+meta_description: "[Resumo atrativo para Google | MÁXIMO 160 caracteres. JAMAIS USE HTML OU MARKDOWN AQUI - TEXTO PURO]"
 excerpt_1: "[Opção 1 de resumo curto para cards. TEXTO PURO, SEM HTML OU MARKDOWN]"
 excerpt_2: "[Opção 2 de resumo curto com foco diferente. TEXTO PURO, SEM HTML OU MARKDOWN]"
 ---
@@ -457,7 +616,7 @@ excerpt_2: "[Opção 2 de resumo curto com foco diferente. TEXTO PURO, SEM HTML 
 ## Introdução
 Desenvolva a introdução em **pelo menos 2 parágrafos** bem estruturados.
 No primeiro parágrafo, defina a premissa central e o impacto imediato do filme. É OBRIGATÓRIO citar o diretor (${movie.director}) e o elenco principal (${castNames}) diretamente no corpo deste primeiro parágrafo da introdução.
-No segundo parágrafo, aprofunde o tom da obra e prepare o leitor para o que sentirá, terminando com uma frase que defina a "Vibe" geral (ex: "No Vibesfilm, este não é apenas um filme — é uma imersão emocional...").
+No segundo parágrafo, aprofunde o tom da obra e prepare o leitor para o que sentirá, terminando com uma frase original que defina a vibe ou o tom emocional geral (por exemplo, conectando a atmosfera da história com uma sensação cotidiana, sem usar frases prontas ou o nome do blog).
 
 <h3>⚠️ Alertas e Cuidados: ${movie.title} (${movie.year})</h3>
 <p>Reescreva o seguinte alerta de forma objetiva, direta e em no máximo 2 frases curtas: "${movie.contentWarnings}".</p>
@@ -528,6 +687,9 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
     if (match) {
       frontmatter = match[0];
       bodyPart = enrichedContent.slice(frontmatter.length);
+      
+      // Validar e limpar seo_title e meta_description no frontmatter
+      frontmatter = cleanAndValidateSEO(frontmatter);
     }
 
     // 1. Inserir primeira imagem antes da Seção "O Que Torna..." (se a IA não inseriu sozinha)
@@ -599,10 +761,84 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
     console.log(`📸 Imagens: ${processedImages.length}`);
     console.log(`🔗 Links IMDb: ${Object.keys(imdbIds).length}`);
 
+    // Inserção opcional no Banco de Dados do Blog
+    if (args.insertDb) {
+      console.log('\n📦 Inserindo artigo no banco de dados do blog...');
+      const blogId = args.blogId || 1;
+      const published = args.published || false;
+
+      const yamlMetadata = parseYaml(frontmatter);
+      
+      let articleTitle = movie.title;
+      const titleMatch = bodyPart.match(/^#\s+(.+)$/m);
+      if (titleMatch) {
+        articleTitle = titleMatch[1].trim();
+      }
+
+      const postSlug = movie.slug || articleTitle.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      const slugExists = await prismaBlog.article.findFirst({
+        where: { slug: postSlug }
+      });
+      const finalSlug = slugExists ? `${postSlug}-${movie.year || Date.now()}` : postSlug;
+
+      const authorId = await getOrCreateAuthor(blogId);
+      const categoryId = await getOrCreateCategory(blogId);
+      
+      const sentimentNames = movie.movieSentiments.map(ms => ms.subSentiment.name);
+      const tagIds = await getOrCreateTags(blogId, sentimentNames, movie.genres);
+
+      const imageUrl = processedImages[0]?.url || movie.thumbnail || '';
+      const imageAlt = processedImages[0]?.alt || `Cena do filme ${movie.title}`;
+
+      const aiModelUsed = args.model || aiConfig.model;
+
+      const { marked } = await (Function('return import("marked")')() as Promise<any>);
+      const htmlContent = await marked.parse(bodyPart.trim());
+
+      const newArticle = await prismaBlog.article.create({
+        data: {
+          title: articleTitle,
+          content: htmlContent,
+          description: yamlMetadata.excerpt_1 || yamlMetadata.meta_description || movie.landingPageHook || movie.title,
+          imageUrl,
+          imageAlt,
+          blogId,
+          authorId,
+          categoryId,
+          slug: finalSlug,
+          published,
+          aiGenerated: true,
+          aiModel: aiModelUsed,
+          aiPrompt: `Gerar artigo de crítica/análise para o filme ${movie.title} (${movie.year})`,
+          type: 'analise',
+          metadata: {
+            seoTitle: yamlMetadata.seo_title || articleTitle,
+            metaDescription: yamlMetadata.meta_description || ''
+          },
+          keywords: movie.keywords,
+          tags: {
+            connect: tagIds.map(id => ({ id }))
+          }
+        }
+      });
+
+      console.log(`✅ Artigo inserido com sucesso no banco do blog!`);
+      console.log(`   - ID do Artigo: ${newArticle.id}`);
+      console.log(`   - Slug: ${newArticle.slug}`);
+      console.log(`   - Status: ${newArticle.published ? 'Publicado 🚀' : 'Rascunho 📝'}`);
+      console.log(`   - Blog ID: ${newArticle.blogId}`);
+    }
+
   } catch (error) {
     console.error('❌ Erro:', error);
   } finally {
     await prisma.$disconnect();
+    await prismaBlog.$disconnect();
   }
 }
 

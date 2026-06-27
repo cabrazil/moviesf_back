@@ -14,6 +14,10 @@ interface CLIArgs {
   concept?: string;
   movies?: string[];
   aiProvider?: 'openai' | 'deepseek' | 'gemini';
+  model?: string;
+  insertDb?: boolean;
+  blogId?: number;
+  published?: boolean;
 }
 
 function parseArgs(): CLIArgs {
@@ -24,6 +28,8 @@ function parseArgs(): CLIArgs {
   process.argv.slice(2).forEach(arg => {
     if (arg.startsWith('--ai-provider=')) {
       args.aiProvider = arg.split('=')[1] as any;
+    } else if (arg.startsWith('--model=')) {
+      args.model = arg.split('=')[1];
     } else if (arg.startsWith('--title=')) {
       args.title = arg.substring(arg.indexOf('=') + 1).replace(/^["']|["']$/g, '');
     } else if (arg.startsWith('--intention=')) {
@@ -33,10 +39,152 @@ function parseArgs(): CLIArgs {
     } else if (arg.startsWith('--movies=')) {
       const rawMovies = arg.substring(arg.indexOf('=') + 1).replace(/^["']|["']$/g, '');
       args.movies = rawMovies.split(',').map(m => m.trim()).filter(m => m.length > 0);
+    } else if (arg === '--insert-db') {
+      args.insertDb = true;
+    } else if (arg.startsWith('--blog-id=')) {
+      args.blogId = parseInt(arg.split('=')[1]);
+    } else if (arg === '--publish') {
+      args.published = true;
     }
   });
 
   return args;
+}
+
+function parseYaml(yamlString: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const lines = yamlString.split('\n');
+  lines.forEach(line => {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex !== -1) {
+      const key = line.substring(0, colonIndex).trim();
+      let value = line.substring(colonIndex + 1).trim();
+      value = value.replace(/^["']|["']$/g, '').trim();
+      result[key] = value;
+    }
+  });
+  return result;
+}
+
+async function getOrCreateAuthor(blogId: number): Promise<number> {
+  let author = await prismaBlog.author.findFirst({
+    where: { blogId, isAi: true }
+  });
+
+  if (!author) {
+    author = await prismaBlog.author.findFirst({
+      where: { blogId }
+    });
+  }
+
+  if (!author) {
+    author = await prismaBlog.author.create({
+      data: {
+        name: 'Vibesfilm AI',
+        role: 'Crítico de Cinema Inteligente',
+        imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200&auto=format&fit=crop',
+        bio: 'Inteligência Artificial especializada em decodificar as vibes e emoções contidas no cinema.',
+        isAi: true,
+        blogId
+      }
+    });
+    console.log(`  ✓ Autor padrão criado (ID: ${author.id})`);
+  }
+
+  return author.id;
+}
+
+async function getOrCreateCategory(blogId: number): Promise<number> {
+  const preferredSlug = 'listas';
+  let category = await prismaBlog.category.findFirst({
+    where: { blogId, slug: preferredSlug }
+  });
+
+  if (!category) {
+    category = await prismaBlog.category.findFirst({
+      where: { blogId }
+    });
+  }
+
+  if (!category) {
+    category = await prismaBlog.category.create({
+      data: {
+        title: 'Listas',
+        slug: preferredSlug,
+        description: 'Listas temáticas e curadorias de filmes baseadas em sentimentos.',
+        blogId
+      }
+    });
+    console.log(`  ✓ Categoria padrão criada (ID: ${category.id})`);
+  }
+
+  return category.id;
+}
+
+async function getOrCreateTags(blogId: number, tagNames: string[]): Promise<number[]> {
+  const tagIds: number[] = [];
+  const uniqueTagNames = [...new Set(tagNames)].slice(0, 10);
+
+  for (const name of uniqueTagNames) {
+    const slug = name.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+      
+    if (!slug) continue;
+
+    let tag = await prismaBlog.tag.findFirst({
+      where: { blogId, slug }
+    });
+
+    if (!tag) {
+      tag = await prismaBlog.tag.create({
+        data: {
+          name,
+          slug,
+          aiRelated: true,
+          blogId
+        }
+      });
+    }
+
+    tagIds.push(tag.id);
+  }
+
+  return tagIds;
+}
+
+function cleanAndValidateSEO(frontmatter: string): string {
+  let newFrontmatter = frontmatter;
+
+  const titleMatch = frontmatter.match(/seo_title:\s*(.*)/);
+  if (titleMatch) {
+    let titleVal = titleMatch[1].trim().replace(/^["']|["']$/g, '').trim();
+    if (titleVal.length > 60) {
+      console.warn(`⚠️  SEO Title excede 60 caracteres (${titleVal.length} chars). Truncando...`);
+      const brand = " | Vibesfilm";
+      if (titleVal.endsWith(brand)) {
+        const maxTextLen = 60 - brand.length;
+        titleVal = titleVal.substring(0, maxTextLen).trim() + brand;
+      } else {
+        titleVal = titleVal.substring(0, 60);
+      }
+      newFrontmatter = newFrontmatter.replace(/seo_title:\s*(.*)/, `seo_title: "${titleVal.replace(/"/g, '\\"')}"`);
+    }
+  }
+
+  const descMatch = frontmatter.match(/meta_description:\s*(.*)/);
+  if (descMatch) {
+    let descVal = descMatch[1].trim().replace(/^["']|["']$/g, '').trim();
+    if (descVal.length > 160) {
+      console.warn(`⚠️  Meta Description excede 160 caracteres (${descVal.length} chars). Truncando...`);
+      descVal = descVal.substring(0, 157).trim() + "...";
+      newFrontmatter = newFrontmatter.replace(/meta_description:\s*(.*)/, `meta_description: "${descVal.replace(/"/g, '\\"')}"`);
+    }
+  }
+
+  return newFrontmatter;
 }
 
 async function fetchIMDbIds(movieId: number): Promise<{ [key: string]: string }> {
@@ -173,7 +321,10 @@ async function generatePillarArticle() {
         director: movie.director || 'Não informado',
         cast: castNames,
         imdbLinks: imdbLinks,
-        imageUrl: imageUrl
+        imageUrl: imageUrl,
+        genres: movie.genres,
+        keywords: movie.keywords,
+        thumbnail: movie.thumbnail
       });
       console.log(`✅ Adicionado ao cluster: ${movie.title}`);
     }
@@ -261,7 +412,11 @@ async function generatePillarArticle() {
     `;
 
     // 3. Gerar com IA
-    const aiProvider = createAIProvider(getDefaultConfig(providerStr as any));
+    const aiConfig = getDefaultConfig(providerStr as any);
+    if (args.model) {
+      aiConfig.model = args.model;
+    }
+    const aiProvider = createAIProvider(aiConfig);
 
     const response = await aiProvider.generateResponse(
       "Você é um crítico de cinema especializado na jornada emocional e semântica da audiência, focado em reflexões sobre aceitação, tempo e impermanência. Rigoroso com regras de formatação HTML e limites de spoilers.",
@@ -273,6 +428,26 @@ async function generatePillarArticle() {
       throw new Error(response.error);
     }
 
+    // Enriquecer artigo com imagens e links
+    let enrichedContent = response.content;
+
+    // Separa o Frontmatter do restante do corpo para não injetar HTML no YAML SEO
+    let frontmatter = '';
+    let bodyPart = enrichedContent;
+
+    const yamlRegex = /^---\n[\s\S]*?\n---\n/;
+    const match = enrichedContent.match(yamlRegex);
+    if (match) {
+      frontmatter = match[0];
+      bodyPart = enrichedContent.slice(frontmatter.length);
+      
+      // Validar e limpar seo_title e meta_description no frontmatter
+      frontmatter = cleanAndValidateSEO(frontmatter);
+    }
+
+    // Reagrupar conteúdo com YAML protegido
+    enrichedContent = frontmatter + bodyPart;
+
     // 4. Salvar
     const outputDir = path.join(__dirname, '../../generated_articles');
     if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
@@ -283,16 +458,103 @@ async function generatePillarArticle() {
     const filename = `pilar_${safeTitle}${suffix}.md`;
     const filePath = path.join(outputDir, filename);
 
-    writeFileSync(filePath, response.content);
+    writeFileSync(filePath, enrichedContent);
 
     console.log(`\n✅ Artigo Pilar gerado com sucesso!`);
     console.log(`📂 ${filePath}`);
+
+    // Inserção opcional no Banco de Dados do Blog
+    if (args.insertDb) {
+      console.log('\n📦 Inserindo artigo no banco de dados do blog...');
+      const blogId = args.blogId || 1;
+      const published = args.published || false;
+
+      const yamlMetadata = parseYaml(frontmatter);
+      
+      let finalArticleTitle = articleTitle;
+      const titleMatch = bodyPart.match(/^#\s+(.+)$/m);
+      if (titleMatch) {
+        finalArticleTitle = titleMatch[1].trim();
+      }
+
+      const postSlug = finalArticleTitle.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      const slugExists = await prismaBlog.article.findFirst({
+        where: { slug: postSlug }
+      });
+      const finalSlug = slugExists ? `${postSlug}-${Date.now()}` : postSlug;
+
+      const authorId = await getOrCreateAuthor(blogId);
+      const categoryId = await getOrCreateCategory(blogId);
+      
+      const sentimentNames: string[] = [];
+      const genresList: string[] = [];
+      const allKeywords: string[] = [];
+      
+      moviesData.forEach(m => {
+        if (m.vibe) sentimentNames.push(m.vibe);
+        if (m.genres) genresList.push(...m.genres);
+        if (m.keywords) allKeywords.push(...m.keywords);
+      });
+      
+      const tagIds = await getOrCreateTags(blogId, [...sentimentNames, ...genresList]);
+
+      const imageUrl = moviesData[0]?.imageUrl || moviesData[0]?.thumbnail || '';
+      const imageAlt = `Curadoria de filmes: ${finalArticleTitle}`;
+
+      const aiModelUsed = args.model || aiConfig.model;
+
+      const { marked } = await (Function('return import("marked")')() as Promise<any>);
+      const htmlContent = await marked.parse(bodyPart.trim());
+
+      const newArticle = await prismaBlog.article.create({
+        data: {
+          title: finalArticleTitle,
+          content: htmlContent,
+          description: yamlMetadata.excerpt_1 || yamlMetadata.meta_description || articleTitle,
+          imageUrl,
+          imageAlt,
+          blogId,
+          authorId,
+          categoryId,
+          slug: finalSlug,
+          published,
+          aiGenerated: true,
+          aiModel: aiModelUsed,
+          aiPrompt: `Gerar artigo pilar/lista: ${articleTitle}. Intenção: ${intention}. Conceito: ${concept}. Filmes: ${movieTitles.join(', ')}`,
+          type: 'lista',
+          metadata: {
+            seoTitle: yamlMetadata.seo_title || finalArticleTitle,
+            metaDescription: yamlMetadata.meta_description || ''
+          },
+          keywords: allKeywords.slice(0, 15),
+          tags: {
+            connect: tagIds.map(id => ({ id }))
+          }
+        }
+      });
+
+      console.log(`✅ Artigo Pilar inserido com sucesso no banco do blog!`);
+      console.log(`   - ID do Artigo: ${newArticle.id}`);
+      console.log(`   - Slug: ${newArticle.slug}`);
+      console.log(`   - Status: ${newArticle.published ? 'Publicado 🚀' : 'Rascunho 📝'}`);
+      console.log(`   - Blog ID: ${newArticle.blogId}`);
+    }
 
   } catch (error) {
     console.error('❌ Erro:', error);
   } finally {
     await prisma.$disconnect();
+    await prismaBlog.$disconnect();
   }
 }
 
-generatePillarArticle();
+if (require.main === module) {
+  generatePillarArticle();
+}
+
+export { generatePillarArticle };

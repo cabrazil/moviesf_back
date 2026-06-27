@@ -5,17 +5,323 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // ⚠️ AVISO: Se o editor mostrar erro sobre 'url', é um FALSO POSITIVO!
+  // O Prisma 6.15.0 (versão instalada) suporta 'url' no datasource.
+  // A extensão do VS Code pode estar usando regras do Prisma 7.
+  // Valide com: npx prisma validate (confirma que está correto ✅)
   url      = env("BLOG_DATABASE_URL")
 }
 
+enum ArticleType {
+  analise
+  lista
+}
+
+// Modelo para representar cada Blog
+model Blog {
+  id                 Int      @id @default(autoincrement())
+  name               String // Ex: "Blog de Tecnologia", "Cozinha da Vovó"
+  slug               String   @unique // Ex: "tecnologia", "cozinha"
+  domain             String?  @unique // Ex: "tecnologia.meusite.com"
+  themeSettingsJson  Json? // Configurações de front-end: cores, logo, etc. (legado)
+  status             String   @default("active") // "active", "suspended", "sold"
+  ownerId            Int? // Cliente que comprou o blog
+  targetKeywords     String[] // Novos campos para SEO
+  landingPageContent Json? // Conteúdo específico para Landing Pages
+  metaDescription    String? // Meta descrição para SEO
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relações: um Blog tem muitos...
+  owner            User?             @relation("BlogOwner", fields: [ownerId], references: [id])
+  userAccess       BlogAccess[] // Múltiplos usuários com diferentes permissões
+  articles         Article[]
+  authors          Author[]
+  categories       Category[]
+  tags             Tag[]
+  comments         Comment[]
+  aiPrompts        AiPrompt[]
+  aiGenerationLogs AiGenerationLog[]
+  themeSettings    ThemeSettings? // Configurações de tema estruturadas
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model Article {
+  id           Int         @id @default(autoincrement())
+  title        String
+  content      String
+  description  String
+  date         DateTime    @default(now())
+  imageUrl     String
+  imageAlt     String? // Campo opcional para alt text da imagem
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  categoryId   Int
+  authorId     Int
+  userId       Int?
+  slug         String      @unique
+  published    Boolean     @default(false)
+  viewCount    Int         @default(0)
+  likeCount    Int         @default(0)
+  metadata     Json?
+  keywords     String[]
+  aiConfidence Float?
+  aiGenerated  Boolean     @default(false)
+  aiModel      String?
+  aiPrompt     String?
+  type         ArticleType @default(analise)
+
+  // Relação com Blog
+  blogId Int
+  blog   Blog @relation(fields: [blogId], references: [id])
+
+  aiGenerationLogs AiGenerationLog[]
+  author           Author            @relation(fields: [authorId], references: [id])
+  category         Category          @relation(fields: [categoryId], references: [id])
+  user             User?             @relation(fields: [userId], references: [id])
+  comments         Comment[]
+  tags             Tag[]             @relation("ArticleToTag")
+
+  @@index([slug])
+  @@index([published])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([userId])
+  @@index([date])
+  @@index([aiGenerated])
+  @@index([blogId])
+  @@index([type])
+}
+
+model Author {
+  id        Int      @id @default(autoincrement())
+  name      String
+  role      String
+  imageUrl  String
+  bio       String?
+  signature String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  email     String?  @unique
+  website   String?
+  social    Json?
+  skills    String[]
+  aiModel   String?
+  isAi      Boolean  @default(false)
+
+  // Relação com Blog
+  blogId Int
+  blog   Blog @relation(fields: [blogId], references: [id])
+
+  articles Article[]
+  comments Comment[]
+
+  @@index([blogId])
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  description String?
+  imageUrl    String?
+  parentId    Int?
+  aiKeywords  String[]
+  aiPrompt    String?
+
+  // Relação com Blog
+  blogId Int
+  blog   Blog @relation(fields: [blogId], references: [id])
+
+  articles Article[]
+  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryToCategory")
+
+  @@index([blogId])
+}
+
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  color     String?
+  aiRelated Boolean  @default(false)
+
+  // Relação com Blog
+  blogId Int
+  blog   Blog @relation(fields: [blogId], references: [id])
+
+  articles Article[] @relation("ArticleToTag")
+
+  @@index([blogId])
+}
+
+model Comment {
+  id          Int      @id @default(autoincrement())
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  articleId   Int
+  authorId    Int?
+  userId      Int?
+  approved    Boolean  @default(false)
+  parentId    Int?
+  ipAddress   String?
+  aiGenerated Boolean  @default(false)
+  aiModel     String?
+
+  // Relação com Blog
+  blogId Int
+  blog   Blog @relation(fields: [blogId], references: [id])
+
+  article  Article   @relation(fields: [articleId], references: [id])
+  author   Author?   @relation(fields: [authorId], references: [id])
+  parent   Comment?  @relation("CommentToComment", fields: [parentId], references: [id])
+  children Comment[] @relation("CommentToComment")
+  user     User?     @relation(fields: [userId], references: [id])
+
+  @@index([blogId])
+}
+
+// User global com sistema de hierarquia
+model User {
+  id            Int       @id @default(autoincrement())
+  name          String
+  email         String    @unique
+  password      String? // Opcional para usuários OAuth
+  role          String    @default("user") // "master", "owner", "admin", "editor", "user"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  preferences   Json?
+  aiPreferences Json?
+  lastLoginAt   DateTime?
+  isActive      Boolean   @default(true)
+
+  // Relações
+  ownedBlogs Blog[]       @relation("BlogOwner")
+  blogAccess BlogAccess[] // Acesso a múltiplos blogs
+  articles   Article[]
+  comments   Comment[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// Modelo de controle de acesso por blog
+model BlogAccess {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  blogId    Int
+  role      String // "owner", "admin", "editor"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blogId])
+  @@index([userId])
+  @@index([blogId])
+  @@index([role])
+}
+
+model AiPrompt {
+  id        Int      @id @default(autoincrement())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isActive  Boolean  @default(true)
+  metadata  Json?
+
+  // Relação com Blog
+  blogId Int
+  blog   Blog @relation(fields: [blogId], references: [id])
+
+  generationLogs AiGenerationLog[]
+
+  @@index([blogId])
+}
+
+model AiGenerationLog {
+  id         Int      @id @default(autoincrement())
+  promptId   Int
+  articleId  Int?
+  createdAt  DateTime @default(now())
+  success    Boolean  @default(true)
+  error      String?
+  tokensUsed Int?
+  cost       Float?
+  duration   Int?
+
+  // Relação com Blog
+  blogId Int
+  blog   Blog @relation(fields: [blogId], references: [id])
+
+  article Article? @relation(fields: [articleId], references: [id])
+  prompt  AiPrompt @relation(fields: [promptId], references: [id])
+
+  @@index([blogId])
+}
+
+// Modelo para configurações de tema estruturadas
+model ThemeSettings {
+  id                        Int      @id @default(autoincrement())
+  blogId                    Int      @unique
+  seoSocialImage            String?
+  seoDefaultKeywords        String[]
+  seoDefaultMetaDescription String?
+  bodyFont                  String?
+  headingFont               String?
+  accentColor               String?
+  primaryColor              String?
+  secondaryColor            String?
+  backgroundColor           String?
+  textPrimaryColor          String?
+  textSecondaryColor        String?
+  footerDescription         String?
+  footerCopyrightText       String?
+  headerStyle               String?
+  footerColumns             Int?
+  sidebarEnabled            Boolean?
+  sidebarPosition           String?
+  articleCardStyle          String?
+  favicon                   String?
+  logoDark                  String?
+  logoLight                 String?
+  siteTitle                 String?
+  customJs                  String?
+  customCss                 String?
+  socialLinks               Json?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  // Relação com Blog
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@index([blogId])
+}
+
+// Newsletter - Assinantes
 model NewsletterSubscription {
-  id              String    @id @default(uuid()) @db.Uuid
-  email           String    @unique @db.VarChar(255)
-  subscribedAt    DateTime  @default(now())
-  isActive        Boolean   @default(true)
-  ipAddress       String?   @db.VarChar(45)
-  userAgent       String?   @db.Text
-  source          String?   @db.VarChar(50)
-  emailSent       Boolean   @default(false)
-  unsubscribedAt  DateTime?
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @unique @db.VarChar(255)
+  subscribedAt   DateTime  @default(now())
+  isActive       Boolean   @default(true)
+  ipAddress      String?   @db.VarChar(45)
+  userAgent      String?   @db.Text
+  source         String?   @db.VarChar(50)
+  emailSent      Boolean   @default(false)
+  unsubscribedAt DateTime?
+
+  @@index([email])
+  @@index([isActive])
+  @@index([subscribedAt])
+  @@map("NewsletterSubscription")
 }
