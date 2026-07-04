@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { Pool } from 'pg';
+import { shouldHideLogosForIos } from '../utils/appleReview';
 
 const router = Router();
 
@@ -234,13 +235,15 @@ router.get('/:id/details', async (req, res) => {
       isMain: mainTrailerResult.rows[0].isMain
     } : null;
 
+    const hideLogos = shouldHideLogosForIos(req);
+
     const subscriptionPlatforms = platformsResult.rows
       .filter((row: any) => row.accessType === 'INCLUDED_WITH_SUBSCRIPTION')
       .map((row: any) => ({
         id: row.id,
         name: row.name,
         category: row.category,
-        logoPath: row.logoPath,
+        logoPath: hideLogos ? null : row.logoPath,
         hasFreeTrial: row.hasFreeTrial,
         freeTrialDuration: row.freeTrialDuration,
         baseUrl: row.baseUrl,
@@ -253,7 +256,7 @@ router.get('/:id/details', async (req, res) => {
         id: row.id,
         name: row.name,
         category: row.category,
-        logoPath: row.logoPath,
+        logoPath: hideLogos ? null : row.logoPath,
         hasFreeTrial: row.hasFreeTrial,
         freeTrialDuration: row.freeTrialDuration,
         baseUrl: row.baseUrl,

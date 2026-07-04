@@ -1,16 +1,18 @@
 import { Router } from 'express';
 import { prismaApp as prisma } from '../prisma';
 import NodeCache from 'node-cache';
+import { shouldHideLogosForIos } from '../utils/appleReview';
 
 const router = Router();
 const cache = new NodeCache({ stdTTL: 600 }); // Cache de 10 minutos
 
 router.get('/', async (req, res) => {
   try {
-    const cacheKey = 'streaming_platforms';
+    const hideLogos = shouldHideLogosForIos(req);
+    const cacheKey = `streaming_platforms_${hideLogos ? 'hide' : 'show'}`;
     const cached = cache.get(cacheKey);
     if (cached) {
-      console.log(`⚡ Usando cache em memória para StreamingPlatforms (${(cached as any).length} itens)`);
+      console.log(`⚡ Usando cache em memória para StreamingPlatforms (${(cached as any).length} itens, hideLogos: ${hideLogos})`);
       return res.json(cached);
     }
 
@@ -27,8 +29,13 @@ router.get('/', async (req, res) => {
       }
     });
 
+    const processedPlatforms = platforms.map(platform => ({
+      ...platform,
+      logoPath: hideLogos ? null : platform.logoPath
+    }));
+
     // Ordenação manual em memória para evitar sintaxe complexa no Prisma
-    platforms.sort((a, b) => {
+    processedPlatforms.sort((a, b) => {
       // 1. Sort by showFilter
       const showFilterOrder: any = { 'PRIORITY': 1, 'SECONDARY': 2, 'HIDDEN': 3 };
       const rankA = showFilterOrder[a.showFilter] || 4;
@@ -50,8 +57,8 @@ router.get('/', async (req, res) => {
       return a.name.localeCompare(b.name);
     });
 
-    cache.set(cacheKey, platforms);
-    res.json(platforms);
+    cache.set(cacheKey, processedPlatforms);
+    res.json(processedPlatforms);
 
   } catch (error) {
     console.error('Erro ao buscar plataformas de streaming:', error);
@@ -60,4 +67,3 @@ router.get('/', async (req, res) => {
 });
 
 export default router;
-

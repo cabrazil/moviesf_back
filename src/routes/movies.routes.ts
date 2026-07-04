@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prismaApp as prisma } from '../prisma';
+import { shouldHideLogosForIos } from '../utils/appleReview';
 
 const router = Router();
 
@@ -74,11 +75,19 @@ router.get('/:id', async (req, res) => {
       }
     });
 
-    console.log('Filme encontrado:', movie);
-
     if (!movie) {
       console.log('Filme não encontrado');
       return res.status(404).json({ error: 'Filme não encontrado' });
+    }
+
+    if (shouldHideLogosForIos(req) && movie.platforms) {
+      movie.platforms = movie.platforms.map((p: any) => ({
+        ...p,
+        streamingPlatform: p.streamingPlatform ? {
+          ...p.streamingPlatform,
+          logoPath: null
+        } : p.streamingPlatform
+      }));
     }
 
     res.json(movie);
