@@ -37,6 +37,8 @@ model Movie {
   targetAudienceForLP    String?
   awardsSummary          String?
   emotionalEntryType     EmotionalEntryType?
+  hasAnalysisArticle     Boolean                  @default(false)
+  analysisArticleSlug    String?                  @db.VarChar(255)
   movieSentiments        MovieSentiment[]
   movieSuggestionFlows   MovieSuggestionFlow[]
   platforms              MovieStreamingPlatform[]

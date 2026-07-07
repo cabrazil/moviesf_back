@@ -470,7 +470,17 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
     <h1>${escapeHtml(title)}</h1>
     <p>${escapeHtml(seoDescription)}</p>
     ${article.imageUrl ? `<img src="${article.imageUrl}" alt="${escapeHtml(article.imageAlt || title)}" style="max-width: 100%; height: auto;">` : ''}
-    ${article.content ? `<div>${article.content}</div>` : ''}
+    ${(() => {
+      if (!article.content) return '';
+      let contentHtml = article.content;
+      if (process.env.HIDE_MOVIE_HUB_LINKS === 'true') {
+        contentHtml = contentHtml.replace(
+          /<a\s+[^>]*href=["'](?:https?:\/\/(?:www\.)?vibesfilm\.com)?\/(filme|onde-assistir)\/[^"']*["'][^>]*>(.*?)<\/a>/gi,
+          '$2'
+        );
+      }
+      return `<div>${contentHtml}</div>`;
+    })()}
   </div>
 </body>
 </html>`;

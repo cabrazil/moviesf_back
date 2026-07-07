@@ -94,6 +94,7 @@ interface ScriptArgs {
   journeyOptionFlowId: number;
   baseJourneyOptionFlowId?: number; // ID da sugestão base para copiar dados
   copyMovieSentiments?: boolean; // Se true, copia todos os MovieSentiment do filme
+  deleteBase?: boolean; // Se true, deleta a sugestão base (jornada de origem) após a duplicação/atualização
 }
 
 async function duplicateMovieSuggestion(args: ScriptArgs) {
@@ -193,6 +194,21 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
         await copyMovieSentiments(movie.id);
       }
 
+      // Deletar a sugestão base se solicitado
+      if (args.deleteBase) {
+        if (baseSuggestion.id === existingWithNewFlow.id) {
+          console.log('⚠️ A sugestão base é a mesma que a sugestão destino. Nenhuma exclusão foi realizada.');
+        } else {
+          console.log(`🗑️ Deletando sugestão base (ID: ${baseSuggestion.id}, JourneyOptionFlowId: ${baseSuggestion.journeyOptionFlowId})...`);
+          await prisma.movieSuggestionFlow.delete({
+            where: {
+              id: baseSuggestion.id
+            }
+          });
+          console.log('✅ Sugestão base deletada com sucesso!');
+        }
+      }
+
       // 6. Reorganizar ranking de relevance (mesmo na atualização)
       console.log('🔄 Reorganizando ranking de relevance...');
       const relevanceUpdated = await updateRelevanceRankingForMovie(movie.id);
@@ -235,6 +251,21 @@ async function duplicateMovieSuggestion(args: ScriptArgs) {
     // 5. Copiar registros de MovieSentiment se solicitado
     if (args.copyMovieSentiments) {
       await copyMovieSentiments(movie.id);
+    }
+
+    // Deletar a sugestão base se solicitado
+    if (args.deleteBase) {
+      if (baseSuggestion.id === newSuggestion.id) {
+        console.log('⚠️ A sugestão base é a mesma que a nova sugestão. Nenhuma exclusão foi realizada.');
+      } else {
+        console.log(`🗑️ Deletando sugestão base (ID: ${baseSuggestion.id}, JourneyOptionFlowId: ${baseSuggestion.journeyOptionFlowId})...`);
+        await prisma.movieSuggestionFlow.delete({
+          where: {
+            id: baseSuggestion.id
+          }
+        });
+        console.log('✅ Sugestão base deletada com sucesso!');
+      }
     }
 
     // 6. Reorganizar ranking de relevance
@@ -333,13 +364,16 @@ function parseArgs(): ScriptArgs {
     else if (arg === '--copyMovieSentiments' || arg === '--copy-sentiments') {
       parsed.copyMovieSentiments = true;
     }
+    else if (arg === '--deleteBase' || arg === '--delete-base') {
+      parsed.deleteBase = true;
+    }
 
     i++;
   }
 
   // Validação dos parâmetros obrigatórios
   if (!parsed.title || !parsed.year || !parsed.journeyOptionFlowId) {
-    console.log('❌ Uso: npx ts-node src/scripts/duplicateMovieSuggestion.ts --title="Nome do Filme" --year=2023 --journeyOptionFlowId=25 [--baseJourneyOptionFlowId=10] [--copyMovieSentiments]');
+    console.log('❌ Uso: npx ts-node src/scripts/duplicateMovieSuggestion.ts --title="Nome do Filme" --year=2023 --journeyOptionFlowId=25 [--baseJourneyOptionFlowId=10] [--copyMovieSentiments] [--deleteBase]');
     console.log('📋 Parâmetros obrigatórios:');
     console.log('   --title: Título do filme');
     console.log('   --year: Ano do filme');
@@ -347,11 +381,20 @@ function parseArgs(): ScriptArgs {
     console.log('📋 Parâmetros opcionais:');
     console.log('   --baseJourneyOptionFlowId: ID da sugestão base para copiar dados (padrão: sugestão mais recente)');
     console.log('   --copyMovieSentiments: Copia todos os registros de MovieSentiment do filme');
+    console.log('   --deleteBase: Deleta a sugestão base (jornada de origem) após realizar a duplicação/atualização');
     console.log('📝 Comportamento:');
     console.log('   - Se não existir sugestão com o journeyOptionFlowId: cria nova sugestão copiando dados da base');
     console.log('   - Se já existir sugestão com o journeyOptionFlowId: atualiza reason, relevance e relevanceScore');
     console.log('   - O relevanceScore é sempre copiado da sugestão base (sem recálculo)');
     console.log('   - Com --copyMovieSentiments: copia todos os MovieSentiment do filme (atualiza se já existirem)');
+    console.log('   - Com --deleteBase: deleta a sugestão da jornada de origem após copiar as informações (exige --baseJourneyOptionFlowId)');
+    process.exit(1);
+  }
+
+  // Validação do parâmetro deleteBase
+  if (parsed.deleteBase && !parsed.baseJourneyOptionFlowId) {
+    console.log('❌ Erro: O parâmetro --deleteBase exige que o --baseJourneyOptionFlowId (jornada de origem) seja informado.');
+    console.log('📋 Para usar --deleteBase, você precisa especificar exatamente qual jornada de origem deseja remover.');
     process.exit(1);
   }
 

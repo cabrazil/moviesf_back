@@ -23,6 +23,7 @@ generated_articles/
 src/scripts/obsidian/
 temp
 .agent
+jofs*
 
 # Scripts
 sql/*
