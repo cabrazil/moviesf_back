@@ -108,17 +108,17 @@ router.get('/onde-assistir/:slug', async (req: Request, res: Response) => {
     
     if (bot) {
       if (process.env.HIDE_MOVIE_HUB_LINKS === 'true') {
-        console.log(`🚫 SSR - Acesso a onde-assistir ocultado para bots (HIDE_MOVIE_HUB_LINKS=true): ${slug}`);
-        return res.status(404).send(`
+        console.log(`🚫 SSR - Acesso a onde-assistir ocultado para bots (HIDE_MOVIE_HUB_LINKS=true) - Retornando 410 Gone: ${slug}`);
+        return res.status(410).send(`
           <!DOCTYPE html>
           <html lang="pt-BR">
           <head>
             <meta charset="UTF-8">
-            <title>Página não encontrada | VibesFilm</title>
+            <title>Página removida permanentemente | VibesFilm</title>
             <meta name="robots" content="noindex, nofollow">
           </head>
           <body>
-            <h1>Página não encontrada</h1>
+            <h1>Página removida permanentemente</h1>
           </body>
           </html>
         `);
@@ -192,17 +192,17 @@ router.get('/filme/:slug', async (req: Request, res: Response) => {
 
     if (bot) {
       if (process.env.HIDE_MOVIE_HUB_LINKS === 'true') {
-        console.log(`🚫 SSR - Acesso a filme ocultado para bots (HIDE_MOVIE_HUB_LINKS=true): ${slug}`);
-        return res.status(404).send(`
+        console.log(`🚫 SSR - Acesso a filme ocultado para bots (HIDE_MOVIE_HUB_LINKS=true) - Retornando 410 Gone: ${slug}`);
+        return res.status(410).send(`
           <!DOCTYPE html>
           <html lang="pt-BR">
           <head>
             <meta charset="UTF-8">
-            <title>Página não encontrada | VibesFilm</title>
+            <title>Página removida permanentemente | VibesFilm</title>
             <meta name="robots" content="noindex, nofollow">
           </head>
           <body>
-            <h1>Página não encontrada</h1>
+            <h1>Página removida permanentemente</h1>
           </body>
           </html>
         `);

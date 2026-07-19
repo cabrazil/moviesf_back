@@ -70,7 +70,9 @@ export class MovieHeroRepository {
         m."landingPageHook",
         m."contentWarnings",
         m."targetAudienceForLP",
-        m."awardsSummary"
+        m."awardsSummary",
+        m."hasAnalysisArticle",
+        m."analysisArticleSlug"
       FROM "Movie" m
       WHERE m.slug = $1
     `;

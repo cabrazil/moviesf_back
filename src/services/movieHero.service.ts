@@ -129,6 +129,8 @@ export class MovieHeroService {
         contentWarnings: movie.contentWarnings,
         targetAudienceForLP: movie.targetAudienceForLP,
         awardsSummary: movie.awardsSummary,
+        hasAnalysisArticle: movie.hasAnalysisArticle,
+        analysisArticleSlug: movie.analysisArticleSlug,
         emotionalTags: processedData.sentiments,
         mainCast: processedData.mainCast,
         fullCast: processedData.fullCast,

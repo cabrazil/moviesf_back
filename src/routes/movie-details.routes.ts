@@ -40,7 +40,9 @@ router.get('/:id/details', async (req, res) => {
         m."targetAudienceForLP",
         m."landingPageHook",
         m."contentWarnings",
-        m."awardsSummary"
+        m."awardsSummary",
+        m."hasAnalysisArticle",
+        m."analysisArticleSlug"
       FROM "Movie" m
       WHERE m.id = $1
     `, [id]);
@@ -289,6 +291,8 @@ router.get('/:id/details', async (req, res) => {
         landingPageHook: movie.landingPageHook,
         contentWarnings: movie.contentWarnings,
         awardsSummary: movie.awardsSummary,
+        hasAnalysisArticle: movie.hasAnalysisArticle,
+        analysisArticleSlug: movie.analysisArticleSlug,
         oscarAwards: oscarAwards,
         emotionalTags: emotionalTags,
         mainCast: mainCast,

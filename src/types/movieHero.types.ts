@@ -27,6 +27,8 @@ export interface Movie {
   contentWarnings: string[];
   targetAudienceForLP: string;
   awardsSummary: string;
+  hasAnalysisArticle?: boolean;
+  analysisArticleSlug?: string | null;
   primaryJourney?: {
     journeyOptionFlowId: number;
     displayTitle: string | null;
@@ -139,6 +141,8 @@ export interface MovieHeroResponse {
     contentWarnings: string[];
     targetAudienceForLP: string;
     awardsSummary: string;
+    hasAnalysisArticle?: boolean;
+    analysisArticleSlug?: string | null;
     emotionalTags: EmotionalTag[];
     mainCast: CastMember[];
     fullCast: CastMember[];

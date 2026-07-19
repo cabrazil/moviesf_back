@@ -518,7 +518,7 @@ async function generateBlogArticle() {
     console.log(`✅ ${Object.keys(imdbIds).length} link(s) IMDb encontrado(s)\n`);
 
     const sentimentsList = movie.movieSentiments.map(ms =>
-      `- ${ms.mainSentiment.name} -> ${ms.subSentiment.name} (Relevância: ${ms.relevance}): ${ms.explanation || 'Sem explicação'}`
+      `- SubSentimento: ${ms.subSentiment.name} | Sentimento Raiz: ${ms.mainSentiment.name} | Relevância: ${ms.relevance} | Contexto: ${ms.explanation || 'Sem explicação'}`
     ).join('\n');
 
     const journeys = movie.movieSuggestionFlows.map(flow => {
@@ -550,36 +550,35 @@ async function generateBlogArticle() {
     }
 
     const prompt = `
-Você é um redator sênior do blog "Vibesfilm", especializado em crítica de cinema com foco em ANÁLISE EMOCIONAL e SEMÂNTICA.
-Sua tarefa é escrever um artigo de blog profundo, envolvente e otimizado para SEO sobre o filme: "${movie.title}" (${movie.year}).
+Você escreve para o blog Vibesfilm. Seu trabalho não é analisar filmes — é traduzir experiências.
 
-**REFERÊNCIA DE ESTILO (CRUCIAL):**
-O tom deve ser **empático, direto e conversacional**. Escreva como se estivesse recomendando o filme para um amigo próximo, olho no olho.
-Evite o estilo "crítico de cinema acadêmico". Busque a conexão emocional real. Use frases mais curtas e diretas.
-Inspire-se em cronistas que falam sobre sentimentos do cotidiano, com simplicidade e profundidade.
+Antes de escrever qualquer parágrafo, faça a si mesmo esta pergunta obrigatória:
+"Estou falando sobre o filme ou sobre o que ele provoca em quem assiste?"
+Se a resposta for "sobre o filme", REESCREVA. A cada 300 palavras, pare e repita essa checagem.
 
-**REGRAS DE OURO:**
-1. **EVITE HIPÉRBOLES:** Corte adjetivos vazios como "magistral", "sublime". Descreva a emoção real.
-2. **LINGUAGEM ACESSÍVEL (ZERO JARGÃO):** PROIBIDO usar termos como "exaustão existencial", "resiliência do espírito humano", "figura enigmática", "juxtaposição", "onírico".
-   - Em vez de "exaustão existencial", diga "aquele cansaço de quem não aguenta mais".
-   - Em vez de "resiliência", diga "a força para continuar".
-   - Fale a língua das pessoas comuns. Seja humano, não um dicionário.
-3. **VOCABULÁRIO VARIADO:** Não repita a palavra "Vibe" excessivamente.
-4. **USE SEU CONHECIMENTO PRÉVIO:** Você tem permissão para usar seu conhecimento geral sobre a obra completa (especialmente se for baseada em um livro/obra famosa) para enriquecer a análise. Você DEVE mencionar personagens cruciais do segundo ato (como aliados ou viradas na história) que compõem a verdadeira experiência emocional do filme, mas SEM dar spoilers graves do final.
-5. **TERMOS CLICHÊS PROIBIDOS:** Está terminantemente proibido o uso das seguintes expressões (e suas variações ou sinônimos óbvios):
-   - "soco no estômago" / "soco no estomago"
-   - "não é para qualquer momento" / "não é para qualquer hora"
-   - "não é apenas um filme" / "não se trata de apenas um filme"
-   - "fica com você" / "fica com o espectador"
-   - "a genialidade de"
-   - "não saem com os créditos" / "não terminam com os créditos"
-   - "filmes que ficam" / "daqueles que ficam"
-   Busque descrições originais e sinceras sobre o impacto emocional do filme, sem recorrer a estas fórmulas prontas.
-6. **LIMITES RÍGIDOS DE CARACTERES PARA METADADOS (CRÍTICO):**
-   - O campo "seo_title" no bloco de metadados deve ter no MÁXIMO 60 caracteres (incluindo o nome do filme, o foco emocional e a marca " | Vibesfilm"). Planeje o texto para caber nesse limite.
-   - O campo "meta_description" no bloco de metadados deve ter no MÁXIMO 160 caracteres. Resuma a essência do filme e a sua atração emocional de maneira concisa e cativante.
+O leitor que terminar este artigo não deve pensar: "Entendi esse filme."
+Ele deve pensar: "Esse talvez seja o filme que eu precisava assistir agora."
 
-**DADOS DO FILME:**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 PRINCÍPIO CENTRAL — IDENTIDADE VIBESFILM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Toda seção deve responder à mesma pergunta: "Qual experiência emocional isso oferece ao espectador?"
+
+Não escreva: "A direção de ${movie.director} cria uma tensão visual crescente."
+Escreva: "À medida que as cenas avançam, você começa a perceber que está prendendo a respiração sem saber quando foi que parou de soltá-la."
+
+Não escreva sobre o protagonista — escreva sobre o leitor.
+Não: "O personagem enfrenta uma crise moral profunda."
+Sim: "Há um momento em que você vai perceber que está torcendo por alguém fazendo algo que normalmente reprovaria. E isso vai incomodar."
+
+Não analise. Convide. A pergunta que você está respondendo o tempo todo é:
+"Por que alguém deveria viver essa experiência hoje?"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 DADOS DO FILME
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Título: "${movie.title}" (${movie.year})
 - Título Original: ${movie.original_title || 'Não informado'}
 - Diretor: ${movie.director || 'Não informado'}
 - Elenco Principal: ${castNames || 'Não informado'}
@@ -587,36 +586,62 @@ Inspire-se em cronistas que falam sobre sentimentos do cotidiano, com simplicida
 - Gêneros: ${movie.genres.join(', ')}
 - Palavras-chave: ${movie.keywords.slice(0, 15).join(', ')}
 - Onde assistir: ${platforms || 'Verifique disponibilidade local'}
-- Hook Landing Page: "${movie.landingPageHook || ''}"
-- Alertas: "${movie.contentWarnings || ''}"
+- Hook: "${movie.landingPageHook || ''}"
+- Alertas de conteúdo: "${movie.contentWarnings || ''}"
 
-**ANÁLISE DE SENTIMENTOS (IA VIBESFILM):**
+**SENTIMENTOS IDENTIFICADOS PELA IA VIBESFILM:**
 ${sentimentsList}
 
-**JORNADAS EMOCIONAIS (QUANDO ASSISTIR):**
+**JORNADAS EMOCIONAIS (em que momento assistir):**
 ${journeys}
 ${imdbLinksSection}
 ${imagesSection}
 
-**ESTRUTURA OBRIGATÓRIA DO ARTIGO (MARKDOWN H2/H3):**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚫 REGRAS ABSOLUTAS (VIOLAÇÃO = REESCREVER)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**METADADOS SEO (Inicie o arquivo com este bloco YAML):**
+1. ZERO jargão cinematográfico como substantivo de valor:
+   Proibido: "fotografia impecável", "roteiro denso", "direção magistral", "trilha evocativa", "onírico", "justaposição", "exaustão existencial".
+   Permitido: dizer o que esses elementos fazem SENTIR. Ex.: "a luz amarelada cria aquela sensação de tarde que nunca acaba".
+
+2. ZERO hipérboles vazias: "magistral", "sublime", "obra-prima", "genial".
+   Descreva a emoção concreta, não o rótulo.
+
+3. ZERO clichês de crítica:
+   Banidos: "soco no estômago", "não é para qualquer momento", "não é apenas um filme",
+   "fica com você", "a genialidade de", "não saem com os créditos", "filmes que ficam".
+
+4. Não repita "Vibe" excessivamente. Varie.
+
+5. LIMITES de metadados SEO:
+   - seo_title: MÁXIMO 60 caracteres (com " | Vibesfilm" no final)
+   - meta_description: MÁXIMO 160 caracteres. Texto puro, sem HTML.
+
+6. USE seu conhecimento sobre o filme para mencionar personagens e momentos reais,
+   mas SEM spoilers graves do final.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📐 ESTRUTURA OBRIGATÓRIA DO ARTIGO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**BLOCO YAML (inicie o arquivo com isso):**
 ---
-seo_title: "[Nome do Filme]: [Foco Emocional] | Vibesfilm (MÁXIMO 60 caracteres)"
-meta_description: "[Resumo atrativo para Google | MÁXIMO 160 caracteres. JAMAIS USE HTML OU MARKDOWN AQUI - TEXTO PURO]"
-excerpt_1: "[Opção 1 de resumo curto para cards. TEXTO PURO, SEM HTML OU MARKDOWN]"
-excerpt_2: "[Opção 2 de resumo curto com foco diferente. TEXTO PURO, SEM HTML OU MARKDOWN]"
+seo_title: "[MÁXIMO 60 chars com | Vibesfilm]"
+meta_description: "[MÁXIMO 160 chars. Texto puro.]"
+excerpt_1: "[Resumo curto para cards. Texto puro.]"
+excerpt_2: "[Resumo alternativo com ângulo diferente. Texto puro.]"
 ---
 
-# [Título Criativo: Nome do Filme + Subtítulo Emocional (ex: Terror Social e Paranoia Contemporânea)]
+# [Título criativo: nome do filme + o que ele desperta em quem assiste]
 
-## [Subtítulo H2 Curto e Impactante]
-[Escreva logo abaixo do subtítulo UMA ÚNICA FRASE ou parágrafo minúsculo (máx. 2 linhas) contendo um "gancho" que desperte curiosidade atraente sobre a emoção da obra. PROIBIDO citar nomes do elenco ou diretor nesta seção de Subtítulo]
+## [Uma pergunta ou provocação que faça o leitor se sentir visto — ex: "Você ainda consegue confiar na sua própria memória?"]
+[UMA frase ou parágrafo curto (máx. 2 linhas) que amplie essa provocação. Sem nomes de elenco ou diretor aqui.]
 
-## Introdução
-Desenvolva a introdução em **pelo menos 2 parágrafos** bem estruturados.
-No primeiro parágrafo, defina a premissa central e o impacto imediato do filme. É OBRIGATÓRIO citar o diretor (${movie.director}) e o elenco principal (${castNames}) diretamente no corpo deste primeiro parágrafo da introdução.
-No segundo parágrafo, aprofunde o tom da obra e prepare o leitor para o que sentirá, terminando com uma frase original que defina a vibe ou o tom emocional geral (por exemplo, conectando a atmosfera da história com uma sensação cotidiana, sem usar frases prontas ou o nome do blog).
+## Por que assistir agora?
+Escreva 2 parágrafos. O foco não é o que o filme é — é o que ele faz.
+No primeiro parágrafo: apresente a experiência, não a obra. Cite ${movie.director} e ${castNames} apenas como âncora de contexto, não como objeto de análise.
+No segundo parágrafo: conecte o tom do filme a um estado emocional que o leitor pode estar vivendo. Termine com uma frase que posicione o filme como uma resposta possível a algo que o leitor sente — sem prometer catarse fácil.
 
 <h3>⚠️ Nota de Curadoria: ${movie.title} (${movie.year})</h3>
 <p>Com base no alerta a seguir, escreva no máximo 2 frases que preparem o leitor emocionalmente para o que vai encontrar no filme, sem usar termos clínicos, criminais ou explícitos.
@@ -624,49 +649,65 @@ Alerta original (use apenas como referência de contexto, não copie os termos):
 
 REGRAS OBRIGATÓRIAS para esta seção:
 - PROIBIDO usar os termos: "abuso sexual", "estupro", "pedofilia", "assassinato", "homicídio", "violência sexual" ou qualquer linguagem de boletim policial.
-- Em vez disso, use expressões focadas no impacto emocional e na trama. Exemplos de substituições:
+- Em vez disso, use expressões focadas no impacto emocional e na trama. Exemplos:
   • "assassinato de uma criança" → "a perda trágica e violenta de uma criança"
   • "abuso sexual" → "violência profunda contra uma criança" ou "um crime que marca a história de forma irreparatível"
   • "estupro" → "uma violência que a trama não suaviza"
 - O tom deve ser de um curador que avisa com respeito, não de um laudo médico ou notícia policial.
-- Não invente conteúdo que não esteja no alerta original. Não dramatize.
+- Não invente conteúdo que não esteja no alerta original. Não assuste; prepare.
 - Termine com uma frase que sinalize preparo emocional, como: "A narrativa não poupa o leitor, mas tem um propósito claro." ou equivalente.
 </p>
 
-## O Que Torna "${movie.title}" Tão [Adjetivo Dinâmico]?
-**IMPORTANTE:** Escolha um adjetivo que defina o filme no título desta seção (ex: "Impactante", "Contemplativo", "Perturbador", "Especial").
-Nesta seção, faça a **Análise Conceitual e Semântica**.
-- Não use tópicos (bullets). Escreva 2 a 3 parágrafos fluídos.
-- Analise a direção, fotografia, som e roteiro. Como esses elementos técnicos constroem a emoção?
-- Discuta metáforas visuais e temas profundos.
-- Explique por que a obra se destaca no seu gênero.
+## Como esse filme faz você se sentir?
+**ATENÇÃO:** O título desta seção deve ser reescrito para refletir a emoção central do filme.
+Exemplos: "Como essa tensão faz você se sentir?", "O que esse silêncio desperta em você?", "Por que esse desconforto parece familiar?".
+Nesta seção, NÃO analise técnicas cinematográficas como fim em si mesmas.
+Explique apenas o que elementos visuais, sonoros e narrativos PROVOCAM no espectador.
+Escreva 2 a 3 parágrafos fluídos. Sem tópicos. Fale com o leitor, não sobre o filme.
 
-## A Atmosfera Dominante [Use variações: "O Clima", "A Emoção Central", "A Vibe"]
-Comece com um parágrafo introdutório (2-3 frases) que descreva a sensação geral que permeia o filme, destacando qual é a emoção primária (ex: Melancolia, Tensão, Euforia).
-SOMENTE DEPOIS deste parágrafo, pule uma linha e escreva exatamente: "### O que ressoa nesta experiência:"
+## O que você leva desse filme?
+**ATENÇÃO:** O título desta seção deve ser reescrito como uma pergunta voltada ao leitor.
+Exemplos: "O que fica depois dos créditos?", "O que esse filme deixa em aberto?", "Que sensação você carrega para casa?"
 
-Depois, liste 3 **Tags Emocionais Chave** em formato HTML usando <ul> e <li>:
-⚠️ **REGRA CRÍTICA:** Você **OBRIGATORIAMENTE** deve escolher essas tags da lista fornecida na seção "ANÁLISE DE SENTIMENTOS (IA VIBESFILM)". **NÃO INVENTE** novos nomes de sentimentos. Use *exatamente* o nome do SubSentimento fornecido (ex: "Nostalgia Positiva").
+Escreva exatamente: "### O que você leva dessa experiência:"
 
-Exemplo de formato para as tags:
+Em seguida, use APENAS os 3 primeiros SubSentimentos da lista "SENTIMENTOS IDENTIFICADOS PELA IA VIBESFILM" (já ordenados por relevância decrescente).
+⚠️ O nome do SubSentimento é o valor após "SubSentimento:" em cada linha. NÃO use o "Sentimento Raiz" como nome. Exemplo: em "SubSentimento: Suspense Crescente | Sentimento Raiz: Ansioso(a)", o nome correto é "Suspense Crescente".
+
+⚠️ REGRA CRÍTICA — COMO DESENVOLVER CADA TÓPICO:
+Exiba o nome do SubSentimento em negrito como título do item (<strong>).
+Em seguida, escreva 2 a 3 linhas que traduzam o que permanece emocionalmente com o espectador após o filme.
+NÃO descreva cenas, ações ou o comportamento do protagonista.
+NÃO defina o subsentimento nem explique o que ele significa.
+Escreva sobre a reflexão, a inquietação ou a mudança de perspectiva que essa experiência deixa no leitor.
+Cada texto deve soar como algo que alguém poderia dizer alguns minutos depois dos créditos, ao tentar explicar por que aquele filme ainda continua dentro dele.
+
+Exemplos do que NÃO fazer:
+❌ "<strong>Desespero Crescente</strong>: Cada porta que se fecha empurra o personagem para uma decisão extrema." (descreve ação do protagonista)
+❌ "<strong>Desintegração Psicológica</strong>: É quando a mente do protagonista começa a ceder sob pressão." (define o conceito + foca no personagem)
+
+Exemplos do que FAZER:
+✅ "<strong>Desespero Crescente</strong>: A sensação de que o desespero pode distorcer qualquer bússola moral — e o incômodo de perceber que você entendeu cada passo do caminho, mesmo sem querer."
+✅ "<strong>Desintegração Psicológica</strong>: A inquietação de acompanhar alguém cruzando lentamente uma linha sem perceber. Não por fraqueza — mas porque as circunstâncias foram moldando o que parecia possível, uma escolha de cada vez."
+
+Formato HTML obrigatório:
 <ul>
-<li><strong>[Nome do SubSentimento EXATO (ex: Nostalgia Positiva)]</strong>: [Parágrafo explicando como essa emoção se manifesta no filme, citando momentos ou sensações específicas].</li>
-<li><strong>[Nome do SubSentimento 2]</strong>: [Explicação...].</li>
-<li><strong>[Nome do SubSentimento 3]</strong>: [Explicação...].</li>
+<li><strong>[Nome Exato do SubSentimento 1]</strong>: [2 a 3 linhas — reflexão/inquietação que permanece, na voz de quem tenta explicar por que o filme ainda está dentro dele. Sem descrever cenas ou definir emoções.]</li>
+<li><strong>[Nome Exato do SubSentimento 2]</strong>: [Idem]</li>
+<li><strong>[Nome Exato do SubSentimento 3]</strong>: [Idem]</li>
 </ul>
 
-## Quando Escolher "${movie.title}"? (Sua Jornada Emocional no Vibesfilm)
-Escreva um parágrafo introdutório convidando o leitor a essa experiência.
+## Quando esse filme é para você? (Sua jornada no Vibesfilm)
+Escreva 1 parágrafo curto reconhecendo que nem todo filme é para todo momento — e que o Vibesfilm existe para ajudar a encontrar o filme certo para o momento certo.
 
-Em seguida, escolha 2 ou 3 das "Jornadas Emocionais" fornecidas nos dados e transforme-as em mini-ensaios usando formato HTML <ul> e <li>:
-
+Escolha 2 ou 3 Jornadas Emocionais dos dados e transforme-as em mini-convites usando HTML <ul> e <li>:
 <ul>
-<li><strong>Para quem busca [Nome da Intenção/Sentimento]</strong>: [Escreva um parágrafo profundo explicando POR QUE o filme atende a essa busca. Evite listas. Diga algo como "Este filme é um mergulho em...", "É a escolha ideal para quem quer explorar..."].</li>
-<li><strong>Para quem busca [Nome da Intenção 2]</strong>: [Explicação...].</li>
+<li><strong>Se você está [estado emocional específico]</strong>: [Descreva a experiência que o filme oferece para alguém nesse estado. Fale com o leitor diretamente. Ex: "Se você está carregando algo pesado e não consegue nomear o que é, esse filme pode fazer isso por você."]</li>
+<li><strong>Se você quer [desejo ou busca específica]</strong>: [Descrição de como o filme atende esse desejo, em linguagem de experiência, não de catálogo.]</li>
 </ul>
 
-## Sua Vibe Encontra o Filme Certo no Vibesfilm
-Conclusão emocional. Reforce que o Vibesfilm entende que cinema é mais que entretenimento.
+## Esse filme é a resposta para o que você está sentindo?
+Conclusão emocional. NÃO faça um resumo do artigo. Faça uma última pergunta ou afirmação que deixe o leitor com vontade de apertar play.
 Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /onde-assistir/${movieSlug} com texto '${movie.title} (${movie.year})']."
 
 **Rodapé:**
@@ -677,9 +718,9 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
     console.log(`🤖 Gerando artigo com ${providerStr.toUpperCase()}...`);
 
     const response = await aiProvider.generateResponse(
-      "Você é um redator do blog Vibesfilm.",
+      "Você escreve para o blog Vibesfilm. Seu trabalho é traduzir experiências emocionais, não analisar filmes. Fale sempre com o leitor, nunca sobre o filme.",
       prompt,
-      { maxTokens: 4000, temperature: 0.7 }
+      { maxTokens: 4000, temperature: 0.75 }
     );
 
     if (!response.success) {
@@ -703,23 +744,29 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
       frontmatter = cleanAndValidateSEO(frontmatter);
     }
 
-    // 1. Inserir primeira imagem antes da Seção "O Que Torna..." (se a IA não inseriu sozinha)
+    // 1. Inserir primeira imagem antes do 3º H2 do artigo (posicional — robusto contra reescrita de títulos pela IA)
     if (processedImages.length > 0 && !bodyPart.includes(processedImages[0].url)) {
-      const nextH2Regex = /(## O Que Torna)/;
-      if (nextH2Regex.test(bodyPart)) {
+      const allH2s = [...bodyPart.matchAll(/^## .+$/gm)];
+      if (allH2s.length >= 3) {
+        const targetH2 = allH2s[2][0]; // 3º H2 (índice 2)
         const imageHtml = `<p><img src="${processedImages[0].url}" alt="${processedImages[0].alt}"></p>\n\n`;
-        bodyPart = bodyPart.replace(nextH2Regex, `${imageHtml}$1`);
-        console.log('  ✓ Imagem 1 inserida via Fallback do Script');
+        bodyPart = bodyPart.replace(targetH2, `${imageHtml}${targetH2}`);
+        console.log(`  ✓ Imagem 1 inserida antes de: "${targetH2}"`);
+      } else {
+        console.log('  ⚠️  Não foi possível inserir Imagem 1: menos de 3 seções H2 encontradas.');
       }
     }
 
-    // 2. Inserir segunda imagem antes da conclusão (se a IA não inseriu sozinha)
+    // 2. Inserir segunda imagem antes do penúltimo H2 do artigo (posicional)
     if (processedImages.length > 1 && !bodyPart.includes(processedImages[1].url)) {
-      const conclusionRegex = /(## Sua Vibe Encontra o Filme Certo no Vibesfilm)/;
-      if (conclusionRegex.test(bodyPart)) {
+      const allH2s = [...bodyPart.matchAll(/^## .+$/gm)];
+      if (allH2s.length >= 2) {
+        const targetH2 = allH2s[allH2s.length - 2][0]; // penúltimo H2
         const imageHtml = `<p><img src="${processedImages[1].url}" alt="${processedImages[1].alt}"></p>\n\n`;
-        bodyPart = bodyPart.replace(conclusionRegex, `${imageHtml}$1`);
-        console.log('  ✓ Imagem 2 inserida via Fallback do Script');
+        bodyPart = bodyPart.replace(targetH2, `${imageHtml}${targetH2}`);
+        console.log(`  ✓ Imagem 2 inserida antes de: "${targetH2}"`);
+      } else {
+        console.log('  ⚠️  Não foi possível inserir Imagem 2: menos de 2 seções H2 encontradas.');
       }
     }
 
@@ -762,7 +809,7 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
     }
 
     const safeTitle = movie.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const filename = `${safeTitle}_${movie.year}_enriched.md`;
+    const filename = `${safeTitle}_${movie.year}_vibes.md`;
     const filePath = path.join(outputDir, filename);
 
     writeFileSync(filePath, enrichedContent);

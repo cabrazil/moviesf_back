@@ -23,7 +23,8 @@ router.get('/:id/details', async (req, res) => {
         id, title, "original_title", year, description, director, runtime, 
         certification, "imdbRating", "vote_average", "rottenTomatoesRating", 
         "metacriticRating", thumbnail, genres, "landingPageHook", 
-        "contentWarnings", "targetAudienceForLP", "awardsSummary"
+        "contentWarnings", "targetAudienceForLP", "awardsSummary",
+        "hasAnalysisArticle", "analysisArticleSlug"
       FROM "Movie"
       WHERE id = $1
     `, [id]);
