@@ -503,8 +503,8 @@ function escapeHtml(text: string): string {
  * Gera HTML completo para a página inicial (Home) do blog
  */
 export function renderHomeHTML(posts: any[]): string {
-  const title = "VibesFilm - Cada emoção tem um filme";
-  const description = "O cinema é a bússola para o que você sente. Encontre o filme perfeito para a sua vibe atual, leia análises detalhadas e descubra onde assistir.";
+  const title = "Descubra o filme certo para o seu momento | Vibesfilm";
+  const description = "O Vibesfilm recomenda filmes pela experiência emocional que eles oferecem. Descubra histórias que conversem com o momento que você está vivendo.";
   const canonicalUrl = "https://vibesfilm.com/";
   
   const postsHtml = posts.map((post: any) => {
