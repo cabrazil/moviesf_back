@@ -74,7 +74,7 @@ export class MovieHeroRepository {
         m."hasAnalysisArticle",
         m."analysisArticleSlug"
       FROM "Movie" m
-      WHERE m.slug = $1
+      WHERE m.slug = $1 OR m.id::text = $1
     `;
 
     const result = await dbConnection.query<Movie>(query, [slug]);
