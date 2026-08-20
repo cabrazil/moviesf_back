@@ -131,7 +131,7 @@ async function getOrCreateTags(blogId: number, tagNames: string[]): Promise<numb
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
-
+      
     if (!slug) continue;
 
     let tag = await prismaBlog.tag.findFirst({
@@ -226,12 +226,12 @@ async function generatePillarArticle() {
   const articleTitle = args.title || "4 filmes sobre a beleza da aceitação e a impermanência da vida";
   const intention = args.intention || "Encontrar serenidade e paz interior ao acolher a impermanência e as verdades inevitáveis da vida.";
   const concept = args.concept || "Esta curadoria reúne obras cinematográficas focadas na transição psicológica da negação ou da luta contra o inevitável para a profunda aceitação da realidade. São filmes que demonstram como a verdadeira força e libertação do protagonista não surgem de vencer um conflito externo, mas da coragem de abraçar o presente, as perdas e o fluxo natural do tempo como eles realmente são.";
-
+  
   const movieTitles = args.movies && args.movies.length > 0
     ? args.movies
     : [
-      "Touch (2024)"
-    ];
+        "Touch (2024)"
+      ];
 
   console.log(`🎬 Iniciando geração do Artigo Pilar: "${articleTitle}"`);
   console.log(`🎯 Intenção: "${intention}"`);
@@ -353,13 +353,7 @@ async function generatePillarArticle() {
     `).join('\n');
 
     const prompt = `
-    Você é o editor-chefe do Vibesfilm. Sua especialidade não é escrever listas de filmes, mas construir ensaios editoriais sobre experiências humanas utilizando o cinema como linguagem.
-    O foco não é analisar direção ou fotografia. O foco é responder: "Que experiência humana une estas histórias e por que elas podem fazer sentido para alguém neste momento da vida?"    
-    Escreva como um editor humano. Nunca como um crítico tradicional. Nunca como um terapeuta. Nunca como um professor. 
-    Evite construir todo o artigo em torno de uma única palavra (como aceitação, esperança, coragem, medo ou solidão).
-    Em vez disso, explore diferentes aspectos da mesma experiência humana utilizando sinônimos, imagens e reflexões complementares.
-    Cada seção deve acrescentar uma nova perspectiva da experiência humana.
-    Cada filme deve representar uma forma diferente de viver essa experiência, evitando que as quatro análises pareçam contar a mesma história.
+    Você é um redator sênior do blog "Vibesfilm". Um cinéfilo especializado em crítica de cinema com foco em ANÁLISE EMOCIONAL e SEMÂNTICA.
     Escreva um "Artigo Pilar" (Lista) com o título: **"${articleTitle}"**.
 
     **PROPÓSITO EMOCIONAL DO ARTIGO:**
@@ -370,7 +364,7 @@ async function generatePillarArticle() {
 
     **METADADOS SEO DO ARTIGO PRINCIPAL (Inicie o arquivo com este bloco YAML OBRIGATORIAMENTE):**
     ---
-    seo_title: "[Título otimizado para SEO (máximo 60 caracteres) | Vibesfilm]"
+    seo_title: "[Título Focado no Impacto da Aceitação] | Vibesfilm (Max 60 chars)"
     meta_description: "[Resumo do artigo pilar para o Google | Max 160 chars. JAMAIS USE HTML AQUI]"
     excerpt_1: "[Resumo curto para chamadas em destaque. TEXTO PURO, SEM HTML]"
     excerpt_2: "[Resumo alternativo focado na proposta de valor. TEXTO PURO, SEM HTML]"
@@ -378,89 +372,35 @@ async function generatePillarArticle() {
 
     # ${articleTitle}
 
-    ## Introdução (2 a 3 parágrafos)
+    **Introdução** (2-3 parágrafos)
+    - Escreva de forma empática, profunda e conversacional. 
+    - Fale sobre como a vida nos impõe transformações e perdas que não podemos evitar, e como a verdadeira paz surge no momento em que paramos de lutar contra o fluxo da realidade.
+    - Apresente a premissa desta curadoria com base na intenção: "${intention}".
+    - Atenção: NÃO use termos médicos, psiquiátricos ou clínicos como "cura", "ansiedade", "terapia", "tratamento" ou "depressão". Foque no aspecto humano e poético da vivência.
 
-    Objetivo da introdução:
+    **Seção: A Beleza da Aceitação**
+    - Desenvolva de forma bela e fluida o Conceito Curatorial: "${concept}". Explique que a verdadeira força de um protagonista (e de nós) não está em vencer todos os desafios externos, mas na coragem de acolher o presente exatamente como ele é.
 
-    - Comece falando sobre uma experiência humana vivida pelo leitor, e não sobre cinema.
-    - Conecte o leitor a uma situação da vida que justifique a existência desta curadoria.
-    - A introdução deve responder implicitamente à pergunta:
-    **"Por que alguém procuraria este artigo hoje?"**
-    - Apresente naturalmente a proposta da curadoria com base na intenção:
-    "${intention}"
-    - Evite antecipar a análise dos filmes. Apenas prepare emocionalmente o leitor para a jornada.
-    - Não explique ainda por que os filmes foram escolhidos. Essa reflexão pertence exclusivamente à próxima seção ("Por que estes filmes estão juntos?").
+    **A Lista (Jornadas de Impermanência e Serenidade)**
+    Para CADA UM dos ${moviesData.length} filmes, a estrutura DEVE SER EXATAMENTE ASSIM (Sem blocos de metadados YAML adicionais ou blocos de comentários):
 
-    ⚠️ Não utilize termos médicos, psiquiátricos ou clínicos como "cura", "terapia", "tratamento", "diagnóstico" ou "depressão", salvo quando forem indispensáveis para contextualizar a história de um filme.
-
-    ---
-
-    ## Seção: Por que estes filmes estão juntos?
-    Desenvolva o Conceito Curatorial:
-    "${concept}"
-
-    Esta é a seção mais importante do artigo.
-    Seu objetivo é explicar o fio invisível que conecta emocionalmente todos os filmes da curadoria.
-    Não resuma os filmes individualmente.
-    Mostre ao leitor por que essas histórias pertencem ao mesmo artigo e como cada uma representa uma perspectiva diferente da mesma experiência humana.
-    Essa seção deve ampliar a compreensão do tema antes da apresentação dos filmes.
-
-    ---
-
-    ## A Curadoria
-    Para CADA UM dos ${moviesData.length} filmes, utilize exatamente a estrutura abaixo (sem blocos YAML adicionais ou comentários):
     ### ${moviesData.length > 0 ? `1` : ''}. **[Título do Filme] ([Ano])**
     
-    <p><img src='[URL da Imagem Supabase fornecida nos dados do filme]' alt='[Texto ALT altamente descritivo e acessível gerado por você, descrevendo a cena de forma poética com base no elenco e tom da obra, ex: Atores X e Y em cena dramática do filme Z]'></p>
+    <p><img src="[URL da Imagem Supabase fornecida nos dados do filme]" alt="[Texto ALT altamente descritivo e acessível gerado por você, descrevendo a cena de forma poética com base no elenco e tom da obra, ex: 'Atores X e Y em cena dramática do filme Z']"></p>
     
-    **Resumo Emocional**: Escreva 1 ou 2 parágrafos apresentando a atmosfera emocional do filme e a experiência humana que ele oferece.
-    Conecte o filme naturalmente com a intenção emocional e o conceito curatorial da lista, mas sem repetir literalmente essas expressões.
-    Mostre ao leitor por que esse filme faz parte desta curadoria.
+    **Resumo Emocional**: Escreva 1 ou 2 parágrafos primorosos apresentando a atmosfera emocional do filme, conectando-a diretamente com a intenção e o conceito curatorial da lista.
+    ⚠️ **DIRETRIZ DE ESCRITA CRÍTICA (FALTA DE SPOILERS):** Mantenha esta descrição estritamente como uma **introdução instigante e envolvente** da 'vibe' do filme, preparando o leitor para a jornada. **NÃO dê spoilers do final do filme** e não esgote a análise técnica profunda, pois cada filme tem um artigo e análise dedicados para leitura posterior. O objetivo é despertar o desejo de assistir e refletir.
+    ⚠️ **REQUISITO OBRIGATÓRIO AQUI:** Sempre que citar o nome do DIRETOR ou atores listados no "Diretório de Links IMDb" no final da requisição, você deve OBRIGATORIAMENTE substituí-lo pelo formato de âncora completo informado (padrão internacional: https://www.imdb.com/name/nm...). Exemplo correto: "Sob a direção sensível de <a href="URL" target="_blank" rel="noopener">Brendan Fraser</a>...".
     
-    ⚠️ **DIRETRIZ DE ESCRITA (SEM SPOILERS):** A descrição deve funcionar como um convite à experiência. Não revele acontecimentos importantes nem o desfecho da história. Não transforme este trecho em uma crítica técnica. O objetivo é despertar curiosidade, identificação e vontade de assistir ao filme. 
-    ⚠️ **DIRETRIZ EDITORIAL:** Cada filme representa uma perspectiva diferente da experiência humana central do artigo. Evite escrever quatro resumos que parecem contar exatamente a mesma história. Explique o que torna este filme único dentro da curadoria.
-    ⚠️ **LINKS IMDb:** Sempre que citar o nome do DIRETOR ou atores listados no "Diretório de Links IMDb" no final da requisição, você deve OBRIGATORIAMENTE substituí-lo pelo formato de âncora completo informado (padrão internacional: https://www.imdb.com/name/nm...). Exemplo correto: "Sob a direção sensível de <a href='URL' target='_blank' rel='noopener'>Brendan Fraser</a>...".
+    **A Essência da Aceitação**: Uma frase final marcante (ou micro-parágrafo) destacando o momento ou a verdade inevitável da existência com a qual a obra nos convida a fazer as pazes.
     
-    **O que esta história nos deixa**
-    Escreva um pequeno fechamento (1 ou 2 frases).
-    Não faça um resumo do filme.
-    Varie naturalmente a abertura dos parágrafos, o ritmo da escrita e a forma de apresentar cada filme.
-    Evite repetir estruturas sintáticas.
-    Não inicie repetidamente frases com:
-    - "É um filme sobre..."cd gen
-    - "É uma história sobre..."
-    - "Trata-se de..."
-    - "O filme nos mostra..."
-    - "O filme nos convida..."
-    Evite terminar repetidamente com expressões como:
-    - "o filme nos convida..."
-    - "faz as pazes..."
-    - "aceitar..."
-    - "acolher..."
-    - "nos lembra que..."
-
-    Cada reflexão deve soar única e representar uma perspectiva diferente da experiência humana apresentada pelo filme.
-    O leitor deve sentir que cada obra acrescentou uma nova forma de compreender o tema da curadoria.
-    
-    <p>📖 <a href='/artigo/[Slug do Filme da requisição]'>Análise emocional completa de [Título do Filme]</a></p>
-    <p>🎬 <a href='/onde-assistir/[Slug do Filme da requisição]'>Onde Assistir Agora</a></p>
+    <p>📖 <a href="/artigo/[Slug do Filme da requisição]">Análise emocional completa de [Título do Filme]</a></p>
+    <p>🎬 <a href="/onde-assistir/[Slug do Filme da requisição]">Onde Assistir Agora</a></p>
 
     (Repita essa exata mesma estrutura para TODOS os filmes listados no contexto).
 
-    ## O que fica quando os créditos sobem?
-    Depois de apresentar todos os filmes, escreva um fechamento editorial (2 parágrafos curtos).
-    Não resuma novamente cada filme.
-    Mostre como essas histórias se complementam.
-    Explique por que, vistas em conjunto, elas ampliam a compreensão da experiência humana apresentada pela curadoria.
-    Este é o encerramento do artigo.
-
-    ## REVISÃO EDITORIAL FINAL
-    Antes de finalizar o artigo, revise o texto e confirme que:
-    - Cada seção possui no máximo 2 parágrafos curtos.
-    - Cada parágrafo desenvolve apenas uma ideia principal.
-    - Não há repetição da mesma reflexão com palavras diferentes.
-    - Quando uma ideia estiver completa, siga para a próxima seção.
-    - O texto é conciso, elegante e fluido.
+    **Conclusão**
+    - Fechamento poético e reconfortante sobre como a arte nos ajuda a abraçar o presente, as perdas e o fluxo natural do tempo para encontrar a verdadeira serenidade.
 
     **DADOS DOS FILMES PARA A LISTA:**
     ${moviesContext}
@@ -500,7 +440,7 @@ async function generatePillarArticle() {
     if (match) {
       frontmatter = match[0];
       bodyPart = enrichedContent.slice(frontmatter.length);
-
+      
       // Validar e limpar seo_title e meta_description no frontmatter
       frontmatter = cleanAndValidateSEO(frontmatter);
     }
@@ -530,7 +470,7 @@ async function generatePillarArticle() {
       const published = args.published || false;
 
       const yamlMetadata = parseYaml(frontmatter);
-
+      
       let finalArticleTitle = articleTitle;
       const titleMatch = bodyPart.match(/^#\s+(.+)$/m);
       if (titleMatch) {
@@ -550,17 +490,17 @@ async function generatePillarArticle() {
 
       const authorId = await getOrCreateAuthor(blogId);
       const categoryId = await getOrCreateCategory(blogId);
-
+      
       const sentimentNames: string[] = [];
       const genresList: string[] = [];
       const allKeywords: string[] = [];
-
+      
       moviesData.forEach(m => {
         if (m.vibe) sentimentNames.push(m.vibe);
         if (m.genres) genresList.push(...m.genres);
         if (m.keywords) allKeywords.push(...m.keywords);
       });
-
+      
       const tagIds = await getOrCreateTags(blogId, [...sentimentNames, ...genresList]);
 
       const imageUrl = moviesData[0]?.imageUrl || moviesData[0]?.thumbnail || '';

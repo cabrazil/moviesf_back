@@ -249,7 +249,7 @@ export function renderMovieHTML(
   </script>
   
   <!-- Meta tags adicionais -->
-  <meta name="robots" content="noindex, follow">
+  <meta name="robots" content="index, follow">
   <meta name="author" content="vibesfilm">
   
   <!-- Redirect para SPA após carregar (para usuários) -->
@@ -668,28 +668,31 @@ export function renderStaticPageHTML(pageType: string): string {
       <h3>1. Dados que coletamos</h3>
       <p>As informações pessoais que coletamos podem incluir:</p>
       <ul>
-        <li>Dados de navegação (páginas visitadas, tempo de permanência, origem de tráfego)</li>
-        <li>E-mail, quando você se inscreve na newsletter</li>
-        <li>Mensagens enviadas via formulário de contato</li>
-        <li>Preferências de conteúdo e interações com o site</li>
+        <li>Dados de navegação e estatísticas de uso para melhorar a experiência do usuário</li>
+        <li>E-mail, quando você se inscreve voluntariamente na newsletter</li>
+        <li>Mensagens enviadas via formulário de contato ou e-mail</li>
+        <li>Preferências de conteúdo e interações com a plataforma</li>
       </ul>
 
       <h3>2. Cookies e Web Beacons</h3>
-      <p>Utilizamos cookies para armazenar informações como suas preferências pessoais quando visita nosso website. Isso pode incluir configurações de interface, preferences de conteúdo ou dados de sessão.</p>
-      <p>Também utilizamos cookies de análise (como Google Analytics) para entender como os usuários interagem com nosso conteúdo, melhorando a experiência de navegação.</p>
+      <p>Utilizamos cookies para armazenar preferências de navegação e melhorar o desempenho técnico do site. Também utilizamos ferramentas de análise (como o Google Analytics) para compreender os padrões de acesso e aprimorar nosso catálogo e artigos.</p>
 
-      <h3>3. Anúncios e Publicidade</h3>
-      <p>O <strong>vibesfilm.com</strong> pode utilizar serviços de publicidade de terceiros para exibir anúncios. Esses serviços podem usar cookies e web beacons para personalizar anúncios baseados em suas visitas a este e outros websites.</p>
-      <p>Você pode desativar a publicidade personalizada acessando as <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" style="color: #3B82F6;">Configurações de anúncios do Google</a>.</p>
+      <h3>3. Google AdSense e Publicidade de Terceiros</h3>
+      <p>O <strong>vibesfilm.com</strong> utiliza o <strong>Google AdSense</strong> e fornecedores terceiros para a exibição de anúncios publicitários quando você visita nossas páginas.</p>
+      <ul>
+        <li>Fornecedores terceiros, incluindo o <strong>Google</strong>, utilizam cookies (como o cookie DoubleClick / DART) para veicular anúncios com base em visitas anteriores do usuário a este ou a outros websites.</li>
+        <li>Com o uso de cookies de publicidade, o Google e seus parceiros podem veicular anúncios personalizados com base nas visitas feitas ao VibesFilm e a outros sites na internet.</li>
+        <li>Você pode desativar a publicidade personalizada a qualquer momento acessando as <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" style="color: #3B82F6;">Configurações de Anúncios do Google</a> ou visitando o portal <a href="http://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer" style="color: #3B82F6;">www.aboutads.info</a>.</li>
+        <li>Para saber mais sobre o uso de dados pelo Google, consulte <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer" style="color: #3B82F6;">Como o Google usa dados quando você usa sites ou aplicativos de nossos parceiros</a>.</li>
+      </ul>
 
-      <h3>4. Newsletter</h3>
-      <p>Quando você se inscreve em nossa newsletter, coletamos e armazenamos seu endereço de email para enviar comunicações relacionadas ao conteúdo do VibesFilm. Mantemos seu email em nossa base enquanto você permanecer inscrito. Você pode solicitar a exclusão a qualquer momento enviando um e-mail para <a href="mailto:contato@vibesfilm.com" style="color: #3B82F6;">contato@vibesfilm.com</a>.</p>
+      <h3>4. Newsletter e Comunicações</h3>
+      <p>Ao se cadastrar na nossa newsletter, seu e-mail será armazenado exclusivamente para o envio de recomendações e novidades cinematográficas. Você pode cancelar sua inscrição a qualquer momento clicando no link de descadastro ou enviando uma mensagem para <a href="mailto:contato@vibesfilm.com" style="color: #3B82F6;">contato@vibesfilm.com</a>.</p>
 
-      <h3>5. Compartilhamento de Dados</h3>
-      <p>Não vendemos seus dados pessoais. Compartilhamos apenas com provedores de serviços necessários (hospedagem, analytics), parceiros de publicidade (com consentimento) ou por exigência legal.</p>
+      <h3>5. Direitos do Usuário e Encarregado (LGPD)</h3>
+      <p>Em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei 13.709/2018), você tem o direito de solicitar confirmação, acesso, correção ou exclusão de seus dados pessoais. Para exercer seus direitos ou falar com nosso Encarregado de Proteção de Dados / Curador Editorial, contate: <a href="mailto:contato@vibesfilm.com" style="color: #3B82F6;">contato@vibesfilm.com</a>.</p>
 
-      <h3>6. Seus Direitos</h3>
-      <p>Você tem o direito de acessar, corrigir, solicitar exclusão ou portabilidade de seus dados. Para exercer esses direitos, contate-nos em <a href="mailto:contato@vibesfilm.com" style="color: #3B82F6;">contato@vibesfilm.com</a>.</p>
+      <p style="margin-top: 30px; font-size: 0.9rem; color: #777;"><em>Última atualização: 20 de Agosto de 2026.</em></p>
     `;
   } else if (pageType === 'termos') {
     title = "Termos de Uso | VibesFilm";
