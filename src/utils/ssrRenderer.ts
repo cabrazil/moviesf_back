@@ -90,13 +90,14 @@ export function renderMovieHTML(
   }
 
   // Descrição otimizada para SEO e Cards de Redes Sociais (WhatsApp, etc)
+  // Prioriza público-alvo/sinopse no Card da imagem para não duplicar com a frase de impacto (hook) da mensagem enviada
   let rawDesc = '';
-  if (movie.landingPageHook) {
-    rawDesc = `"${movie.landingPageHook}"`;
-  } else if (movie.targetAudienceForLP) {
+  if (movie.targetAudienceForLP) {
     rawDesc = movie.targetAudienceForLP;
   } else if (movie.description) {
     rawDesc = movie.description;
+  } else if (movie.landingPageHook) {
+    rawDesc = `"${movie.landingPageHook}"`;
   } else {
     rawDesc = isEditorial
       ? `Análise e guia de onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}.`
