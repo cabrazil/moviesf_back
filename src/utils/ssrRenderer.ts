@@ -209,6 +209,37 @@ export function renderMovieHTML(
     'filmes online'
   ].join(', ');
 
+  // Resolver URL absoluta da imagem OG com fallback para o logo do VibesFilm
+  const FALLBACK_OG_IMAGE = 'https://vibesfilm.com/og-vibesfilm.png';
+  const resolveOgImage = (thumbnail: string | null | undefined): { url: string; width: number; height: number } => {
+    if (!thumbnail || thumbnail.trim() === '') {
+      return { url: FALLBACK_OG_IMAGE, width: 1200, height: 630 };
+    }
+    // Já é URL absoluta
+    if (thumbnail.startsWith('http')) {
+      // TMDB: upgrade para w780 para melhor qualidade no WhatsApp/Facebook
+      const upgradedUrl = thumbnail
+        .replace('/t/p/w92/', '/t/p/w780/')
+        .replace('/t/p/w185/', '/t/p/w780/')
+        .replace('/t/p/w342/', '/t/p/w780/')
+        .replace('/t/p/w500/', '/t/p/w780/');
+      // Pôsteres TMDB são 780x1170 (proporção 2:3)
+      const isTmdb = thumbnail.includes('image.tmdb.org');
+      return isTmdb
+        ? { url: upgradedUrl, width: 780, height: 1170 }
+        : { url: thumbnail, width: 1200, height: 630 };
+    }
+    // URL relativa: resolver como absoluta
+    if (thumbnail.startsWith('/')) {
+      return { url: `https://vibesfilm.com${thumbnail}`, width: 1200, height: 630 };
+    }
+    // Qualquer outro caso: fallback
+    return { url: FALLBACK_OG_IMAGE, width: 1200, height: 630 };
+  };
+
+  const ogImage = resolveOgImage(movie.thumbnail);
+  console.log(`🖼️ [SSR] og:image para ${movie.title}: ${ogImage.url}`);
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -230,7 +261,10 @@ export function renderMovieHTML(
   <!-- Open Graph tags -->
   <meta property="og:title" content="${escapeHtml(title)}">
   <meta property="og:description" content="${escapeHtml(seoDescription)}">
-  <meta property="og:image" content="${movie.thumbnail || ''}">
+  <meta property="og:image" content="${ogImage.url}">
+  <meta property="og:image:width" content="${ogImage.width}">
+  <meta property="og:image:height" content="${ogImage.height}">
+  <meta property="og:image:alt" content="Pôster do filme ${escapeHtml(movie.title)}">
   <meta property="og:url" content="${canonicalUrl}">
   <meta property="og:type" content="${isEditorial ? 'article' : 'video.movie'}">
   <meta property="og:site_name" content="VibesFilm">
@@ -240,7 +274,8 @@ export function renderMovieHTML(
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(title)}">
   <meta name="twitter:description" content="${escapeHtml(seoDescription)}">
-  <meta name="twitter:image" content="${movie.thumbnail || ''}">
+  <meta name="twitter:image" content="${ogImage.url}">
+  <meta name="twitter:image:alt" content="Pôster do filme ${escapeHtml(movie.title)}">
   <meta name="twitter:url" content="${canonicalUrl}">
   
   <!-- Schema.org markup -->
