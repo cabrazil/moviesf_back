@@ -8,7 +8,7 @@
 import { Router, Request, Response } from 'express';
 import { movieHeroService } from '../services/movieHero.service';
 import { BlogPrismaService } from '../services/blogPrismaService';
-import { renderMovieHTML, renderArticleHTML, renderHomeHTML, renderStaticPageHTML, renderArchiveHTML, isBot } from '../utils/ssrRenderer';
+import { renderMovieHTML, renderArticleHTML, renderHomeHTML, renderStaticPageHTML, renderArchiveHTML, isBot, isSocialBot } from '../utils/ssrRenderer';
 
 const router = Router();
 const blogService = new BlogPrismaService();
@@ -189,9 +189,10 @@ router.get('/filme/:slug', async (req: Request, res: Response) => {
     console.log(`🤖 User-Agent: ${userAgent}`);
 
     const bot = isBot(userAgent);
+    const socialBot = isSocialBot(userAgent);
 
-    if (bot) {
-      if (process.env.HIDE_MOVIE_HUB_LINKS === 'true') {
+    if (bot || socialBot) {
+      if (process.env.HIDE_MOVIE_HUB_LINKS === 'true' && !socialBot) {
         console.log(`🚫 SSR - Acesso a filme ocultado para bots (HIDE_MOVIE_HUB_LINKS=true) - Retornando 410 Gone: ${slug}`);
         return res.status(410).send(`
           <!DOCTYPE html>

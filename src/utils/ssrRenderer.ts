@@ -644,6 +644,16 @@ export function isBot(userAgent: string | undefined): boolean {
 }
 
 /**
+ * Detecta se a requisição é de um bot de rede social (WhatsApp, Facebook, Twitter, LinkedIn)
+ * Esses bots precisam do og:image para gerar o preview rico de link.
+ * Diferente dos bots de busca (Google, Bing), não indexam conteúdo para SEO.
+ */
+export function isSocialBot(userAgent: string | undefined): boolean {
+  if (!userAgent) return false;
+  return /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot/i.test(userAgent);
+}
+
+/**
  * Gera HTML para páginas estáticas do blog (Sobre, Contato, Privacidade, Termos, Cookies)
  */
 export function renderStaticPageHTML(pageType: string): string {
