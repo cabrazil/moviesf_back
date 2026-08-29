@@ -64,10 +64,15 @@ export function renderMovieHTML(
       ? `${baseTitle}: Onde assistir | Vibesfilm`
       : `${baseTitle}: Onde assistir e Análise Emocional | Vibesfilm`;
 
-  // Descrição otimizada
-  let description = isEditorial
-    ? `Análise e guia de onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}`
-    : `Descubra onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}`;
+  // Helper para cortar texto de forma limpa no limite de palavras (evita cortar palavras ao meio ou reticências duplas)
+  function cleanTruncate(str: string, maxLen: number): string {
+    const cleanStr = str.replace(/\s+/g, ' ').trim();
+    if (cleanStr.length <= maxLen) return cleanStr;
+    const candidate = cleanStr.substring(0, maxLen - 3);
+    const lastSpace = candidate.lastIndexOf(' ');
+    const cut = lastSpace > 30 ? candidate.substring(0, lastSpace) : candidate;
+    return `${cut.replace(/[\s,.;:-]+$/, '')}...`;
+  }
 
   // Determinar tipos de acesso disponíveis
   const hasSubscription = subscriptionPlatforms.some((p: any) =>
@@ -79,32 +84,31 @@ export function renderMovieHTML(
   if (hasSubscription && hasRentalPurchase) {
     availabilityText = ' Disponível em streaming e aluguel/compra.';
   } else if (hasSubscription) {
-    availabilityText = ' Disponível em plataformas de streaming (teste gratuito para novos usuários).';
+    availabilityText = ' Disponível em plataformas de streaming.';
   } else if (hasRentalPurchase) {
     availabilityText = ' Disponível para aluguel e compra digital.';
-  } else {
-    availabilityText = ' Consulte as plataformas para disponibilidade.';
   }
 
-  // Priorizar targetAudienceForLP (conteúdo emocional)
-  if (movie.targetAudienceForLP) {
-    const emotionalDesc = movie.targetAudienceForLP.length > 120
-      ? `${movie.targetAudienceForLP.substring(0, 120)}...`
-      : movie.targetAudienceForLP;
-    description = `${description}. ${emotionalDesc}${availabilityText}`;
+  // Descrição otimizada para SEO e Cards de Redes Sociais (WhatsApp, etc)
+  let rawDesc = '';
+  if (movie.landingPageHook) {
+    rawDesc = `"${movie.landingPageHook}"`;
+  } else if (movie.targetAudienceForLP) {
+    rawDesc = movie.targetAudienceForLP;
   } else if (movie.description) {
-    const movieDesc = movie.description.length > 100
-      ? `${movie.description.substring(0, 100)}...`
-      : movie.description;
-    description = `${description}. ${movieDesc}${availabilityText}`;
+    rawDesc = movie.description;
   } else {
-    description = `${description}${availabilityText}`;
+    rawDesc = isEditorial
+      ? `Análise e guia de onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}.`
+      : `Descubra onde assistir ${movie.title}${movie.year ? ` (${movie.year})` : ''}.`;
   }
 
-  // Limitar descrição para SEO (160 caracteres)
-  const seoDescription = description.length > 160
-    ? `${description.substring(0, 157)}...`
-    : description;
+  // Se houver espaço restante, adiciona o resumo de disponibilidade
+  if (rawDesc.length < 110 && availabilityText) {
+    rawDesc = `${rawDesc}${availabilityText}`;
+  }
+
+  const seoDescription = cleanTruncate(rawDesc, 160);
 
   // URL canônica consolidada (Sempre usar /onde-assistir/ para evitar conteúdo duplicado)
   const routePath = `/onde-assistir/${slug}`;
