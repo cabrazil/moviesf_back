@@ -90,15 +90,35 @@ export class MovieHeroService {
   }
 
   /**
+   * Extrai contagens de vitórias e indicações a partir da string formatada awardsSummary
+   */
+  private parseOscarCounts(summaryText: string): { totalWins: number; totalNominations: number } {
+    const winMatch = summaryText.match(/Vencedor de (\d+)\s+Oscar/i);
+    const nomMatchFromWin = summaryText.match(/\(e\s+(\d+)\s+indicaç/i);
+    const nomMatchOnly = summaryText.match(/Indicado a (\d+)\s+Oscar/i);
+
+    const wins = winMatch ? parseInt(winMatch[1], 10) : 0;
+    let noms = 0;
+    if (nomMatchFromWin) {
+      noms = parseInt(nomMatchFromWin[1], 10);
+    } else if (nomMatchOnly) {
+      noms = parseInt(nomMatchOnly[1], 10);
+    }
+
+    return { totalWins: wins, totalNominations: noms };
+  }
+
+  /**
    * Processa premiações Oscar
    */
   private processOscarAwards(wins: any[], nominations: any[], awardsSummary?: string | null): OscarAwards | null {
     if (awardsSummary && awardsSummary.trim() !== '') {
+      const counts = this.parseOscarCounts(awardsSummary);
       return {
         wins: [],
         nominations: [],
-        totalWins: 0,
-        totalNominations: 0,
+        totalWins: counts.totalWins,
+        totalNominations: counts.totalNominations,
         summaryText: awardsSummary
       };
     }
