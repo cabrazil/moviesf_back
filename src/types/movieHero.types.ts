@@ -86,6 +86,7 @@ export interface OscarAwards {
   nominations: OscarAward[];
   totalWins: number;
   totalNominations: number;
+  summaryText?: string | null;
 }
 
 export interface SimilarMovie {

@@ -108,93 +108,37 @@ async function getOmdbRatings(imdbId: string): Promise<Record<string, number>> {
 /**
  * Formata as premiações para exibição na Landing Page em português
  */
-function formatAwardsForLP(awardsText: string): string {
+export function formatAwardsForLP(awardsText: string): string | null {
   if (!awardsText || awardsText === 'N/A') {
-    return '';
+    return null;
   }
 
-  let formatted = awardsText;
+  // Regex para capturar vitórias e indicações ao Oscar
+  const winMatch = awardsText.match(/Won\s+(\d+)\s+Oscars?/i);
+  const nomMatch = awardsText.match(/Nominated for\s+(\d+)\s+Oscars?/i);
 
-  // === OSCARS ===
-  // "Won X Oscars" -> "Ganhou X Oscars"
-  formatted = formatted.replace(/^Won\s+(\d+)\s+Oscars?/i, (match, num) => {
-    return `Ganhou ${num} Oscar${parseInt(num) > 1 ? 's' : ''}`;
-  });
+  const wins = winMatch ? parseInt(winMatch[1], 10) : 0;
+  const noms = nomMatch ? parseInt(nomMatch[1], 10) : 0;
 
-  // "Nominated for X Oscars" -> "Indicado a X Oscars"
-  formatted = formatted.replace(/Nominated for\s+(\d+)\s+Oscars?/i, (match, num) => {
-    return `Indicado a ${num} Oscar${parseInt(num) > 1 ? 's' : ''}`;
-  });
+  if (wins === 0 && noms === 0) {
+    return null;
+  }
 
-  // === GOLDEN GLOBES ===
-  // "Won X Golden Globes" -> "Ganhou X Globos de Ouro"
-  formatted = formatted.replace(/Won\s+(\d+)\s+Golden Globes?/i, (match, num) => {
-    return `Ganhou ${num} Globo${parseInt(num) > 1 ? 's' : ''} de Ouro`;
-  });
+  if (wins > 0 && noms > 0) {
+    const winText = wins === 1 ? 'Vencedor de 1 Oscar' : `Vencedor de ${wins} Oscars`;
+    const nomText = noms === 1 ? '1 indicação' : `${noms} indicações`;
+    return `${winText} (e ${nomText})`;
+  }
 
-  // "Nominated for X Golden Globes" -> "Indicado a X Globos de Ouro"
-  formatted = formatted.replace(/Nominated for\s+(\d+)\s+Golden Globes?/i, (match, num) => {
-    return `Indicado a ${num} Globo${parseInt(num) > 1 ? 's' : ''} de Ouro`;
-  });
+  if (wins > 0) {
+    return wins === 1 ? 'Vencedor de 1 Oscar' : `Vencedor de ${wins} Oscars`;
+  }
 
-  // === PADRÃO GERAL: "X wins & Y nominations total" ===
-  formatted = formatted.replace(/(\d+)\s+wins?\s+&\s+(\d+)\s+nominations?\s+total/i, (match, wins, nominations) => {
-    const winsText = `${wins} vitória${parseInt(wins) > 1 ? 's' : ''}`;
-    const nominationsText = `${nominations} indicaç${parseInt(nominations) > 1 ? 'ões' : 'ão'}`;
-    return `${winsText} e ${nominationsText} no total`;
-  });
+  if (noms > 0) {
+    return noms === 1 ? 'Indicado a 1 Oscar' : `Indicado a ${noms} Oscars`;
+  }
 
-  // === APENAS VITÓRIAS: "X wins" ===
-  formatted = formatted.replace(/(\d+)\s+wins?(?!\s+&)/i, (match, wins) => {
-    return `${wins} vitória${parseInt(wins) > 1 ? 's' : ''}`;
-  });
-
-  // === APENAS INDICAÇÕES: "X nominations" ===
-  formatted = formatted.replace(/(\d+)\s+nominations?(?!\s+total)/i, (match, nominations) => {
-    return `${nominations} indicaç${parseInt(nominations) > 1 ? 'ões' : 'ão'}`;
-  });
-
-  // === INDICAÇÕES GENÉRICAS ===
-  // "Nominated for X [something]" -> "Indicado a X [something]"
-  formatted = formatted.replace(/Nominated for\s+(\d+)\s+([A-Za-z\s]+)/i, (match, num, award) => {
-    return `Indicado a ${num} ${award}`;
-  });
-
-  // === OUTRAS PREMIAÇÕES COMUNS ===
-  // BAFTA
-  formatted = formatted.replace(/Won\s+(\d+)\s+BAFTA/i, (match, num) => {
-    return `Ganhou ${num} BAFTA${parseInt(num) > 1 ? 's' : ''}`;
-  });
-
-  // Emmy
-  formatted = formatted.replace(/Won\s+(\d+)\s+Emmys?/i, (match, num) => {
-    return `Ganhou ${num} Emmy${parseInt(num) > 1 ? 's' : ''}`;
-  });
-
-  // Cannes
-  formatted = formatted.replace(/Won.*?Palme d'Or/i, 'Ganhou a Palma de Ouro');
-  formatted = formatted.replace(/Palme d'Or/gi, 'Palma de Ouro');
-
-  // === SUBSTITUIÇÕES GERAIS ===
-  // Termos que podem ter sobrado
-  formatted = formatted.replace(/\bwins?\b/gi, 'vitórias');
-  formatted = formatted.replace(/\bnominations?\b/gi, 'indicações');
-  formatted = formatted.replace(/\btotal\b/gi, 'no total');
-
-  // Outras premiações conhecidas
-  formatted = formatted.replace(/Golden Globes?/gi, 'Globos de Ouro');
-  formatted = formatted.replace(/Screen Actors Guild/gi, 'Sindicato dos Atores');
-  formatted = formatted.replace(/Critics[']?\s*Choice/gi, 'Escolha da Crítica');
-
-  // === LIMPEZA FINAL ===
-  // Limpar pontuação dupla
-  formatted = formatted.replace(/\.\s*\./g, '.');
-  // Remover espaços extras
-  formatted = formatted.replace(/\s+/g, ' ');
-  // Capitalizar primeira letra
-  formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-
-  return formatted.trim();
+  return null;
 }
 
 /**

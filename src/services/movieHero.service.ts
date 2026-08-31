@@ -38,7 +38,7 @@ export class MovieHeroService {
       ]);
 
       // 3. Processar e organizar dados
-      const processedData = this.processMovieData(movieData);
+      const processedData = this.processMovieData(movieData, movie.awardsSummary);
 
       // 4. Montar resposta final
       const response = this.buildResponse(movie, processedData, primaryJourney);
@@ -60,7 +60,7 @@ export class MovieHeroService {
   /**
    * Processa e organiza os dados do filme
    */
-  private processMovieData(movieData: any) {
+  private processMovieData(movieData: any, awardsSummary?: string | null) {
     console.log('🔄 Processando dados do filme...');
 
     // Organizar plataformas por tipo de acesso
@@ -75,7 +75,8 @@ export class MovieHeroService {
     // Processar premiações Oscar
     const oscarAwards = this.processOscarAwards(
       movieData.oscarWins,
-      movieData.oscarNominations
+      movieData.oscarNominations,
+      awardsSummary
     );
 
     console.log(`✅ Dados processados: ${subscriptionPlatforms.length} assinatura/gratuito, ${rentalPurchasePlatforms.length} aluguel/compra`);
@@ -91,17 +92,28 @@ export class MovieHeroService {
   /**
    * Processa premiações Oscar
    */
-  private processOscarAwards(wins: any[], nominations: any[]): OscarAwards | null {
-    if (wins.length === 0 && nominations.length === 0) {
-      return null;
+  private processOscarAwards(wins: any[], nominations: any[], awardsSummary?: string | null): OscarAwards | null {
+    if (awardsSummary && awardsSummary.trim() !== '') {
+      return {
+        wins: [],
+        nominations: [],
+        totalWins: 0,
+        totalNominations: 0,
+        summaryText: awardsSummary
+      };
     }
 
-    return {
-      wins,
-      nominations,
-      totalWins: wins.length,
-      totalNominations: nominations.length
-    };
+    if (wins.length > 0 || nominations.length > 0) {
+      return {
+        wins,
+        nominations,
+        totalWins: wins.length,
+        totalNominations: nominations.length,
+        summaryText: null
+      };
+    }
+
+    return null;
   }
 
   /**
