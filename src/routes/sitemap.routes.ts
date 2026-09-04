@@ -16,7 +16,6 @@ router.get('/index.xml', (req, res) => {
   
   const sitemaps = [
     'movies.xml',
-    'movie-landings.xml',
     'articles.xml',
     'categories.xml',
     'tags.xml'

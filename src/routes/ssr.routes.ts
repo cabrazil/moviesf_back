@@ -93,70 +93,10 @@ router.get('/', async (req: Request, res: Response) => {
 
 /**
  * GET /onde-assistir/:slug
- * SSR para landing pages de filmes
+ * Redirecionamento permanente 301 para a Ficha Premium Unificada /filme/:slug
  */
-router.get('/onde-assistir/:slug', async (req: Request, res: Response) => {
-  try {
-    const { slug } = req.params;
-    const userAgent = req.headers['user-agent'];
-    
-    console.log(`🎬 SSR - Requisição para filme: ${slug}`);
-    console.log(`🤖 User-Agent: ${userAgent}`);
-    
-    // Detectar se é bot do Google ou usuário normal
-    const bot = isBot(userAgent);
-    
-    if (bot) {
-      console.log(`✅ Bot detectado, gerando HTML SSR para onde-assistir: ${slug}`);
-      
-      try {
-        // 1. Buscar dados do filme
-        const movieData = await movieHeroService.getMovieHero(slug);
-        
-        // 2. Gerar HTML completo com meta tags
-        const html = renderMovieHTML(movieData, slug);
-        
-        // 3. Retornar HTML completo
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.send(html);
-        
-      } catch (error: any) {
-        console.error(`❌ Erro ao gerar HTML SSR para filme ${slug}:`, error);
-        
-        // Se filme não encontrado, retornar 404 HTML
-        if (error.code === 'MOVIE_NOT_FOUND') {
-          return res.status(404).send(`
-            <!DOCTYPE html>
-            <html lang="pt-BR">
-            <head>
-              <meta charset="UTF-8">
-              <title>Filme não encontrado | vibesfilm</title>
-            </head>
-            <body>
-              <h1>Filme não encontrado</h1>
-              <p>O filme solicitado não foi encontrado.</p>
-            </body>
-            </html>
-          `);
-        }
-        
-        // Outros erros: redirecionar para frontend
-        throw error;
-      }
-    }
-    
-    // Para usuários normais: redirecionar para frontend SPA
-    console.log(`👤 Usuário normal, redirecionando para frontend SPA`);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/onde-assistir/${slug}`);
-    
-  } catch (error) {
-    console.error('❌ Erro no SSR de filme:', error);
-    
-    // Fallback: redirecionar para frontend
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/onde-assistir/${req.params.slug}`);
-  }
+router.get('/onde-assistir/:slug', (req: Request, res: Response) => {
+  return res.redirect(301, `/filme/${req.params.slug}`);
 });
 
 /**
