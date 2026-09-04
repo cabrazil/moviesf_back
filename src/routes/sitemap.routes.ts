@@ -16,6 +16,7 @@ router.get('/index.xml', (req, res) => {
   
   const sitemaps = [
     'movies.xml',
+    'movie-landings.xml',
     'articles.xml',
     'categories.xml',
     'tags.xml'
@@ -147,9 +148,8 @@ router.get('/articles.xml', async (req, res) => {
 
     articles.forEach((article) => {
       const date = article.updatedAt || article.date || new Date();
-      const type = article.type === 'lista' ? 'lista' : 'analise';
       sitemap += `  <url>\n`;
-      sitemap += `    <loc>${FRONTEND_URL}/${type}/${article.slug}</loc>\n`;
+      sitemap += `    <loc>${FRONTEND_URL}/blog/artigo/${article.slug}</loc>\n`;
       sitemap += `    <lastmod>${new Date(date).toISOString()}</lastmod>\n`;
       sitemap += `    <changefreq>monthly</changefreq>\n`;
       sitemap += `    <priority>0.7</priority>\n`;
@@ -235,7 +235,7 @@ router.get('/tags.xml', async (req, res) => {
     tags.forEach((tag) => {
       const date = tag.updatedAt || new Date();
       sitemap += `  <url>\n`;
-      sitemap += `    <loc>${FRONTEND_URL}/tag/${tag.slug}</loc>\n`;
+      sitemap += `    <loc>${FRONTEND_URL}/blog/tag/${tag.slug}</loc>\n`;
       sitemap += `    <lastmod>${new Date(date).toISOString()}</lastmod>\n`;
       sitemap += `    <changefreq>monthly</changefreq>\n`;
       sitemap += `    <priority>0.5</priority>\n`;

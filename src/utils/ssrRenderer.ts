@@ -295,7 +295,7 @@ export function renderMovieHTML(
   <!-- Redirect para SPA após carregar (para usuários) -->
   <script>
     // Se não for bot, redirecionar para frontend SPA
-    if (!navigator.userAgent.match(/Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
+    if (!navigator.userAgent.match(/Googlebot|Google-InspectionTool|Bingbot|Chrome-Lighthouse|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
       window.location.href = 'https://vibesfilm.com${routePath}';
     }
   </script>
@@ -358,8 +358,8 @@ export function renderMovieHTML(
 /**
  * Gera HTML completo para artigo do blog
  */
-export function renderArticleHTML(article: any, slug: string, articleType: 'analise' | 'lista'): string {
-  const route = `/${articleType}/${slug}`;
+export function renderArticleHTML(article: any, slug: string, articleType: 'analise' | 'lista' = 'analise'): string {
+  const route = `/blog/artigo/${slug}`;
   const canonicalUrl = `https://vibesfilm.com${route}`;
 
   // Título e descrição
@@ -500,7 +500,7 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
   <!-- Redirect para SPA após carregar (para usuários) -->
   <script>
     // Se não for bot, redirecionar para frontend SPA
-    if (!navigator.userAgent.match(/Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
+    if (!navigator.userAgent.match(/Googlebot|Google-InspectionTool|Bingbot|Chrome-Lighthouse|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
       window.location.href = 'https://vibesfilm.com${route}';
     }
   </script>
@@ -510,17 +510,7 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
     <h1>${escapeHtml(title)}</h1>
     <p>${escapeHtml(seoDescription)}</p>
     ${article.imageUrl ? `<img src="${article.imageUrl}" alt="${escapeHtml(article.imageAlt || title)}" style="max-width: 100%; height: auto;">` : ''}
-    ${(() => {
-      if (!article.content) return '';
-      let contentHtml = article.content;
-      if (process.env.HIDE_MOVIE_HUB_LINKS === 'true') {
-        contentHtml = contentHtml.replace(
-          /<a\s+[^>]*href=["'](?:https?:\/\/(?:www\.)?vibesfilm\.com)?\/(filme|onde-assistir)\/[^"']*["'][^>]*>(.*?)<\/a>/gi,
-          '$2'
-        );
-      }
-      return `<div>${contentHtml}</div>`;
-    })()}
+    ${article.content ? `<div>${article.content}</div>` : ''}
   </div>
 </body>
 </html>`;
@@ -645,7 +635,7 @@ export function renderHomeHTML(posts: any[]): string {
  */
 export function isBot(userAgent: string | undefined): boolean {
   if (!userAgent) return false;
-  return /Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i.test(userAgent);
+  return /Googlebot|Google-InspectionTool|Bingbot|Chrome-Lighthouse|PageSpeed|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i.test(userAgent);
 }
 
 /**
@@ -860,8 +850,7 @@ export function renderArchiveHTML(posts: any[], archiveTitle: string, archiveDes
   const canonicalUrl = `https://vibesfilm.com${archivePath}`;
   
   const postsHtml = posts.map((post: any) => {
-    const isList = post.category_slug === 'lista' || post.type === 'lista';
-    const postRoute = `/${isList ? 'lista' : 'analise'}/${post.slug}`;
+    const postRoute = `/blog/artigo/${post.slug}`;
     const postDate = post.date ? new Date(post.date).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'long',
@@ -897,7 +886,7 @@ export function renderArchiveHTML(posts: any[], archiveTitle: string, archiveDes
   
   <script>
     // Se não for bot, redirecionar para o frontend SPA normal
-    if (!navigator.userAgent.match(/Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
+    if (!navigator.userAgent.match(/Googlebot|Google-InspectionTool|Bingbot|Chrome-Lighthouse|PageSpeed|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
       window.location.href = '${canonicalUrl}';
     }
   </script>

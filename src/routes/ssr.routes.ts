@@ -107,24 +107,7 @@ router.get('/onde-assistir/:slug', async (req: Request, res: Response) => {
     const bot = isBot(userAgent);
     
     if (bot) {
-      if (process.env.HIDE_MOVIE_HUB_LINKS === 'true') {
-        console.log(`🚫 SSR - Acesso a onde-assistir ocultado para bots (HIDE_MOVIE_HUB_LINKS=true) - Retornando 410 Gone: ${slug}`);
-        return res.status(410).send(`
-          <!DOCTYPE html>
-          <html lang="pt-BR">
-          <head>
-            <meta charset="UTF-8">
-            <title>Página removida permanentemente | VibesFilm</title>
-            <meta name="robots" content="noindex, nofollow">
-          </head>
-          <body>
-            <h1>Página removida permanentemente</h1>
-          </body>
-          </html>
-        `);
-      }
-      
-      console.log(`✅ Bot detectado, gerando HTML SSR para: ${slug}`);
+      console.log(`✅ Bot detectado, gerando HTML SSR para onde-assistir: ${slug}`);
       
       try {
         // 1. Buscar dados do filme
@@ -192,23 +175,6 @@ router.get('/filme/:slug', async (req: Request, res: Response) => {
     const socialBot = isSocialBot(userAgent);
 
     if (bot || socialBot) {
-      if (process.env.HIDE_MOVIE_HUB_LINKS === 'true' && !socialBot) {
-        console.log(`🚫 SSR - Acesso a filme ocultado para bots (HIDE_MOVIE_HUB_LINKS=true) - Retornando 410 Gone: ${slug}`);
-        return res.status(410).send(`
-          <!DOCTYPE html>
-          <html lang="pt-BR">
-          <head>
-            <meta charset="UTF-8">
-            <title>Página removida permanentemente | VibesFilm</title>
-            <meta name="robots" content="noindex, nofollow">
-          </head>
-          <body>
-            <h1>Página removida permanentemente</h1>
-          </body>
-          </html>
-        `);
-      }
-      
       console.log(`✅ Bot detectado, gerando HTML SSR editorial para: ${slug}`);
 
       try {
@@ -253,149 +219,21 @@ router.get('/filme/:slug', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /analise/:slug
- * SSR para artigos de análise
- */
-router.get('/analise/:slug', async (req: Request, res: Response) => {
-  try {
-    const { slug } = req.params;
-    const userAgent = req.headers['user-agent'];
-    
-    console.log(`📝 SSR - Requisição para artigo (análise): ${slug}`);
-    console.log(`🤖 User-Agent: ${userAgent}`);
-    
-    const bot = isBot(userAgent);
-    
-    if (bot) {
-      console.log(`✅ Bot detectado, gerando HTML SSR para artigo: ${slug}`);
-      
-      try {
-        // 1. Buscar artigo
-        const result = await blogService.getPostBySlug(slug);
-        
-        if (!result.success || !result.data) {
-          return res.status(404).send(`
-            <!DOCTYPE html>
-            <html lang="pt-BR">
-            <head>
-              <meta charset="UTF-8">
-              <title>Artigo não encontrado | VibesFilm Blog</title>
-            </head>
-            <body>
-              <h1>Artigo não encontrado</h1>
-              <p>O artigo solicitado não foi encontrado.</p>
-            </body>
-            </html>
-          `);
-        }
-        
-        // 2. Gerar HTML completo com meta tags
-        const html = renderArticleHTML(result.data, slug, 'analise');
-        
-        // 3. Retornar HTML completo
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.send(html);
-        
-      } catch (error) {
-        console.error(`❌ Erro ao gerar HTML SSR para artigo ${slug}:`, error);
-        throw error;
-      }
-    }
-    
-    // Para usuários normais: redirecionar para frontend SPA
-    console.log(`👤 Usuário normal, redirecionando para frontend SPA`);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/analise/${slug}`);
-    
-  } catch (error) {
-    console.error('❌ Erro no SSR de artigo:', error);
-    
-    // Fallback: redirecionar para frontend
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/analise/${req.params.slug}`);
-  }
-});
-
-/**
- * GET /lista/:slug
- * SSR para artigos de lista
- */
-router.get('/lista/:slug', async (req: Request, res: Response) => {
-  try {
-    const { slug } = req.params;
-    const userAgent = req.headers['user-agent'];
-    
-    console.log(`📝 SSR - Requisição para artigo (lista): ${slug}`);
-    console.log(`🤖 User-Agent: ${userAgent}`);
-    
-    const bot = isBot(userAgent);
-    
-    if (bot) {
-      console.log(`✅ Bot detectado, gerando HTML SSR para lista: ${slug}`);
-      
-      try {
-        // 1. Buscar artigo
-        const result = await blogService.getPostBySlug(slug);
-        
-        if (!result.success || !result.data) {
-          return res.status(404).send(`
-            <!DOCTYPE html>
-            <html lang="pt-BR">
-            <head>
-              <meta charset="UTF-8">
-              <title>Artigo não encontrado | VibesFilm Blog</title>
-            </head>
-            <body>
-              <h1>Artigo não encontrado</h1>
-              <p>O artigo solicitado não foi encontrado.</p>
-            </body>
-            </html>
-          `);
-        }
-        
-        // 2. Gerar HTML completo com meta tags
-        const html = renderArticleHTML(result.data, slug, 'lista');
-        
-        // 3. Retornar HTML completo
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.send(html);
-        
-      } catch (error) {
-        console.error(`❌ Erro ao gerar HTML SSR para lista ${slug}:`, error);
-        throw error;
-      }
-    }
-    
-    // Para usuários normais: redirecionar para frontend SPA
-    console.log(`👤 Usuário normal, redirecionando para frontend SPA`);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/lista/${slug}`);
-    
-  } catch (error) {
-    console.error('❌ Erro no SSR de lista:', error);
-    
-    // Fallback: redirecionar para frontend
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/lista/${req.params.slug}`);
-  }
-});
-
-/**
- * GET /artigo/:slug
  * GET /blog/artigo/:slug
- * SSR para artigos (redireciona para o tipo correto após buscar dados)
+ * SSR canônico para artigos do blog
  */
 const articleBotHandler = async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
     const userAgent = req.headers['user-agent'];
     
-    console.log(`📝 SSR - Requisição para artigo (genérico): ${slug}`);
+    console.log(`📝 SSR - Requisição para artigo: ${slug}`);
+    console.log(`🤖 User-Agent: ${userAgent}`);
     
     const bot = isBot(userAgent);
     
     if (bot) {
-      console.log(`✅ Bot detectado, buscando tipo do artigo para SSR: ${slug}`);
+      console.log(`✅ Bot detectado, buscando artigo para SSR: ${slug}`);
       
       try {
         const result = await blogService.getPostBySlug(slug);
@@ -417,7 +255,7 @@ const articleBotHandler = async (req: Request, res: Response) => {
         }
         
         const article = result.data;
-        const type = article.type || 'analise'; // default para analise
+        const type = article.type || 'analise';
         
         const html = renderArticleHTML(article, slug, type as any);
         
@@ -425,24 +263,31 @@ const articleBotHandler = async (req: Request, res: Response) => {
         return res.send(html);
         
       } catch (error) {
-        console.error(`❌ Erro ao gerar HTML SSR para artigo genérico ${slug}:`, error);
+        console.error(`❌ Erro ao gerar HTML SSR para artigo ${slug}:`, error);
         throw error;
       }
     }
     
     const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/artigo/${slug}`);
+    return res.redirect(302, `${frontendUrl}/blog/artigo/${slug}`);
   } catch (error) {
-    console.error('❌ Erro no SSR genérico de artigo:', error);
+    console.error('❌ Erro no SSR de artigo:', error);
     const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/artigo/${req.params.slug}`);
+    return res.redirect(302, `${frontendUrl}/blog/artigo/${req.params.slug}`);
   }
 };
 
-router.get('/artigo/:slug', articleBotHandler);
+// Rota canônica oficial para artigos
 router.get('/blog/artigo/:slug', articleBotHandler);
-router.get('/blog/analise/:slug', async (req, res) => res.redirect(302, `/analise/${req.params.slug}`));
-router.get('/blog/lista/:slug', async (req, res) => res.redirect(302, `/lista/${req.params.slug}`));
+
+// Redirecionamentos 301 permanentes para consolidar SEO na rota oficial /blog/artigo/:slug
+router.get('/artigo/:slug', (req, res) => res.redirect(301, `/blog/artigo/${req.params.slug}`));
+router.get('/analise/:slug', (req, res) => res.redirect(301, `/blog/artigo/${req.params.slug}`));
+router.get('/lista/:slug', (req, res) => res.redirect(301, `/blog/artigo/${req.params.slug}`));
+router.get('/blog/analise/:slug', (req, res) => res.redirect(301, `/blog/artigo/${req.params.slug}`));
+router.get('/blog/lista/:slug', (req, res) => res.redirect(301, `/blog/artigo/${req.params.slug}`));
+
+// Redirecionamentos institucionais
 router.get('/blog/sobre', async (req, res) => res.redirect(302, '/sobre'));
 router.get('/blog/contato', async (req, res) => res.redirect(302, '/contato'));
 router.get('/blog/privacidade', async (req, res) => res.redirect(302, '/privacidade'));
@@ -450,7 +295,6 @@ router.get('/blog/termos', async (req, res) => res.redirect(302, '/termos'));
 router.get('/blog/cookies', async (req, res) => res.redirect(302, '/cookies'));
 router.get('/blog/categorias', async (req, res) => res.redirect(302, '/categorias'));
 router.get('/blog/categoria/:categorySlug', async (req, res) => res.redirect(302, `/categoria/${req.params.categorySlug}`));
-router.get('/blog/tag/:tagSlug', async (req, res) => res.redirect(302, `/tag/${req.params.tagSlug}`));
 
 /**
  * GET /sobre, /contato, /privacidade, /termos, /cookies
@@ -586,10 +430,10 @@ router.get('/categoria/:categorySlug', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /tag/:tagSlug
+ * GET /blog/tag/:tagSlug
  * SSR para arquivos de tag
  */
-router.get('/tag/:tagSlug', async (req: Request, res: Response) => {
+const tagBotHandler = async (req: Request, res: Response) => {
   try {
     const { tagSlug } = req.params;
     const userAgent = req.headers['user-agent'];
@@ -608,19 +452,22 @@ router.get('/tag/:tagSlug', async (req: Request, res: Response) => {
       const posts = (postsResult.data as any).articles || [];
       const tagTitle = tagSlug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
       
-      const html = renderArchiveHTML(posts, `Tag: ${tagTitle}`, `Artigos e análises de filmes relacionados à tag ${tagTitle}`, `/tag/${tagSlug}`);
+      const html = renderArchiveHTML(posts, `Tag: ${tagTitle}`, `Artigos e análises de filmes relacionados à tag ${tagTitle}`, `/blog/tag/${tagSlug}`);
       
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.send(html);
     }
     
     const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/tag/${tagSlug}`);
+    return res.redirect(302, `${frontendUrl}/blog/tag/${tagSlug}`);
   } catch (error) {
     console.error(`❌ Erro no SSR da tag ${req.params.tagSlug}:`, error);
     const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/tag/${req.params.tagSlug}`);
+    return res.redirect(302, `${frontendUrl}/blog/tag/${req.params.tagSlug}`);
   }
-});
+};
+
+router.get('/blog/tag/:tagSlug', tagBotHandler);
+router.get('/tag/:tagSlug', (req, res) => res.redirect(301, `/blog/tag/${req.params.tagSlug}`));
 
 export default router;
