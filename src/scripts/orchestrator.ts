@@ -9,6 +9,7 @@ import { writeFileSync } from 'fs';
 import axios from 'axios';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 import { OscarDataService } from '../services/OscarDataService';
+import { jevService } from '../services/jevService';
 
 const prisma = new PrismaClient();
 
@@ -622,6 +623,39 @@ class MovieCurationOrchestrator {
       if (movie.movieSentiments && movie.movieSentiments.length > 0) {
         const topSentiment = movie.movieSentiments[0];
         sentimentContext = `\n\nContexto emocional principal: ${topSentiment.subSentiment.name} (Relevância: ${topSentiment.relevance}): ${topSentiment.explanation}`;
+      }
+
+      // 1. Tentar gerar com Jev (TypeSafe AI via OpenRouter) se chave configurada
+      if (process.env.OPENROUTER_API_KEY) {
+        try {
+          console.log(`🤖 Gerando contentWarnings com Jev (TypeSafe AI via OpenRouter)...`);
+          const jevResult = await jevService.evaluateContentWarnings({
+            title: movie.title,
+            year: movie.year || undefined,
+            genres: movie.genres,
+            keywords: movie.keywords,
+            description: movie.description || undefined,
+            sentimentContext: movie.movieSentiments && movie.movieSentiments.length > 0
+              ? `${movie.movieSentiments[0].subSentiment.name}: ${movie.movieSentiments[0].explanation}`
+              : undefined
+          });
+
+          if (jevResult.success && jevResult.warning) {
+            console.log(`⚡ Jev concluiu com sucesso! Custo: $${jevResult.cost?.toFixed(6) || 'N/A'}`);
+
+            // Atualizar o filme no banco de dados
+            await prisma.movie.update({
+              where: { tmdbId: tmdbId },
+              data: { contentWarnings: jevResult.warning }
+            });
+
+            return { success: true, warning: jevResult.warning };
+          } else {
+            console.warn(`⚠️ Falha no Jev (${jevResult.error}). Acionando fallback para LLM legado...`);
+          }
+        } catch (jevErr: any) {
+          console.warn(`⚠️ Erro ao chamar Jev: ${jevErr?.message || jevErr}. Acionando fallback para LLM legado...`);
+        }
       }
 
       const prompt = `Com base no filme '${movie.title}' (${movie.year}), gêneros: ${movie.genres?.join(', ') || 'N/A'}, palavras-chave principais: ${movie.keywords?.slice(0, 15).join(', ') || 'N/A'}, e sinopse: ${movie.description || 'N/A'}.${sentimentContext}
