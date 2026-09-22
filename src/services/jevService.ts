@@ -36,6 +36,35 @@ export interface JevContentWarningResult {
   error?: string;
 }
 
+export const DEFAULT_CATEGORY_THRESHOLDS: Record<string, number> = {
+  violencia_extrema: 0.70,
+  violencia_brutalidade: 0.60,
+  violencia_moderada: 0.60,
+  abuso_coercao_sexual: 0.60,
+  sexo_explicito: 0.70,
+  insinuacoes_sexuais: 0.60,
+  drogas_alcool: 0.60,
+  linguagem_forte: 0.55,
+  perturbador_angustia: 0.55,
+  preconceito_discriminacao: 0.60,
+  humor_acido: 0.60
+};
+
+export function getCategoryThreshold(
+  category: string,
+  overrides?: Record<string, number>,
+  globalFallback = 0.60
+): number {
+  if (overrides && typeof overrides[category] === 'number') {
+    return overrides[category];
+  }
+  return DEFAULT_CATEGORY_THRESHOLDS[category] ?? globalFallback;
+}
+
+export interface JevEvaluationOptions {
+  thresholds?: Record<string, number> | number;
+}
+
 export class JevService {
   private readonly apiUrl = 'https://openrouter.ai/api/alpha/decisions';
   private readonly defaultModel = process.env.JEV_MODEL || '~typesafe/jev-latest';
@@ -43,7 +72,10 @@ export class JevService {
   /**
    * Avalia um filme e gera contentWarnings padronizados utilizando o modelo Jev (TypeSafe AI) via OpenRouter
    */
-  async evaluateContentWarnings(movie: MovieContentWarningInput): Promise<JevContentWarningResult> {
+  async evaluateContentWarnings(
+    movie: MovieContentWarningInput,
+    options?: JevEvaluationOptions
+  ): Promise<JevContentWarningResult> {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return {
@@ -57,15 +89,23 @@ export class JevService {
     const questions = {
       violencia_extrema: {
         type: 'noul',
-        instructions: 'O filme contém cenas explícitas de violência gráfica, sangue excessivo, decapitação, mutilação ou combate visceral?'
+        instructions: 'O filme contém cenas explícitas de violência gráfica, sangue excessivo, decapitação, mutilação, gore ou tortura sádica visceral?'
+      },
+      violencia_brutalidade: {
+        type: 'noul',
+        instructions: 'O filme retrata violência física severa, espancamentos cruéis, brutalidade policial/carcerária, execuções a sangue frio ou agressões realistas sem gore?'
       },
       violencia_moderada: {
         type: 'noul',
-        instructions: 'O filme contém ação, lutas físicas, perseguições ou perigo sem violência visceral gráfica?'
+        instructions: 'O filme contém cenas de ação, lutas estilizadas, perseguições ou perigo de aventura sem brutalidade cruel?'
+      },
+      abuso_coercao_sexual: {
+        type: 'noul',
+        instructions: 'O filme aborda ou retrata agressão sexual, assédio grave, coerção, tentativa de estupro ou violência sexual?'
       },
       sexo_explicito: {
         type: 'noul',
-        instructions: 'O filme contém cenas de nudez frontal ou sexo explícito/gráfico?'
+        instructions: 'O filme contém cenas de nudez frontal ou sexo explícito/gráfico consensual?'
       },
       insinuacoes_sexuais: {
         type: 'noul',
@@ -81,17 +121,18 @@ export class JevService {
       },
       perturbador_angustia: {
         type: 'noul',
-        instructions: 'O filme possui cenas profundamente angustiantes, desintegração psicológica, terror de sobrevivência, luto severo ou suicídio?'
+        instructions: 'O filme possui cenas profundamente angustiantes, opressão institucional severa, desespero psicológico, luto extremo ou suicídio?'
       },
       preconceito_discriminacao: {
         type: 'noul',
-        instructions: 'O filme aborda racismo, discriminação, homofobia ou perseguição sistêmica?'
+        instructions: 'O filme aborda racismo, discriminação, homofobia ou perseguição sistêmica como conflito central?'
       },
       humor_acido: {
         type: 'noul',
         instructions: 'O filme utiliza humor ácido, humor negro, piadas controversas ou sátira corrosiva?'
       }
     };
+
 
     try {
       const response = await axios.post<JevDecisionResponse>(
@@ -127,7 +168,7 @@ export class JevService {
         }
       }
 
-      const warning = this.synthesizeWarning(probabilities);
+      const warning = this.synthesizeWarning(probabilities, options?.thresholds);
 
       return {
         success: true,
@@ -152,7 +193,7 @@ export class JevService {
       parts.push(`Gêneros: ${movie.genres.join(', ')}`);
     }
     if (movie.keywords && movie.keywords.length > 0) {
-      parts.push(`Palavras-chave: ${movie.keywords.slice(0, 15).join(', ')}`);
+      parts.push(`Palavras-chave: ${movie.keywords.slice(0, 25).join(', ')}`);
     }
     if (movie.description) {
       parts.push(`Sinopse: ${movie.description}`);
@@ -163,45 +204,61 @@ export class JevService {
     return parts.join('\n');
   }
 
-  private synthesizeWarning(probs: Record<string, number>, threshold = 0.70): string {
+  synthesizeWarning(
+    probs: Record<string, number>,
+    thresholdInput?: Record<string, number> | number
+  ): string {
+    const isGlobal = typeof thresholdInput === 'number';
+    const getThresh = (cat: string) =>
+      isGlobal
+        ? (thresholdInput as number)
+        : getCategoryThreshold(cat, thresholdInput as Record<string, number>);
+
     const clauses: string[] = [];
 
-    // 1. Violência (Hierárquica: se extrema, ignora moderada)
-    if ((probs.violencia_extrema || 0) >= threshold) {
-      clauses.push('cenas explícitas de violência extrema');
-    } else if ((probs.violencia_moderada || 0) >= threshold) {
-      clauses.push('violência moderada e cenas de ação');
+    // 1. Violência (Hierárquica: Extrema > Brutalidade > Moderada/Ação)
+    if ((probs.violencia_extrema || 0) >= getThresh('violencia_extrema')) {
+      clauses.push('cenas de violência gráfica extrema');
+    } else if ((probs.violencia_brutalidade || 0) >= getThresh('violencia_brutalidade')) {
+      clauses.push('cenas de violência física e brutalidade');
+    } else if ((probs.violencia_moderada || 0) >= getThresh('violencia_moderada')) {
+      clauses.push('cenas de ação e violência moderada');
     }
 
-    // 2. Sexo / Nudez (Hierárquica: se explícito, ignora insinuações)
-    if ((probs.sexo_explicito || 0) >= threshold) {
+    // 2. Abuso / Coerção Sexual (Alerta de gatilho de alta sensibilidade)
+    if ((probs.abuso_coercao_sexual || 0) >= getThresh('abuso_coercao_sexual')) {
+      clauses.push('temas sensíveis de agressão ou coerção sexual');
+    }
+
+    // 3. Sexo / Nudez Consensual (Hierárquica: se explícito, ignora insinuações)
+    if ((probs.sexo_explicito || 0) >= getThresh('sexo_explicito')) {
       clauses.push('nudez e conteúdo sexual explícito');
-    } else if ((probs.insinuacoes_sexuais || 0) >= threshold) {
+    } else if ((probs.insinuacoes_sexuais || 0) >= getThresh('insinuacoes_sexuais')) {
       clauses.push('insinuações sexuais e temas adultos');
     }
 
-    // 3. Drogas e Álcool
-    if ((probs.drogas_alcool || 0) >= threshold) {
+    // 4. Drogas e Álcool
+    if ((probs.drogas_alcool || 0) >= getThresh('drogas_alcool')) {
       clauses.push('referências ao uso de drogas e álcool');
     }
 
-    // 4. Linguagem
-    if ((probs.linguagem_forte || 0) >= threshold) {
+    // 5. Linguagem
+    if ((probs.linguagem_forte || 0) >= getThresh('linguagem_forte')) {
       clauses.push('linguagem forte');
     }
 
-    // 5. Angústia / Perturbador
-    if ((probs.perturbador_angustia || 0) >= threshold) {
+    // 6. Angústia / Perturbador
+    if ((probs.perturbador_angustia || 0) >= getThresh('perturbador_angustia')) {
       clauses.push('elementos que podem ser emocionalmente angustiantes e perturbadores');
     }
 
-    // 6. Preconceito / Discriminação
-    if ((probs.preconceito_discriminacao || 0) >= threshold) {
+    // 7. Preconceito / Discriminação
+    if ((probs.preconceito_discriminacao || 0) >= getThresh('preconceito_discriminacao')) {
       clauses.push('temas de preconceito e discriminação');
     }
 
-    // 7. Humor Ácido
-    if ((probs.humor_acido || 0) >= threshold) {
+    // 8. Humor Ácido
+    if ((probs.humor_acido || 0) >= getThresh('humor_acido')) {
       clauses.push('humor ácido e situações controversas');
     }
 
