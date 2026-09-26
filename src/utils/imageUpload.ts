@@ -68,15 +68,26 @@ export async function uploadTmdbImageToSupabase(
       return null;
     }
 
-    // Obter URL pública
-    const { data: publicUrlData } = supabase.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(filename);
+    // Gerar URL pública direta pela CDN Cloudflare images.vibesfilm.com
+    const cdnUrl = `https://images.vibesfilm.com/${filename}`;
 
-    console.log(`  ✅ Upload concluído: ${publicUrlData.publicUrl}`);
-    return publicUrlData.publicUrl;
+    console.log(`  ✅ Upload concluído: ${cdnUrl}`);
+    return cdnUrl;
   } catch (error) {
     console.error(`  ❌ Erro ao processar imagem:`, error);
     return null;
   }
+}
+
+/**
+ * Normaliza qualquer URL de thumbnail do Supabase para o CDN images.vibesfilm.com
+ */
+export function formatThumbnailUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const SUPABASE_ORIGIN = 'https://dadrodpfylduydjbdxpy.supabase.co/storage/v1/object/public/movie-images/';
+  const PROXY_ORIGIN = 'https://images.vibesfilm.com/';
+  if (url.startsWith(SUPABASE_ORIGIN)) {
+    return url.replace(SUPABASE_ORIGIN, PROXY_ORIGIN);
+  }
+  return url;
 }

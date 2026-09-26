@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Pool } from 'pg';
 import { shouldHideLogosForIos } from '../utils/appleReview';
+import { formatThumbnailUrl } from '../utils/imageUpload';
 
 const router = Router();
 
@@ -281,11 +282,11 @@ router.get('/:id/details', async (req, res) => {
         director: movie.director,
         runtime: movie.runtime,
         certification: movie.certification,
-        imdbRating: movie.imdbRating,
-        vote_average: movie.vote_average,
-        rottenTomatoesRating: movie.rottenTomatoesRating,
-        metacriticRating: movie.metacriticRating,
-        thumbnail: movie.thumbnail,
+        imdbRating: movie.imdbRating != null ? Number(movie.imdbRating) : null,
+        vote_average: movie.vote_average != null ? Number(movie.vote_average) : null,
+        rottenTomatoesRating: movie.rottenTomatoesRating != null ? Number(movie.rottenTomatoesRating) : null,
+        metacriticRating: movie.metacriticRating != null ? Number(movie.metacriticRating) : null,
+        thumbnail: formatThumbnailUrl(movie.thumbnail) || movie.thumbnail,
         genres: movie.genres,
         targetAudienceForLP: movie.targetAudienceForLP,
         landingPageHook: movie.landingPageHook,

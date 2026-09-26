@@ -12,6 +12,7 @@ import {
   StreamingPlatform,
   OscarAwards
 } from '../types/movieHero.types';
+import { formatThumbnailUrl } from '../utils/imageUpload';
 
 export class MovieHeroService {
 
@@ -150,12 +151,12 @@ export class MovieHeroService {
         director: movie.director,
         runtime: movie.runtime,
         certification: movie.certification,
-        imdbRating: movie.imdbRating,
-        vote_average: movie.vote_average,
-        vote_count: movie.vote_count,
-        rottenTomatoesRating: movie.rottenTomatoesRating,
-        metacriticRating: movie.metacriticRating,
-        thumbnail: movie.thumbnail,
+        imdbRating: movie.imdbRating != null ? Number(movie.imdbRating) : null,
+        vote_average: movie.vote_average != null ? Number(movie.vote_average) : null,
+        vote_count: movie.vote_count != null ? Number(movie.vote_count) : undefined,
+        rottenTomatoesRating: movie.rottenTomatoesRating != null ? Number(movie.rottenTomatoesRating) : null,
+        metacriticRating: movie.metacriticRating != null ? Number(movie.metacriticRating) : null,
+        thumbnail: formatThumbnailUrl(movie.thumbnail) || movie.thumbnail,
         genres: movie.genres,
         landingPageHook: movie.landingPageHook,
         contentWarnings: movie.contentWarnings,
@@ -174,7 +175,10 @@ export class MovieHeroService {
       },
       subscriptionPlatforms: processedData.subscriptionPlatforms,
       rentalPurchasePlatforms: processedData.rentalPurchasePlatforms,
-      similarMovies: processedData.similarMovies
+      similarMovies: (processedData.similarMovies || []).map((sm: any) => ({
+        ...sm,
+        thumbnail: formatThumbnailUrl(sm.thumbnail) || sm.thumbnail
+      }))
     };
   }
 
