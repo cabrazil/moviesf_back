@@ -24,19 +24,35 @@ async function main() {
   let targetJofId: number | undefined;
   let targetLensId: number | undefined;
   let searchInput: string | undefined;
+  let searchYear: number | undefined;
+  const positionalArgs: string[] = [];
 
   for (const arg of args) {
     if (arg.startsWith('--thresh=') || arg.startsWith('--threshold=')) {
       const val = parseFloat(arg.split('=')[1]);
       if (!isNaN(val) && val > 0 && val <= 1) customThreshold = val;
+    } else if (arg.startsWith('--year=') || arg.startsWith('-y=')) {
+      const val = parseInt(arg.split('=')[1], 10);
+      if (!isNaN(val)) searchYear = val;
     } else if (arg.startsWith('--jof=')) {
       targetJofId = parseInt(arg.split('=')[1], 10);
     } else if (arg.startsWith('--lens=')) {
       targetLensId = parseInt(arg.split('=')[1], 10);
     } else if (arg.startsWith('--title=')) {
       searchInput = arg.split('=')[1];
-    } else if (!searchInput && !arg.startsWith('--')) {
-      searchInput = arg;
+    } else if (!arg.startsWith('--')) {
+      positionalArgs.push(arg);
+    }
+  }
+
+  if (positionalArgs.length > 0) {
+    if (!searchInput) {
+      if (positionalArgs.length >= 2 && !isNaN(Number(positionalArgs[1]))) {
+        searchInput = positionalArgs[0];
+        if (!searchYear) searchYear = parseInt(positionalArgs[1], 10);
+      } else {
+        searchInput = positionalArgs[0];
+      }
     }
   }
 
@@ -44,30 +60,48 @@ async function main() {
 
   // 1. Buscar Filme
   let movie: any = null;
-  if (searchInput && !isNaN(Number(searchInput))) {
+  const movieInclude = {
+    movieSentiments: {
+      include: { subSentiment: true }
+    },
+    movieSuggestionFlows: {
+      include: { journeyOptionFlow: true }
+    }
+  };
+
+  if (searchInput && !isNaN(Number(searchInput)) && searchInput.length >= 5) {
     movie = await prisma.movie.findUnique({
       where: { tmdbId: parseInt(searchInput, 10) },
-      include: {
-        movieSentiments: {
-          include: { subSentiment: true }
-        },
-        movieSuggestionFlows: {
-          include: { journeyOptionFlow: true }
-        }
-      }
+      include: movieInclude
     });
   } else if (searchInput) {
+    // 1. Tentar correspondência exata de título (com ano se houver)
     movie = await prisma.movie.findFirst({
-      where: { title: { contains: searchInput, mode: 'insensitive' } },
-      include: {
-        movieSentiments: {
-          include: { subSentiment: true }
-        },
-        movieSuggestionFlows: {
-          include: { journeyOptionFlow: true }
-        }
-      }
+      where: {
+        title: { equals: searchInput, mode: 'insensitive' },
+        ...(searchYear ? { year: searchYear } : {})
+      },
+      include: movieInclude
     });
+
+    // 2. Se não encontrou, tentar com contains
+    if (!movie) {
+      movie = await prisma.movie.findFirst({
+        where: {
+          title: { contains: searchInput, mode: 'insensitive' },
+          ...(searchYear ? { year: searchYear } : {})
+        },
+        include: movieInclude
+      });
+    }
+
+    // 3. Fallback para tmdbId se for numérico
+    if (!movie && !isNaN(Number(searchInput))) {
+      movie = await prisma.movie.findUnique({
+        where: { tmdbId: parseInt(searchInput, 10) },
+        include: movieInclude
+      });
+    }
   } else {
     // Pegar o filme curado mais recente
     const recentSuggestion = await prisma.movieSuggestionFlow.findFirst({

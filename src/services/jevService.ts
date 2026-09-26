@@ -52,6 +52,8 @@ export interface MovieSentimentAlignmentInput {
   journeyOptionText: string;
   mainSentimentName?: string;
   mainSentimentKeywords?: string[];
+  intentionType?: string;
+  intentionDescription?: string;
   candidates: SubSentimentCandidate[];
 }
 
@@ -235,7 +237,7 @@ export class JevService {
       parts.push(`Gêneros: ${movie.genres.join(', ')}`);
     }
     if (movie.keywords && movie.keywords.length > 0) {
-      parts.push(`Palavras-chave: ${movie.keywords.slice(0, 25).join(', ')}`);
+      parts.push(`Palavras-chave: ${movie.keywords.slice(0, 60).join(', ')}`);
     }
     if (movie.description) {
       parts.push(`Sinopse: ${movie.description}`);
@@ -442,15 +444,54 @@ export class JevService {
       parts.push(`Gêneros: ${input.genres.join(', ')}`);
     }
     if (input.keywords && input.keywords.length > 0) {
-      parts.push(`Palavras-chave: ${input.keywords.slice(0, 30).join(', ')}`);
+      parts.push(`Palavras-chave do Filme: ${input.keywords.slice(0, 60).join(', ')}`);
     }
     if (input.description) {
       parts.push(`Sinopse: ${input.description}`);
     }
-    parts.push(`\nJornada Emocional Alvo: "${input.journeyOptionText}"`);
     if (input.mainSentimentName) {
-      parts.push(`Lente Emocional Principal: ${input.mainSentimentName}${input.mainSentimentKeywords?.length ? ` (Keywords: ${input.mainSentimentKeywords.join(', ')})` : ''}`);
+      parts.push(`Lente Emocional Principal: ${input.mainSentimentName}${input.mainSentimentKeywords?.length ? ` (Keywords da Lente: ${input.mainSentimentKeywords.join(', ')})` : ''}`);
     }
+    if (input.intentionType) {
+      parts.push(`Intenção Emocional do Espectador: [${input.intentionType}]${input.intentionDescription ? ` "${input.intentionDescription}"` : ''}`);
+    }
+    parts.push(`Opção de Jornada Específica: "${input.journeyOptionText}"`);
+
+    // Identificar conexões semânticas explícitas (interseção ou proximidade de keywords)
+    if (input.keywords && input.keywords.length > 0) {
+      const movieKwLower = new Set(input.keywords.map(k => k.toLowerCase().trim()));
+      const matchedConcepts: string[] = [];
+
+      // Checar com keywords do MainSentiment
+      if (input.mainSentimentKeywords) {
+        for (const mk of input.mainSentimentKeywords) {
+          const mkLow = mk.toLowerCase().trim();
+          if (movieKwLower.has(mkLow) || [...movieKwLower].some(mk2 => mk2.length >= 4 && (mk2.includes(mkLow) || mkLow.includes(mk2)))) {
+            matchedConcepts.push(mk);
+          }
+        }
+      }
+
+      // Checar com keywords dos SubSentiments
+      if (input.candidates) {
+        for (const cand of input.candidates) {
+          if (cand.keywords) {
+            for (const sk of cand.keywords) {
+              const skLow = sk.toLowerCase().trim();
+              if (movieKwLower.has(skLow) || [...movieKwLower].some(mk2 => mk2.length >= 4 && (mk2.includes(skLow) || skLow.includes(mk2)))) {
+                matchedConcepts.push(`${cand.name} (${sk})`);
+              }
+            }
+          }
+        }
+      }
+
+      if (matchedConcepts.length > 0) {
+        const uniqueMatches = Array.from(new Set(matchedConcepts));
+        parts.push(`Conexões Temáticas Diretas Identificadas: ${uniqueMatches.slice(0, 12).join(', ')}`);
+      }
+    }
+
     return parts.join('\n');
   }
 }

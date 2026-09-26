@@ -609,7 +609,7 @@ class MovieCurationOrchestrator {
             orderBy: {
               relevance: 'desc'
             },
-            take: 1 // Pegar apenas o mais relevante para contexto
+            take: 3 // Pegar até 3 mais relevantes para consistência com testJevWarnings
           }
         }
       });
@@ -619,11 +619,9 @@ class MovieCurationOrchestrator {
       }
 
       // Construir o contexto emocional se disponível
-      let sentimentContext = '';
-      if (movie.movieSentiments && movie.movieSentiments.length > 0) {
-        const topSentiment = movie.movieSentiments[0];
-        sentimentContext = `\n\nContexto emocional principal: ${topSentiment.subSentiment.name} (Relevância: ${topSentiment.relevance}): ${topSentiment.explanation}`;
-      }
+      const sentimentContext = movie.movieSentiments && movie.movieSentiments.length > 0
+        ? movie.movieSentiments.map(ms => `${ms.subSentiment.name}: ${ms.explanation || ''}`).join(' | ')
+        : undefined;
 
       // 1. Tentar gerar com Jev (TypeSafe AI via OpenRouter) se chave configurada
       if (process.env.OPENROUTER_API_KEY) {
@@ -635,9 +633,7 @@ class MovieCurationOrchestrator {
             genres: movie.genres,
             keywords: movie.keywords,
             description: movie.description || undefined,
-            sentimentContext: movie.movieSentiments && movie.movieSentiments.length > 0
-              ? `${movie.movieSentiments[0].subSentiment.name}: ${movie.movieSentiments[0].explanation}`
-              : undefined
+            sentimentContext
           });
 
           if (jevResult.success && jevResult.warning) {
@@ -658,7 +654,8 @@ class MovieCurationOrchestrator {
         }
       }
 
-      const prompt = `Com base no filme '${movie.title}' (${movie.year}), gêneros: ${movie.genres?.join(', ') || 'N/A'}, palavras-chave principais: ${movie.keywords?.slice(0, 15).join(', ') || 'N/A'}, e sinopse: ${movie.description || 'N/A'}.${sentimentContext}
+      const legacySentimentClause = sentimentContext ? `\n\nContexto emocional: ${sentimentContext}` : '';
+      const prompt = `Com base no filme '${movie.title}' (${movie.year}), gêneros: ${movie.genres?.join(', ') || 'N/A'}, palavras-chave principais: ${movie.keywords?.slice(0, 15).join(', ') || 'N/A'}, e sinopse: ${movie.description || 'N/A'}.${legacySentimentClause}
 
 Sintetize os principais alertas de tonalidade ou conteúdo para o espectador em UMA ÚNICA FRASE concisa e objetiva, começando com 'Atenção:'. **Não inclua numeração, marcadores de lista, ou quebras de linha. O resultado deve ser apenas a frase sintetizada.**
 

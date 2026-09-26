@@ -1023,7 +1023,7 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
   }
 }
 
-async function processSingleMovie(title: string, year?: number, dryRun: boolean = false) {
+export async function processSingleMovie(title: string, year?: number, dryRun: boolean = false): Promise<{ success: boolean; duplicate: boolean; movieId?: string; tmdbId?: number }> {
   console.log(`\n=== Processando filme: ${title}${year ? ` (${year})` : ''} ===`);
   if (dryRun) {
     console.log(`🔍 MODO DRY-RUN: Apenas logs, sem salvar no banco`);
@@ -1110,7 +1110,7 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
           console.log(`📺 Nenhuma plataforma de streaming encontrada para atualizar`);
         }
 
-        return { success: true, duplicate: true, movieId: existingMovie.id };
+        return { success: true, duplicate: true, movieId: existingMovie.id, tmdbId: existingMovie.tmdbId ?? undefined };
       } else {
         // Buscar ou criar os gêneros
         const genreIds: number[] = [];
@@ -1350,7 +1350,7 @@ async function processSingleMovie(title: string, year?: number, dryRun: boolean 
           console.log(`Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);
           console.log(`IDs dos gêneros: ${genreIds.join(', ')}`);
           console.log(`TMDB_ID_FOUND: ${createdMovie.tmdbId}`);
-          return { success: true, duplicate: false, movieId: createdMovie.id };
+          return { success: true, duplicate: false, movieId: createdMovie.id, tmdbId: createdMovie.tmdbId ?? undefined };
         } else {
           console.log(`🔍 DRY-RUN: Filme seria criado: ${movie.title}`);
           console.log(`🔍 DRY-RUN: Gêneros: ${movie.genres.map(g => g.name).join(', ')}`);

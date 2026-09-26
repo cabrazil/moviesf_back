@@ -3,6 +3,7 @@ import './scripts-helper';
 
 import { PrismaClient } from '@prisma/client';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
+import { jevService, SubSentimentCandidate } from '../services/jevService';
 
 const prisma = new PrismaClient();
 
@@ -12,9 +13,10 @@ interface ReprocessOptions {
   movieTitle?: string;
   movieYear?: number;
   dryRun?: boolean;
-  aiProvider?: AIProvider;
+  aiProvider?: AIProvider | 'jev';
   batchSize?: number;
   maxScore?: number;
+  threshold?: number;
 }
 
 interface AuditResult {
@@ -40,11 +42,15 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
     dryRun = false,
     aiProvider = 'deepseek',
     batchSize = 10,
-    maxScore
+    maxScore,
+    threshold = 0.55
   } = options;
 
   console.log('🔄 === REPROCESSAMENTO DE SENTIMENTOS DE FILMES ===');
-  console.log(`🤖 Provider: ${aiProvider}`);
+  console.log(`🤖 Provider: ${aiProvider.toUpperCase()}`);
+  if (aiProvider === 'jev') {
+    console.log(`⚙️ Limiar de Ativação Jev: ${(threshold * 100).toFixed(0)}%`);
+  }
   console.log(`📊 Modo: ${dryRun ? 'DRY-RUN (não grava)' : 'PRODUÇÃO (grava no banco)'}`);
   console.log(`📦 Batch size: ${batchSize} filmes por vez\n`);
 
@@ -53,8 +59,10 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
     id: string;
     title: string;
     year: number | null;
+    original_title?: string | null;
     description: string | null;
     keywords: string[];
+    genres?: string[];
   }> = [];
 
   if (movieId) {
@@ -65,6 +73,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
         id: true,
         title: true,
         year: true,
+        genres: true,
         original_title: true,
         description: true,
         keywords: true
@@ -88,6 +97,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
         id: true,
         title: true,
         year: true,
+        genres: true,
         original_title: true,
         description: true,
         keywords: true
@@ -112,6 +122,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
             id: true,
             title: true,
             year: true,
+            genres: true,
             original_title: true,
             description: true,
             keywords: true
@@ -138,6 +149,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
 
   let userSentimentContext = "lidar com suas emoções";
   let userSentimentKeywords: string[] = [];
+  let journeyOptionText = "";
 
   if (jofId) {
     // 2.1 Buscar Contexto Emocional
@@ -159,6 +171,11 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
         }
       }
     });
+
+    journeyOptionText = jof?.text || '';
+    if (journeyOptionText) {
+      console.log(`🎯 Opção de Jornada: "${journeyOptionText}"`);
+    }
 
     const emotionalIntention = jof?.journeyStepFlow?.emotionalIntentionJourneySteps?.[0]?.emotionalIntention;
     if (emotionalIntention?.mainSentiment?.name) {
@@ -224,17 +241,37 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
       }
       try {
         console.log(`🎬 ${movie.title} (${movie.year})`);
-
-        // Auditar filme com IA (Gera verbos)
-        const auditResult = await auditMovieWithAI(movie, dnaSubSentiments, aiProvider, userSentimentContext, userSentimentKeywords);
+        if (movie.genres && movie.genres.length > 0) {
+          console.log(`   🏷 Gêneros: ${movie.genres.join(', ')}`);
+        }
+        if (movie.keywords && movie.keywords.length > 0) {
+          console.log(`   🔑 Keywords do Filme (${movie.keywords.length}): ${movie.keywords.join(', ')}`);
+        }
+        let auditResult: AuditResult | null = null;
+        if (aiProvider === 'jev') {
+          auditResult = await auditMovieWithJev(
+            movie,
+            dnaSubSentiments,
+            userSentimentContext,
+            userSentimentKeywords,
+            journeyOptionText,
+            threshold
+          );
+        } else {
+          auditResult = await auditMovieWithAI(
+            movie,
+            dnaSubSentiments,
+            aiProvider,
+            userSentimentContext,
+            userSentimentKeywords
+          );
+        }
 
         // CORREÇÃO: Aplicar Rephraser para transformar Verbo -> Frase Nominal
         if (auditResult && auditResult.reflection) {
-          // console.log(`   📝 Reflexão Original (Verbo): "${auditResult.reflection}"`);
-          // Passar o provider escolhido (variable aiProvider from options)
-          const rephrased = await rephraseReasonWithAI(auditResult.reflection, aiProvider);
+          const forcedProvider = aiProvider === 'jev' ? 'deepseek' : aiProvider;
+          const rephrased = await rephraseReasonWithAI(auditResult.reflection, forcedProvider);
           auditResult.reflection = rephrased;
-          // console.log(`   ✨ Reflexão Corrigida: "${auditResult.reflection}"`);
         }
 
         if (!auditResult || auditResult.matches.length === 0) {
@@ -274,7 +311,7 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
 
           // Recalcular score se jofId especificado (Confirmação oficial do banco)
           if (jofId) {
-            const score = await calculateAndUpdateScore(movie.id, jofId);
+            const score = await calculateAndUpdateScore(movie.id, jofId, auditResult.reflection);
             console.log(`   ✅ Score gravado no banco: ${score?.toFixed(3) || 'N/A'}`);
 
             // Gerar nova reflexão se score >= 5.5 (Bronze, Prata ou Ouro)
@@ -309,6 +346,132 @@ async function reprocessMovieSentiments(options: ReprocessOptions) {
   console.log(`Sucesso: ${successCount}`);
   console.log(`Erros: ${errorCount}`);
   console.log(`Modo: ${dryRun ? 'DRY-RUN (nada foi gravado)' : 'PRODUÇÃO'}`);
+}
+
+/**
+ * Audita um filme usando a Engine Jev (TypeSafe AI) para decisões probabilísticas estritas
+ */
+async function auditMovieWithJev(
+  movie: {
+    id: string;
+    title: string;
+    year: number | null;
+    original_title?: string | null;
+    description: string | null;
+    keywords: string[];
+    genres?: string[];
+  },
+  dnaSubSentiments: Array<{
+    id: number;
+    name: string;
+    keywords: string[];
+    weight: number;
+  }>,
+  userSentimentContext: string,
+  userSentimentKeywords: string[] = [],
+  journeyOptionText: string = '',
+  threshold: number = 0.55
+): Promise<AuditResult | null> {
+  try {
+    const candidates: SubSentimentCandidate[] = dnaSubSentiments.map(ss => ({
+      id: ss.id,
+      name: ss.name,
+      keywords: ss.keywords,
+      expectedWeight: ss.weight
+    }));
+
+    console.log(`   🤖 Enviando ${candidates.length} SubSentiments para análise probabilística no Jev...`);
+    const jevResult = await jevService.evaluateSentimentAlignment(
+      {
+        title: movie.title,
+        year: movie.year || undefined,
+        genres: movie.genres || [],
+        keywords: movie.keywords,
+        description: movie.description || undefined,
+        journeyOptionText: journeyOptionText || `Lidar com ${userSentimentContext}`,
+        mainSentimentName: userSentimentContext,
+        mainSentimentKeywords: userSentimentKeywords,
+        candidates
+      },
+      { threshold }
+    );
+
+    if (!jevResult.success || !jevResult.alignments) {
+      console.error(`   ❌ Falha no Jev: ${jevResult.error}`);
+      return null;
+    }
+
+    console.log(`   ⚡ Jev concluiu em ${jevResult.durationMs}ms | Custo: $${jevResult.cost?.toFixed(6) || 'N/A'}`);
+
+    const activeAlignments = jevResult.alignments.filter(a => a.isActivated);
+    console.log(`   🎯 Jev ativou ${activeAlignments.length}/${candidates.length} SubSentiments (Limiar: ${(threshold * 100).toFixed(0)}%)`);
+
+    if (activeAlignments.length === 0) {
+      return { matches: [], reflection: '' };
+    }
+
+    // Gerar micro-explicações e reflexão via LLM com base estrita no que o Jev confirmou
+    let reflection = '';
+    const matches: AuditResult['matches'] = [];
+
+    try {
+      const ai = createAIProvider(getDefaultConfig('deepseek'));
+      const approvedList = activeAlignments
+        .map(a => `- ${a.name} (Score Jev: ${(a.relevance * 100).toFixed(0)}%)`)
+        .join('\n');
+
+      const prompt = `Você é um curador especialista em cinema do "vibesfilm".
+A engine analítica Jev validou que o filme "${movie.title}" (${movie.year}) possui com alta probabilidade os seguintes sentimentos da jornada:
+${approvedList}
+
+Dados do Filme:
+- Sinopse: ${movie.description || 'N/A'}
+- Keywords: ${movie.keywords.slice(0, 15).join(', ')}
+- Contexto emocional: ${userSentimentContext}
+
+Tarefas:
+1. Para cada sentimento confirmado acima, escreva UMA ÚNICA frase curta (estilo microconto, máx. 160 caracteres) descrevendo a CENA ou DINÂMICA específica do filme que encarna esse sentimento. Proibido clichês como "O filme mostra...".
+2. Escreva uma reflexão recomendatória poética (entre 15 e 24 palavras) começando com letra minúscula (ex: "descobrir como a sobrevivência...") que resume a essência dessa jornada.
+
+Retorne em formato JSON STRICT:
+{
+  "explanations": {
+    "Nome Exato do Sentimento": "Frase descritiva da cena..."
+  },
+  "reflection": "frase poética curta..."
+}`;
+
+      const resp = await ai.generateResponse("Você é um curador de cinema.", prompt, { temperature: 0.7 });
+      let jsonString = resp.content.trim();
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) jsonString = jsonMatch[0];
+
+      const parsed = JSON.parse(jsonString);
+      reflection = parsed.reflection || '';
+      for (const al of activeAlignments) {
+        matches.push({
+          subSentimentName: al.name,
+          relevance: al.relevance,
+          explanation: parsed.explanations?.[al.name] || `Alinhamento verificado via Jev Engine (${(al.relevance * 100).toFixed(0)}%).`
+        });
+      }
+    } catch (llmErr) {
+      console.warn('   ⚠️ Enriquecimento LLM de explicações falhou, aplicando fallback direto...');
+      for (const al of activeAlignments) {
+        matches.push({
+          subSentimentName: al.name,
+          relevance: al.relevance,
+          explanation: `Alinhamento verificado via Jev Engine (${(al.relevance * 100).toFixed(0)}%).`
+        });
+      }
+      reflection = `o impacto de ${activeAlignments.slice(0, 3).map(a => a.name.toLowerCase()).join(', ')} na jornada emocional do espectador`;
+    }
+
+    return { matches, reflection };
+  } catch (error) {
+    console.error('Erro na auditoria com Jev:', error);
+    return null;
+  }
 }
 
 /**
@@ -640,7 +803,7 @@ async function saveMovieSentiments(
   }
 }
 
-async function calculateAndUpdateScore(movieId: string, jofId: number): Promise<number | null> {
+async function calculateAndUpdateScore(movieId: string, jofId: number, initialReason?: string): Promise<number | null> {
   try {
     // Buscar SubSentiments esperados da JOF
     const expectedSubSentiments = await prisma.journeyOptionFlowSubSentiment.findMany({
@@ -716,16 +879,33 @@ async function calculateAndUpdateScore(movieId: string, jofId: number): Promise<
     score = Math.min(score, 10.0);
     const relevanceScore = Math.round(score * 1000) / 1000;
 
-    // Atualizar no banco
-    await prisma.movieSuggestionFlow.updateMany({
+    // Atualizar ou criar vínculo no banco (MovieSuggestionFlow)
+    const existingSuggestion = await prisma.movieSuggestionFlow.findFirst({
       where: {
         movieId: movieId,
         journeyOptionFlowId: jofId
-      },
-      data: {
-        relevanceScore: relevanceScore
       }
     });
+
+    if (existingSuggestion) {
+      await prisma.movieSuggestionFlow.update({
+        where: { id: existingSuggestion.id },
+        data: {
+          relevanceScore: relevanceScore
+        }
+      });
+    } else {
+      await prisma.movieSuggestionFlow.create({
+        data: {
+          movieId: movieId,
+          journeyOptionFlowId: jofId,
+          relevanceScore: relevanceScore,
+          reason: initialReason || "Reflexão sobre a jornada emocional.",
+          relevance: 1
+        }
+      });
+      console.log(`   ✨ Novo vínculo criado em MovieSuggestionFlow para JOF ${jofId}`);
+    }
 
     return relevanceScore;
 
@@ -739,15 +919,30 @@ async function calculateAndUpdateScore(movieId: string, jofId: number): Promise<
  * Atualiza reflexão
  */
 async function updateReflection(movieId: string, jofId: number, reflection: string) {
-  await prisma.movieSuggestionFlow.updateMany({
+  const existingSuggestion = await prisma.movieSuggestionFlow.findFirst({
     where: {
       movieId: movieId,
       journeyOptionFlowId: jofId
-    },
-    data: {
-      reason: reflection
-    } as any
+    }
   });
+
+  if (existingSuggestion) {
+    await prisma.movieSuggestionFlow.update({
+      where: { id: existingSuggestion.id },
+      data: {
+        reason: reflection
+      }
+    });
+  } else {
+    await prisma.movieSuggestionFlow.create({
+      data: {
+        movieId: movieId,
+        journeyOptionFlowId: jofId,
+        reason: reflection,
+        relevance: 1
+      }
+    });
+  }
 }
 
 
@@ -843,9 +1038,13 @@ async function main() {
     if (arg.startsWith('--movieId=')) options.movieId = arg.split('=')[1];
     if (arg.startsWith('--title=')) options.movieTitle = arg.split('=')[1];
     if (arg.startsWith('--year=')) options.movieYear = parseInt(arg.split('=')[1]);
-    if (arg.startsWith('--ai-provider=')) options.aiProvider = arg.split('=')[1] as AIProvider;
+    if (arg.startsWith('--ai-provider=')) options.aiProvider = arg.split('=')[1] as any;
     if (arg.startsWith('--batch=')) options.batchSize = parseInt(arg.split('=')[1]);
     if (arg.startsWith('--max-score=')) options.maxScore = parseFloat(arg.split('=')[1]);
+    if (arg.startsWith('--thresh=') || arg.startsWith('--threshold=')) {
+      const val = parseFloat(arg.split('=')[1]);
+      if (!isNaN(val) && val > 0 && val <= 1) options.threshold = val;
+    }
   });
 
   await reprocessMovieSentiments(options);

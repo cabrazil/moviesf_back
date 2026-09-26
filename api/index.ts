@@ -25,6 +25,7 @@ import newsletterRoutes from '../src/routes/newsletter.routes';
 import sitemapRoutes from '../src/routes/sitemap.routes';
 import rephraseHookRoutes from '../src/routes/rephrase-hook.routes';
 import dailyCurationRoutes from '../src/routes/daily-curation.routes';
+import curateRoutes from '../src/routes/curate.routes';
 
 const app = express();
 
@@ -119,6 +120,7 @@ app.use('/api/tmdb', tmdbRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/rephrase-hook', rephraseHookRoutes);
 app.use('/api/daily-curation', dailyCurationRoutes);
+app.use('/api/curate', curateRoutes);
 
 // Handler para rotas não encontradas (404)
 app.use('*', (req, res) => {
