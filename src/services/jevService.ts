@@ -289,14 +289,15 @@ export class JevService {
     }
 
     // 2. Abuso / Coerção Sexual (Alerta de gatilho de alta sensibilidade)
-    if ((probs.abuso_coercao_sexual || 0) >= getThresh('abuso_coercao_sexual')) {
+    const hasAbusoCoercaoSexual = (probs.abuso_coercao_sexual || 0) >= getThresh('abuso_coercao_sexual');
+    if (hasAbusoCoercaoSexual) {
       clauses.push('temas sensíveis de agressão ou coerção sexual');
     }
 
-    // 3. Sexo / Nudez Consensual (Hierárquica: se explícito, ignora insinuações)
+    // 3. Sexo / Nudez Consensual (Hierárquica: se explícito, ignora insinuações; se há agressão sexual grave, omite insinuações brandas)
     if ((probs.sexo_explicito || 0) >= getThresh('sexo_explicito')) {
       clauses.push('cenas de sexo explícito e nudez');
-    } else if ((probs.insinuacoes_sexuais || 0) >= getThresh('insinuacoes_sexuais')) {
+    } else if (!hasAbusoCoercaoSexual && (probs.insinuacoes_sexuais || 0) >= getThresh('insinuacoes_sexuais')) {
       clauses.push('insinuações sexuais e conteúdo adulto');
     }
 
