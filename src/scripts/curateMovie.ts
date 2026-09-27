@@ -420,7 +420,8 @@ Opções:
     genres: true,
     keywords: true,
     description: true,
-    tmdbId: true
+    tmdbId: true,
+    certification: true
   };
 
   if (tmdbId) {
@@ -828,7 +829,8 @@ Opções:
       year: movie.year || undefined,
       genres: movie.genres,
       keywords: movie.keywords,
-      description: movie.description || undefined
+      description: movie.description || undefined,
+      certification: (movie as any).certification || undefined
     });
 
     if (warningsResult.success && warningsResult.warning) {

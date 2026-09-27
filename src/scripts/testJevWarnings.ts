@@ -130,7 +130,8 @@ async function main() {
       genres: movie.genres,
       keywords: movie.keywords,
       description: movie.description || undefined,
-      sentimentContext
+      sentimentContext,
+      certification: (movie as any).certification || undefined
     },
     customGlobalThreshold ? { thresholds: customGlobalThreshold } : undefined
   );

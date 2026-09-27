@@ -7,6 +7,7 @@ export interface MovieContentWarningInput {
   keywords?: string[];
   description?: string;
   sentimentContext?: string;
+  certification?: string;
 }
 
 export interface JevDecisionResponse {
@@ -77,16 +78,16 @@ export interface JevSentimentAlignmentResult {
 
 export const DEFAULT_CATEGORY_THRESHOLDS: Record<string, number> = {
   violencia_extrema: 0.70,
-  violencia_brutalidade: 0.60,
+  violencia_brutalidade: 0.55,
   violencia_guerra: 0.60,
-  violencia_moderada: 0.60,
-  abuso_coercao_sexual: 0.60,
-  sexo_explicito: 0.70,
+  violencia_moderada: 0.50,
+  abuso_coercao_sexual: 0.55,
+  sexo_explicito: 0.50,
   insinuacoes_sexuais: 0.60,
-  drogas_alcool: 0.60,
+  drogas_alcool: 0.50,
   linguagem_forte: 0.55,
-  perturbador_angustia: 0.50,
-  preconceito_discriminacao: 0.60,
+  perturbador_angustia: 0.40,
+  preconceito_discriminacao: 0.55,
   humor_acido: 0.60
 };
 
@@ -141,7 +142,7 @@ export class JevService {
       },
       violencia_moderada: {
         type: 'noul',
-        instructions: 'O filme contém cenas de ação, lutas estilizadas, perseguições ou perigo de aventura sem brutalidade cruel?'
+        instructions: 'O filme contém cenas de ação, lutas, crime, perseguições ou violência física moderada?'
       },
       abuso_coercao_sexual: {
         type: 'noul',
@@ -149,7 +150,7 @@ export class JevService {
       },
       sexo_explicito: {
         type: 'noul',
-        instructions: 'O filme contém cenas de nudez frontal ou sexo explícito/gráfico consensual?'
+        instructions: 'O filme contém cenas de nudez frontal, sexo explícito, forte erotismo gráfico ou prostituição?'
       },
       insinuacoes_sexuais: {
         type: 'noul',
@@ -157,7 +158,7 @@ export class JevService {
       },
       drogas_alcool: {
         type: 'noul',
-        instructions: 'O filme aborda uso explícito de drogas ilícitas ou consumo excessivo/problemático de álcool?'
+        instructions: 'O filme aborda uso explícito de drogas ilícitas, dependência química ou consumo excessivo/problemático de álcool?'
       },
       linguagem_forte: {
         type: 'noul',
@@ -165,11 +166,11 @@ export class JevService {
       },
       perturbador_angustia: {
         type: 'noul',
-        instructions: 'O filme possui cenas profundamente angustiantes, pânico e situações extremas de sobrevivência, opressão institucional severa, desespero psicológico, luto extremo, claustrofobia ou suicídio?'
+        instructions: 'O filme possui cenas profundamente angustiantes, pânico, violência psicológica, situações extremas de sobrevivência, desespero ou vulnerabilidade?'
       },
       preconceito_discriminacao: {
         type: 'noul',
-        instructions: 'O filme aborda racismo, discriminação, homofobia ou perseguição sistêmica como conflito central?'
+        instructions: 'O filme aborda preconceito, discriminação, intolerância social ou perseguição sistêmica como conflito central?'
       },
       humor_acido: {
         type: 'noul',
@@ -233,6 +234,9 @@ export class JevService {
   private buildMovieState(movie: MovieContentWarningInput): string {
     const parts: string[] = [];
     parts.push(`Filme: ${movie.title}${movie.year ? ` (${movie.year})` : ''}`);
+    if (movie.certification) {
+      parts.push(`Classificação Indicativa: ${movie.certification}${movie.certification === '18' ? ' anos (conteúdo restrito / estritamente adulto)' : ''}`);
+    }
     if (movie.genres && movie.genres.length > 0) {
       parts.push(`Gêneros: ${movie.genres.join(', ')}`);
     }
@@ -270,7 +274,7 @@ export class JevService {
       if (hasViolenciaExtrema) {
         clauses.push('cenas de combate militar e violência gráfica extrema');
       } else if (hasViolenciaBrutalidade) {
-        clauses.push('cenas intensas de combate de guerra e brutalidade');
+        clauses.push('cenas intensas de combate e brutalidade');
       } else {
         clauses.push('cenas intensas de combate e violência de guerra');
       }
@@ -280,7 +284,7 @@ export class JevService {
       } else if (hasViolenciaBrutalidade) {
         clauses.push('cenas de violência física e brutalidade');
       } else if (hasViolenciaModerada) {
-        clauses.push('cenas de ação e violência moderada');
+        clauses.push('cenas de violência e perigo');
       }
     }
 
@@ -291,14 +295,18 @@ export class JevService {
 
     // 3. Sexo / Nudez Consensual (Hierárquica: se explícito, ignora insinuações)
     if ((probs.sexo_explicito || 0) >= getThresh('sexo_explicito')) {
-      clauses.push('nudez e conteúdo sexual explícito');
+      clauses.push('cenas de sexo explícito e nudez');
     } else if ((probs.insinuacoes_sexuais || 0) >= getThresh('insinuacoes_sexuais')) {
-      clauses.push('insinuações sexuais e temas adultos');
+      clauses.push('insinuações sexuais e conteúdo adulto');
     }
 
     // 4. Drogas e Álcool
     if ((probs.drogas_alcool || 0) >= getThresh('drogas_alcool')) {
-      clauses.push('referências ao uso de drogas e álcool');
+      if ((probs.drogas_alcool || 0) >= 0.70) {
+        clauses.push('uso explícito de drogas ou substâncias entorpecentes');
+      } else {
+        clauses.push('referências ao uso de drogas e álcool');
+      }
     }
 
     // 5. Linguagem
@@ -308,12 +316,12 @@ export class JevService {
 
     // 6. Angústia / Perturbador
     if ((probs.perturbador_angustia || 0) >= getThresh('perturbador_angustia')) {
-      clauses.push('elementos que podem ser emocionalmente angustiantes e perturbadores');
+      clauses.push('situações emocionalmente angustiantes ou perturbadoras');
     }
 
     // 7. Preconceito / Discriminação
     if ((probs.preconceito_discriminacao || 0) >= getThresh('preconceito_discriminacao')) {
-      clauses.push('temas de preconceito e discriminação');
+      clauses.push('temas de discriminação e preconceito');
     }
 
     // 8. Humor Ácido
