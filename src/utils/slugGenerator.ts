@@ -23,24 +23,25 @@ export function generateSlug(title: string): string {
  * @param title - Título do filme
  * @returns Slug único
  */
-export async function generateUniqueSlug(title: string): Promise<string> {
-  let slug = generateSlug(title);
+export async function generateUniqueSlug(title: string, year?: number): Promise<string> {
+  let baseSlug = generateSlug(title);
+  if (!baseSlug) baseSlug = 'filme';
+  
+  let slug = baseSlug;
   let counter = 1;
   
-  // Verificar se o slug existe usando Prisma (sem o campo slug por enquanto)
   while (true) {
-    const existingMovie = await prisma.movie.findFirst({
-      where: { 
-        title: {
-          contains: slug.replace(/-/g, ' '),
-          mode: 'insensitive'
-        }
-      }
+    const existingMovie = await prisma.movie.findUnique({
+      where: { slug }
     });
     if (!existingMovie) {
       break;
     }
-    slug = `${generateSlug(title)}-${counter}`;
+    if (year && counter === 1) {
+      slug = `${baseSlug}-${year}`;
+    } else {
+      slug = `${baseSlug}-${counter}`;
+    }
     counter++;
   }
   

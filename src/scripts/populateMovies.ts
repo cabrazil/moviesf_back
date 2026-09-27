@@ -1151,7 +1151,8 @@ export async function processSingleMovie(title: string, year?: number, dryRun: b
         }
 
         // Gerar slug único para o filme
-        const slug = await generateUniqueSlug(movie.title);
+        const movieYear = movie.release_date ? new Date(movie.release_date).getFullYear() : undefined;
+        const slug = await generateUniqueSlug(movie.title, movieYear);
         console.log(`🔗 Slug gerado: ${slug}`);
 
         // Fazer upload da imagem para o Supabase (se houver poster_path)
