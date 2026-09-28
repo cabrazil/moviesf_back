@@ -80,7 +80,7 @@ export const DEFAULT_CATEGORY_THRESHOLDS: Record<string, number> = {
   violencia_extrema: 0.70,
   violencia_brutalidade: 0.55,
   violencia_guerra: 0.60,
-  violencia_moderada: 0.50,
+  violencia_moderada: 0.60,
   abuso_coercao_sexual: 0.55,
   sexo_explicito: 0.50,
   insinuacoes_sexuais: 0.60,
