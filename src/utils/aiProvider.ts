@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export type AIProvider = 'openai' | 'gemini' | 'deepseek' | 'kimi';
+export type AIProvider = 'openai' | 'gemini' | 'deepseek' | 'kimi' | 'openrouter';
 
 // Interfaces para tipagem das respostas das APIs
 interface OpenAIResponse {
@@ -78,9 +78,64 @@ class AIProviderManager {
         return this.generateDeepSeekResponse(systemPrompt, userPrompt, temperature, maxTokens);
       case 'kimi':
         return this.generateKimiResponse(systemPrompt, userPrompt, temperature, maxTokens);
+      case 'openrouter':
+        return this.generateOpenRouterResponse(systemPrompt, userPrompt, temperature, maxTokens);
       default:
         throw new Error(`Provedor de IA não suportado: ${this.config.provider}`);
     }
+  }
+
+  /**
+   * Executa a chamada de IA com fallback automático se o provedor principal falhar ou retornar vazio.
+   */
+  async generateResponseWithFallback(
+    systemPrompt: string,
+    userPrompt: string,
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+    },
+    fallbacks?: Array<{ provider: AIProvider; model?: string }>
+  ): Promise<AIResponse> {
+    const defaultFallbacks: Array<{ provider: AIProvider; model?: string }> = process.env.OPENROUTER_API_KEY
+      ? [
+          { provider: 'openrouter', model: 'openai/gpt-4o-mini' },
+          { provider: 'openrouter', model: 'google/gemini-2.5-flash' }
+        ]
+      : [
+          { provider: 'openai', model: 'gpt-4o-mini' },
+          { provider: 'gemini', model: 'gemini-2.5-flash' }
+        ];
+
+    const fallbackList = fallbacks || defaultFallbacks;
+
+    const primaryRes = await this.generateResponse(systemPrompt, userPrompt, options);
+    if (primaryRes.success && primaryRes.content && primaryRes.content.trim().length > 0) {
+      return primaryRes;
+    }
+
+    console.warn(`⚠️ Provedor ${this.config.provider} (${this.config.model || 'default'}) falhou ou retornou vazio. Ativando fallback...`);
+
+    for (const fb of fallbackList) {
+      if (fb.provider === this.config.provider && fb.model === this.config.model) continue;
+      console.log(`🔄 Tentando fallback com [${fb.provider}] modelo: ${fb.model || 'default'}...`);
+      try {
+        const fbConfig = {
+          ...getDefaultConfig(fb.provider),
+          ...(fb.model ? { model: fb.model } : {})
+        };
+        const fbManager = new AIProviderManager(fbConfig);
+        const fbRes = await fbManager.generateResponse(systemPrompt, userPrompt, options);
+        if (fbRes.success && fbRes.content && fbRes.content.trim().length > 0) {
+          console.log(`✅ Fallback com [${fb.provider} - ${fb.model || 'default'}] bem-sucedido!`);
+          return fbRes;
+        }
+      } catch (err: any) {
+        console.warn(`⚠️ Fallback [${fb.provider}] falhou:`, err?.message || err);
+      }
+    }
+
+    return primaryRes;
   }
 
   private async generateOpenAIResponse(
@@ -104,7 +159,8 @@ class AIProviderManager {
         headers: {
           'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 30000
       });
 
       const content = response.data.choices[0].message.content;
@@ -145,7 +201,8 @@ class AIProviderManager {
         headers: {
           'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 30000
       });
 
       const content = response.data.choices[0].message.content;
@@ -405,7 +462,8 @@ INSTRUÇÕES IMPORTANTES:
           headers: {
             'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
             'Content-Type': 'application/json'
-          }
+          },
+          timeout: 30000
         });
 
         const content = response.data.choices[0].message.content;
@@ -424,7 +482,8 @@ INSTRUÇÕES IMPORTANTES:
         headers: {
           'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 30000
       });
 
       if (!response.data.choices || response.data.choices.length === 0) {
@@ -484,7 +543,8 @@ INSTRUÇÕES IMPORTANTES:
           "Authorization": `Bearer ${process.env.KIMI_API_KEY}`,
           "Accept": "application/json",
           "Content-Type": "application/json"
-        }
+        },
+        timeout: 30000
       });
 
       if (!response.data.choices || response.data.choices.length === 0) {
@@ -511,6 +571,62 @@ INSTRUÇÕES IMPORTANTES:
       };
     }
   }
+
+  private async generateOpenRouterResponse(
+    systemPrompt: string,
+    userPrompt: string,
+    temperature: number,
+    maxTokens: number
+  ): Promise<AIResponse> {
+    try {
+      const modelToUse = this.config.model || 'deepseek/deepseek-chat';
+      const key = process.env.OPENROUTER_API_KEY;
+      if (!key) {
+        throw new Error('OPENROUTER_API_KEY não configurada no .env');
+      }
+
+      const response = await axios.post<{
+        choices: Array<{ message: { content: string } }>;
+      }>('https://openrouter.ai/api/v1/chat/completions', {
+        model: modelToUse,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature,
+        max_tokens: maxTokens
+      }, {
+        headers: {
+          'Authorization': `Bearer ${key.trim()}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://vibesfilm.com',
+          'X-Title': 'VibesFilm'
+        },
+        timeout: 30000
+      });
+
+      if (!response.data.choices || response.data.choices.length === 0) {
+        throw new Error('Resposta vazia - nenhuma escolha retornada do OpenRouter');
+      }
+
+      const content = response.data.choices[0].message.content;
+      return { content, success: true };
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message || error?.message;
+
+      console.error(`Erro na API OpenRouter (modelo: ${this.config.model || 'deepseek/deepseek-chat'}):`, {
+        status,
+        message: errorMessage
+      });
+
+      return {
+        content: '',
+        success: false,
+        error: `Erro OpenRouter (${status || 'N/A'}): ${errorMessage || 'Erro desconhecido'}`
+      };
+    }
+  }
 }
 
 export function createAIProvider(config: AIConfig): AIProviderManager {
@@ -518,11 +634,12 @@ export function createAIProvider(config: AIConfig): AIProviderManager {
 }
 
 export function getDefaultConfig(provider: AIProvider): AIConfig {
-  const modelMap = {
-    openai: 'gpt-3.5-turbo', // Downgrade seguro para evitar erros de cota (era gpt-4-turbo)
+  const modelMap: Record<AIProvider, string> = {
+    openai: 'gpt-4o-mini',
     gemini: 'gemini-2.5-flash',
     deepseek: 'deepseek-chat',
-    kimi: 'moonshotai/kimi-k2.5'
+    kimi: 'moonshotai/kimi-k2.5',
+    openrouter: 'deepseek/deepseek-chat'
   };
 
   return {

@@ -6,6 +6,18 @@ import { updateRelevanceRankingForMovie } from '../utils/relevanceRanking';
 import { inferEntryType } from '../utils/emotionalEntryType';
 import { processSingleMovie } from '../scripts/populateMovies';
 
+/**
+ * Limita uma Promise a um tempo máximo (ms). Se exceder, rejeita com timeout.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label = 'operação'): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout de ${ms}ms atingido em: ${label}`)), ms)
+    )
+  ]);
+}
+
 export interface JofEvaluationResult {
   jofId: number;
   jofText: string;
@@ -132,10 +144,13 @@ As novas keywords devem:
 Formatação estrita: retorne APENAS os termos separados por VÍRGULA, sem numeração, sem aspas, sem introdução.
 Exemplo: nostalgia afetiva, busca por pertencimento, inocência infantil, choque de realidade, calor familiar`;
 
-    const response = await ai.generateResponse(systemPrompt, prompt, {
-      maxTokens: 250,
-      temperature: 0.6
-    });
+    const response = await withTimeout(
+      ai.generateResponseWithFallback(systemPrompt, prompt, {
+        maxTokens: 250,
+        temperature: 0.6
+      }),
+      25000, 'enriquecimento de keywords'
+    );
 
     if (!response.success || !response.content) {
       return { success: false, addedCount: 0 };
@@ -214,7 +229,10 @@ Retorne em formato JSON STRICT:
   "reflection": "frase poética nominal curta..."
 }`;
 
-    const resp = await ai.generateResponse("Você é um curador de cinema.", prompt, { temperature: 0.7 });
+    const resp = await withTimeout(
+      ai.generateResponseWithFallback("Você é um curador de cinema.", prompt, { temperature: 0.7 }),
+      30000, 'geração de reflexão'
+    );
     let jsonString = resp.content.trim();
     const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
     if (jsonMatch) jsonString = jsonMatch[0];
@@ -235,7 +253,10 @@ Retorne em formato JSON STRICT:
     try {
       const ai = createAIProvider(getDefaultConfig(provider));
       const repPrompt = `Transforme em Frase Nominal poética e direta (sem verbo inicial, máx. 24 palavras):\n"${reflection}"\nResponda APENAS com a nova frase.`;
-      const repResp = await ai.generateResponse('Você é um editor de texto.', repPrompt, { temperature: 0.7 });
+      const repResp = await withTimeout(
+        ai.generateResponseWithFallback('Você é um editor de texto.', repPrompt, { temperature: 0.7 }),
+        20000, 'refinamento de frase nominal'
+      );
       reflection = repResp.content.trim().replace(/^["']|["']$/g, '');
     } catch {
       // mantém
@@ -326,7 +347,10 @@ Qual é o principal benefício emocional ou experiência interna que este filme 
 Responda em UMA ÚNICA FRASE curta (máximo 12 palavras), começando com verbo no infinitivo ou substantivo.
 Responda APENAS com essa frase, sem aspas.`;
 
-    const emotionalResp = await ai.generateResponse("Você é um curador de cinema.", emotionalPrompt, { maxTokens: 100, temperature: 0.5 });
+    const emotionalResp = await withTimeout(
+      ai.generateResponseWithFallback("Você é um curador de cinema.", emotionalPrompt, { maxTokens: 100, temperature: 0.5 }),
+      15000, 'benefício emocional'
+    );
     const emotionalBenefit = emotionalResp.content?.trim().replace(/^["']|["']$/g, '') || `uma jornada marcante de ${sentimentName.toLowerCase()}`;
     const targetAudience = `Este filme pode ser perfeito para quem busca ${emotionalBenefit}.`;
 
@@ -335,7 +359,10 @@ Crie um gancho emocional imersivo (cerca de 25-35 palavras) para a página do fi
 Capture a atmosfera, o impacto e a vibe do filme sem clichês de marketing (NUNCA use "Prepare-se", "Imperdível", "Assista", nem cite nomes de personagens).
 Responda APENAS com a frase direta, sem aspas.`;
 
-    const hookResp = await ai.generateResponse("Você é um redator cinematográfico de elite.", hookPrompt, { maxTokens: 150, temperature: 0.7 });
+    const hookResp = await withTimeout(
+      ai.generateResponseWithFallback("Você é um redator cinematográfico de elite.", hookPrompt, { maxTokens: 150, temperature: 0.7 }),
+      20000, 'landing page hook'
+    );
     let hook = hookResp.content?.trim().replace(/^["']|["']$/g, '') || '';
     hook = hook.replace(/```[\s\S]*?```/g, '').trim();
 
@@ -529,7 +556,7 @@ export async function evaluateMovie(
 
   // Avaliação Jev em lotes
   const results: JofEvaluationResult[] = [];
-  const BATCH_SIZE = 4;
+  const BATCH_SIZE = 8;
 
   for (let i = 0; i < evaluationCandidates.length; i += BATCH_SIZE) {
     const chunk = evaluationCandidates.slice(i, i + BATCH_SIZE);

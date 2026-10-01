@@ -7,89 +7,261 @@ description: Sistema de curadoria automatizada de filmes usando IA híbrida (Ope
 
 ## Objetivo
 
-Dominar o sistema de curadoria automatizada de filmes do vibesfilm, que utiliza inteligência artificial híbrida para analisar e categorizar filmes baseado em sentimentos e intenções emocionais.
+Dominar o sistema de curadoria automatizada de filmes do vibesfilm, que utiliza inteligência artificial híbrida e a **Jev Engine** para analisar e categorizar filmes baseado em sentimentos e intenções emocionais com precisão superior à análise LLM direta.
 
 ## Visão Geral
 
 O sistema de curadoria é uma ferramenta automatizada que:
-- ✅ Utiliza **IA híbrida** (OpenAI GPT-4 + Google Gemini + DeepSeek)
-- ✅ Analisa filmes baseado em **sentimentos e intenções emocionais**
+- ✅ Utiliza a **Jev Engine** para avaliação de subsentimentos com score quantificável
+- ✅ Analisa filmes baseado em **sentimentos e intenções emocionais** com alta cobertura
 - ✅ É **escalável, manutenível e economicamente eficiente**
-- ✅ Processa filmes usando **TMDB ID** para máxima eficiência
+- ✅ Processa filmes por **título/ano ou TMDB ID**
+- ✅ **Supera a análise LLM direta** em precisão — encontra jornadas não óbvias com cobertura de até 100%
+
+## Por que o `curateMovie.ts` é superior à análise LLM isolada
+
+Testes comparativos mostraram que o `curateMovie.ts` via Jev Engine:
+- **Encontra jornadas contraintuitivas mas emocionalmente corretas** (ex: filme de animação esportiva melhor encaixado em `Cansado(a)/TRANSFORM` do que no óbvio `Animado(a)/PROCESS`)
+- **Quantifica a precisão** com scores, patamares (Ouro/Prata/Bronze) e cobertura percentual
+- **Detecta sentimentos não óbvios** (ex: `Introspectivo(a)` com 92-100% de cobertura em filmes de suspense moral que a LLM classifica genericamente como `Calmo(a)`)
+- **Avalia o impacto emocional no espectador**, não apenas o tom superficial do filme
 
 ## Arquitetura do Sistema
 
 ### Componentes Principais
 
-#### 1. 🎬 Orquestrador Central
-**Arquivo:** `src/scripts/orchestrator.ts`
+#### 1. 🎬 Script Principal de Curadoria (NOVO — Recomendado)
+**Arquivo:** `src/scripts/curateMovie.ts`
 
-- Sistema automatizado completo de curadoria
-- Seleção inteligente de AI provider (OpenAI/Gemini/DeepSeek/Auto)
-- Processamento por `tmdbId` para máxima eficiência
-- Validação e retry automático
+- **4 etapas automatizadas** em um único comando
+- Avaliação completa via **Jev Engine** contra todas as JOFs do banco
+- Gravação inteligente das **2 melhores jornadas** (diversidade de sentimento)
+- Enriquecimento semântico de keywords, Oscar data, LandingPageHook, ContentWarnings
+- Suporte a **modo preview** (sem gravar) para validação prévia
+- Funciona para **filmes novos e filmes já na base** (upsert seguro)
 
 #### 2. 🤖 Sistema de AI Providers
 **Arquivo:** `src/utils/aiProvider.ts`
 
 - **Suporte:** OpenAI (GPT-4) + Google Gemini + DeepSeek
-- **Seleção automática** baseada em contexto do filme
 - **Otimização** de custos e qualidade
-- **Configuração específica** por gênero
 
 **Quando usar cada provider:**
 
-| Provider | Casos de Uso | Exemplos |
-|----------|--------------|----------|
-| **OpenAI** | Coming-of-age, thrillers psicológicos, dramas complexos, lente 16 (Ansioso) | "Lady Bird", "As Vantagens de Ser Invisível" |
-| **DeepSeek** | Romance/Comédia, Família/Animação, Ação/Aventura, lentes 13 (Feliz) e 17 (Animado) | "John Wick", "Mad Max", filmes leves |
-**USe como padrão, deepseek, a menos que o usuário especifique o contrário**
-#### 3. 📊 Scripts de Processamento
+| Provider | Casos de Uso |
+|----------|--------------|
+| **DeepSeek** (padrão) | Maioria dos filmes — melhor custo/benefício |
+| **OpenAI** | Coming-of-age, thrillers psicológicos, dramas complexos |
+| **Gemini** | Alternativa criativa |
 
-| Script | Função | Uso |
-|--------|--------|-----|
-| `populateMovies.ts` | Adiciona filmes usando TMDB ID | Busca e insere filme no banco |
-| `analyzeMovieSentiments.ts` | Análise de sentimentos com IA | Analisa emoções e sugere subsentimentos |
-| `discoverAndCurateAutomated.ts` | Curadoria automatizada completa | Valida e gera reflexão final |
-| `orchestrator.ts` | **Orquestrador principal** | **Executa todo o fluxo automaticamente** |
+**Use DeepSeek como padrão, a menos que o usuário especifique o contrário.**
 
-#### 4. 🛠️ Ferramentas de Suporte
+#### 3. 📊 Scripts de Suporte
 
-| Ferramenta | Função |
-|------------|--------|
-| `testAIProviders.ts` | Comparação OpenAI vs Gemini vs DeepSeek |
+| Script | Função |
+|--------|--------|
+| `populateMovies.ts` | Adiciona filmes manualmente via TMDB |
+| `analyzeMovieSentiments.ts` | Análise manual de sentimentos |
+| `discoverAndCurateAutomated.ts` | Curadoria manual por etapas |
+| `orchestrator.ts` | **Legado** — substituído pelo `curateMovie.ts` |
 | `duplicateMovieSuggestion.ts` | Duplicação de sugestões entre jornadas |
 | `healthCheck.ts` | Verificação de integridade do sistema |
 | `reprocessMovieSentiments.ts` | Reprocessa relevanceScore e reflexão |
-| `rephrase_reasons` | Refaz as reflexões |
 
-## 🚀 Como Usar: Processo de Curadoria
+---
 
-### Comando Principal (Recomendado)
+## 🚀 Comando Principal (Recomendado)
 
 ```bash
-npx ts-node src/scripts/orchestrator.ts \
-  --title="John Wick" \
-  --year=2014 \
-  --journeyOptionFlowId=26 \
-  --analysisLens=17 \
-  --journeyValidation=13 \
-  --ai-provider=deepseek
+npx ts-node src/scripts/curateMovie.ts --title="Nome do Filme" --year=2024
 ```
 
-### Parâmetros do Orchestrator
+---
 
-| Parâmetro | Descrição | Exemplo | Obrigatório |
-|-----------|-----------|---------|-------------|
-| `--title` | Título do filme | `"John Wick"` | ✅ |
-| `--year` | Ano de lançamento | `2014` | ✅ |
-| `--journeyOptionFlowId` | ID da opção de jornada | `26` | ✅ |
-| `--analysisLens` | Lente de análise (ID do MainSentiment) | `17` (Animado) | ✅ |
-| `--journeyValidation` | Sentimento de validação | `13` (Feliz) | ✅ |
-| `--ai-provider` | Provider de IA | `deepseek`/`openai`/`gemini`/`auto` | ❌ (default: auto) |
-| `--approve-new-subsentiments` | Aprovar novos subsentimentos | Flag opcional | ❌ |
+## 📋 Todas as Formas de Executar o `curateMovie.ts`
 
-### Lentes de Análise (MainSentiment IDs)
+### 1. Descoberta Automática Geral
+Avalia o filme contra todas as jornadas, elege as 2 melhores e salva:
+```bash
+npx ts-node src/scripts/curateMovie.ts --title="Inception" --year=2010
+```
+
+### 2. Usando TMDB ID diretamente
+```bash
+npx ts-node src/scripts/curateMovie.ts --tmdb=27205
+```
+
+### 3. Modo Preview (sem gravar — recomendado antes de atualizar)
+```bash
+npx ts-node src/scripts/curateMovie.ts --title="Inception" --year=2010 --preview
+# Equivalente: --dry-run
+```
+
+### 4. Forçando uma JOF específica
+```bash
+npx ts-node src/scripts/curateMovie.ts --title="Inception" --year=2010 --jofId=54
+```
+
+### 5. Filtrando por Sentimento Inicial
+```bash
+npx ts-node src/scripts/curateMovie.ts --title="Inception" --year=2010 --sentiment="ansioso"
+# Valores: calmo, feliz, triste, ansioso, animado, introspectivo, cansado
+```
+
+### 6. Filtrando por Intenção Emocional
+```bash
+npx ts-node src/scripts/curateMovie.ts --title="Inception" --year=2010 --intention="transform"
+# Valores: maintain, process, transform, explore
+```
+
+### 7. Especificando o AI Provider
+```bash
+npx ts-node src/scripts/curateMovie.ts --title="Inception" --year=2010 --provider=openai
+# Valores: deepseek (padrão), openai, gemini
+```
+
+### 8. Ajustando Threshold da Jev Engine
+```bash
+npx ts-node src/scripts/curateMovie.ts --title="Inception" --year=2010 --threshold=0.65
+# Padrão: 0.55 — quanto maior, mais exigente na ativação de subsentimentos
+```
+
+### 9. Ajustando Quantidade de Jornadas no Ranking
+```bash
+npx ts-node src/scripts/curateMovie.ts --title="Inception" --year=2010 --top=5
+# Padrão: 3
+```
+
+### 10. Comando Completo
+```bash
+npx ts-node src/scripts/curateMovie.ts \
+  --title="Inception" \
+  --year=2010 \
+  --sentiment="ansioso" \
+  --intention="transform" \
+  --provider=deepseek \
+  --threshold=0.60 \
+  --top=5
+```
+
+---
+
+## 📋 Etapas Internas do `curateMovie.ts`
+
+O script executa automaticamente **4 etapas**:
+
+### Etapa 1: Ingestão e Verificação
+- Verifica se o filme já está na base (não duplica)
+- Se não encontrado, ingere automaticamente via TMDB/OMDb
+- Enriquece dados de Oscar (não-bloqueante)
+
+### Etapa 2: Enriquecimento Semântico de Keywords
+- Adiciona 10-15 keywords emocionais profundas em português via IA
+- Incremental — não apaga keywords existentes
+
+### Etapa 3: Avaliação via Jev Engine
+- Avalia o filme contra todas as JOFs do banco (em batches de 4)
+- Computa score por fórmula oficial (intensidade × cobertura + bônus de patamar)
+- Exibe ranking com patamares: **Ouro** (≥75%), **Prata** (≥65%), **Bronze** (≥50%)
+
+### Etapa 4: Gravação e Vitrine
+- Salva a **1ª campeã** (maior score geral)
+- Salva a **2ª campeã** (melhor de um sentimento diferente — para diversidade de público)
+- Gera reflexão poética via IA para cada jornada salva
+- Atualiza `EmotionalEntryType`, `ContentWarnings`, `LandingPageHook`, `TargetAudienceForLP`
+- Recalcula ranking de relevância
+
+---
+
+## �� Sistema de Patamares (Scores)
+
+| Patamar | Cobertura | Bônus |
+|---------|-----------|-------|
+| **Ouro** | ≥ 75% dos subsentimentos | +0.6 |
+| **Prata** | ≥ 65% dos subsentimentos | +0.4 |
+| **Bronze** | ≥ 50% dos subsentimentos | +0.2 |
+| Sem Bônus | < 50% | 0 |
+
+---
+
+## 🧠 Lógica de Gravação das 2 Melhores Jornadas
+
+O script grava:
+1. **1ª Opção:** JOF com maior score absoluto
+2. **2ª Opção:** JOF com maior score de um **sentimento inicial diferente** (para alcançar públicos distintos)
+   - Fallback: se não houver de sentimento diferente, usa a 2ª colocada geral
+
+**Rationale:** A plataforma começa com "Como você está?". Gravar duas jornadas do mesmo sentimento seria redundante para o usuário — ele já chegaria ao filme pela primeira. A diversidade de sentimento amplifica o alcance do filme para públicos diferentes.
+
+> ⚠️ **Limitação conhecida:** Não há piso de qualidade para a 2ª opção — pode acontecer de uma jornada Prata ser escolhida no lugar de uma Ouro do mesmo sentimento. Monitorar durante os testes com mais filmes.
+
+---
+
+## 🔄 Uso para Filmes Já na Base (Reprocessamento)
+
+O script é seguro para reprocessar filmes existentes:
+
+| Campo | Comportamento |
+|---|---|
+| `MovieSuggestionFlow` | Atualiza se existe, cria se não existe (upsert) |
+| `MovieSentiment` | Upsert — atualiza relevance e explanation |
+| Keywords | Incremental — adiciona novas, preserva existentes |
+| `LandingPageHook` | Sobrescreve com nova geração |
+| Oscar data | Re-fetcha (não-bloqueante) |
+
+**Fluxo recomendado para reprocessamento:**
+```bash
+# 1. Ver ranking sem gravar
+npx ts-node src/scripts/curateMovie.ts --title="Filme" --year=2024 --preview
+
+# 2. Se quiser forçar uma JOF específica
+npx ts-node src/scripts/curateMovie.ts --title="Filme" --year=2024 --jofId=43
+
+# 3. Reprocessamento automático completo
+npx ts-node src/scripts/curateMovie.ts --title="Filme" --year=2024
+```
+
+---
+
+## 🔧 Ferramentas Auxiliares
+
+### Duplicação de Sugestões
+```bash
+# --journeyOptionFlowId=61 → destino
+# --baseJourneyOptionFlowId=6 → origem (buscar na tabela MovieSuggestionFlow)
+npx ts-node src/scripts/duplicateMovieSuggestion.ts \
+  --title="John Wick 4" --year=2023 \
+  --journeyOptionFlowId=61 --baseJourneyOptionFlowId=6
+```
+
+### Health Check
+```bash
+npx ts-node src/scripts/healthCheck.ts
+```
+
+### Teste de AI Providers
+```bash
+npx ts-node src/scripts/testAIProviders.ts
+```
+
+---
+
+## ⚙️ Variáveis de Ambiente Necessárias
+
+```env
+DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."
+OPENAI_API_KEY="sk-..."
+TMDB_API_KEY="your-tmdb-key"
+GEMINI_API_KEY="your-gemini-key"       # opcional
+DEEPSEEK_API_KEY="your-deepseek-key"   # opcional
+OMDB_API_KEY="your-omdb-key"           # opcional
+AI_PROVIDER="auto"  # openai|gemini|deepseek|auto
+```
+
+---
+
+## 📈 Lentes de Análise (MainSentiment IDs)
 
 | ID | Sentimento | Quando Usar |
 |----|------------|-------------|
@@ -98,313 +270,19 @@ npx ts-node src/scripts/orchestrator.ts \
 | 15 | Calmo | Filmes contemplativos, relaxantes |
 | 16 | Ansioso | Suspense, thrillers, tensão |
 | 17 | Animado | Ação, aventura, energia |
-
-## 📋 Etapas do Processo Automatizado
-
-O orchestrator executa automaticamente 4 etapas:
-
-### Etapa 1: Adição do Filme
-```bash
-# Executado internamente pelo orchestrator
-populateMovies.ts --title="John Wick" --year=2014
-```
-
-**O que faz:**
-- ✅ Busca no TMDB por título/ano
-- ✅ Captura: diretor, gêneros, keywords, ratings (IMDb, RT, Metacritic)
-- ✅ Retorna `TMDB_ID_FOUND: 245891`
-
-### Etapa 2: Análise de Sentimentos
-```bash
-# Executado internamente pelo orchestrator
-analyzeMovieSentiments.ts 245891 26 17 --ai-provider=auto
-```
-
-**O que faz:**
-- ✅ Busca filme por `tmdbId`
-- ✅ Seleção automática de AI provider
-- ✅ Análise contextual usando lente especificada
-- ✅ Sugere subsentimentos (ex: "Adrenalina / Emoção Intensa")
-
-### Etapa 3: Execução de INSERTs
-```bash
-# Executado internamente pelo orchestrator
-executeSqlFromFile.ts inserts.sql
-```
-
-**O que faz:**
-- ✅ Insere `MovieSentiment` para filme
-- ✅ Atualiza `JourneyOptionFlowSubSentiment` com pesos
-- ✅ Tratamento de duplicatas e erros
-
-### Etapa 4: Curadoria Final
-```bash
-# Executado internamente pelo orchestrator
-discoverAndCurateAutomated.ts 245891 13 --ai-provider=deepseek
-```
-
-**O que faz:**
-- ✅ Valida compatibilidade filme-jornada
-- ✅ Gera reflexão personalizada com IA
-- ✅ Cria `MovieSuggestionFlow` final
-
-## 🔧 Exemplos Práticos
-
-### Exemplo 1: Filme de Ação (Auto-DeepSeek)
-```bash
-npx ts-node src/scripts/orchestrator.ts \
-  --title="John Wick" \
-  --year=2014 \
-  --journeyOptionFlowId=26 \
-  --analysisLens=17 \
-  --journeyValidation=13 \
-  --ai-provider=deepseek
-
-# Sistema escolhe: DEEPSEEK (ação + animado)
-# Resultado: "Adrenalina / Emoção Intensa", "Deslumbramento Visual"
-```
-
-### Exemplo 2: Drama Coming-of-Age (Auto-OpenAI)
-```bash
-npx ts-node src/scripts/orchestrator.ts \
-  --title="Lady Bird" \
-  --year=2017 \
-  --journeyOptionFlowId=25 \
-  --analysisLens=14 \
-  --journeyValidation=13 \
-  --ai-provider=auto
-
-# Sistema escolhe: OPENAI (coming-of-age complexo)
-# Resultado: "Autodescoberta e Crescimento", "Esperança e Superação"
-```
-
-### Exemplo 3: Romance (Manual-Gemini)
-```bash
-npx ts-node src/scripts/orchestrator.ts \
-  --title="O Fabuloso Destino de Amélie Poulain" \
-  --year=2001 \
-  --journeyOptionFlowId=25 \
-  --analysisLens=13 \
-  --journeyValidation=13 \
-  --ai-provider=deepseek
-
-# Gemini manual: Otimizado para romance
-# Resultado: "Doçura / Encanto", "Conforto / Aconchego Emocional"
-```
-
-## 🧠 Conceitos Fundamentais
-
-### 1. TMDB ID como Chave Primária
-- **Identificador único** e eficiente do filme
-- **Substitui** busca por title/year para maior precisão
-- **Evita** duplicatas e conflitos de nome
-
-### 2. Lente de Análise (Analysis Lens)
-- Sentimento principal usado para **guiar a IA**
-- Determina como o filme será **interpretado emocionalmente**
-- Define o **contexto** da análise
-
-### 3. Journey Option Flow
-- Representa uma **pergunta específica** na jornada do usuário
-- Ex: "filmes que sejam empolgantes e cheios de energia?"
-- Conecta filme à **experiência emocional desejada**
-
-### 4. Validação de Sentimento
-- Sentimento final onde o usuário deve **chegar**
-- Garante que o filme leva à **experiência emocional correta**
-
-### 5. SubSentiments
-- **Nuances emocionais** específicas do filme
-- Criados automaticamente pela IA ou reutilizados
-- Têm **pesos** que indicam intensidade (0-10)
-
-## 💰 Otimização de Custos
-
-### Estratégia Híbrida
-- **DeepSeek**: Custo ~80% menor que OpenAI
-- **OpenAI**: Reservado para casos complexos
-
-### Métricas de Economia
-
-| Categoria | Provider Recomendado | Economia |
-|-----------|---------------------|----------|
-| Romance/Comédia | 100% DeepSeek | Máxima |
-| Ação/Aventura | 90% DeepSeek | Alta |
-| Coming-of-age | 100% OpenAI | Qualidade prioritária |
-| Drama psicológico | 100% OpenAI | Precisão necessária |
-
-## 📊 Sistema de Monitoramento
-
-### Logs Estruturados
-```
-🎬 === ORQUESTRADOR DE CURADORIA DE FILMES ===
-📋 Processando 1 filmes...
-🔄 Processando: John Wick (2014)
-🎯 TMDB ID capturado: 245891
-🤖 AI Provider selecionado automaticamente: DEEPSEEK
-📊 Baseado em: Gêneros [Ação], Lente 17
-✅ Filme processado com sucesso
-```
-
-### Validação Automática
-- ✅ Verificação de parâmetros obrigatórios
-- ✅ Validação de IDs existentes no banco
-- ✅ Detecção de filmes já processados
-- ✅ Matching de subsentimentos existentes
-
-### Tratamento de Erros
-- 🔄 Retry automático para APIs
-- 📝 Logs detalhados de falhas
-- ⚠️ Validação de novos subsentimentos
-- 🛡️ Fallback entre providers
-
-## 🔧 Troubleshooting
-
-### Problemas Comuns
-
-#### 1. JSON Inválido do Gemini
-```
-Erro: SyntaxError: Unexpected end of JSON input
-Solução: Verificar stopSequences removido, maxTokens suficiente
-```
-
-#### 2. Subsentimento Duplicado
-```
-Erro: "Suspense Crescente" já existe em mainSentiment diferente
-Solução: Não aprovar com --approve-new-subsentiments
-```
-
-#### 3. TMDB_ID_FOUND não capturado
-```
-Erro: orchestrator.ts passa title em vez de tmdbId
-Solução: Verificar regex de captura TMDB_ID_FOUND
-```
-
-#### 4. AI Provider 401/404
-```
-Erro: Request failed with status code 401
-Solução: Verificar .env carregado, keys válidas
-```
-
-### Debug Detalhado
-```bash
-# Ativar logs verbose
-DEBUG=true npx ts-node src/scripts/orchestrator.ts [params]
-
-# Verificar configuração
-npx ts-node src/scripts/testConnection.ts
-
-# Validar AI providers
-npx ts-node src/scripts/testAIProviders.ts
-```
-
-## ⚙️ Configuração
-
-### Variáveis de Ambiente Necessárias
-```env
-# Banco de dados
-DATABASE_URL="postgresql://..."
-DIRECT_URL="postgresql://..."
-
-# APIs obrigatórias
-OPENAI_API_KEY="sk-..."
-TMDB_API_KEY="your-tmdb-key"
-
-# APIs opcionais
-GEMINI_API_KEY="your-gemini-key"
-DEEPSEEK_API_KEY="your-deepseek-key"
-OMDB_API_KEY="your-omdb-key"
-
-# Configuração padrão de AI
-AI_PROVIDER="auto"  # openai|gemini|deepseek|auto
-```
-
-## 📈 Métricas e Performance
-
-### Tempos de Processamento
-- **OpenAI**: ~2-4 segundos por análise
-- **Gemini**: ~1-3 segundos por análise
-- **DeepSeek**: ~1-2 segundos por análise
-- **Total**: ~30-60 segundos por filme completo
-
-### Taxa de Sucesso
-- **Busca TMDB**: ~95% para filmes conhecidos
-- **Análise IA**: ~98% com retry automático
-- **Curadoria**: ~95% para filmes com dados completos
-
-### Qualidade dos Resultados
-- **OpenAI**: Explicações mais detalhadas, menos novos subsentimentos
-- **Gemini**: Sugestões criativas, às vezes redundantes
-- **DeepSeek**: Balanceamento entre custo e qualidade
-
-## 🛠️ Ferramentas Auxiliares
-
-### Teste de AI Providers
-```bash
-# Comparação direta entre providers
-npx ts-node src/scripts/testAIProviders.ts
-
-# Resultado mostra:
-# - Tempo de resposta
-# - Qualidade das sugestões
-# - Custo estimado
-# - Formato da resposta
-```
-
-### Duplicação de Sugestões
-```bash
-# Duplicar sugestão existente para a jornada 61, exemplo
-# --journeyOptionFlowId=61 --> destino
-# --baseJourneyOptionFlowId=6 --> origem
-# para descobrir a origem precisa olhar a tabela MovieSuggestionFlow e capturar um código journeyOptionFlowId
-npx ts-node src/scripts/duplicateMovieSuggestion.ts --title="John Wick 4: Baba Yaga" --year=2023 --journeyOptionFlowId=61 --baseJourneyOptionFlowId=6
-```
-
-### Health Check Completo
-```bash
-# Verificação de integridade do sistema
-npx ts-node src/scripts/healthCheck.ts
-
-# Verifica:
-# - Conexão com APIs
-# - Integridade do banco
-# - Configurações corretas
-# - Performance dos providers
-```
-
-## 🎯 Melhores Práticas
-
-1. **Sempre use `--ai-provider=deepseek`** para novos filmes (economia)
-2. **Use `--ai-provider=auto`** quando não tiver certeza
-3. **Teste com ambos providers** para casos duvidosos
-4. **Documente novos subsentimentos** criados
-5. **Monitore custos** e otimize quando possível
-6. **Use TMDB ID** sempre que possível (mais eficiente)
-7. **Valide Journey Option Flow** antes de processar
-
-## 📚 Referências Rápidas
-
-### Arquivos Importantes
-- `src/scripts/orchestrator.ts` - Orquestrador principal
-- `src/utils/aiProvider.ts` - Configuração de AI providers
-- `prisma/schema.prisma` - Estrutura do banco de dados
-- `docs/README_CURADORIA.md` - Documentação completa original
-
-### Comandos Essenciais
-```bash
-# Curadoria completa (recomendado)
-npx ts-node src/scripts/orchestrator.ts --title="FILME" --year=ANO --journeyOptionFlowId=ID --analysisLens=LENS --journeyValidation=VALIDATION --ai-provider=deepseek
-
-# Teste de providers
-npx ts-node src/scripts/testAIProviders.ts
-
-# Health check
-npx ts-node src/scripts/healthCheck.ts
-
-# Duplicar sugestão
-npx ts-node src/scripts/duplicateMovieSuggestion.ts "FILME" ANO JOURNEY_ID
-```
+| 18 | Introspectivo | Filmes filosóficos, dilemas morais, psicológicos |
 
 ---
 
-**vibesfilm Curation System v2.0** - Powered by OpenAI + Gemini + DeepSeek 🎬🤖
+## 🎯 Melhores Práticas
+
+1. **Sempre use `--preview` primeiro** ao reprocessar filmes existentes
+2. **Use `--provider=deepseek`** para maioria dos filmes (economia)
+3. **Use `--provider=openai`** para dramas complexos e coming-of-age
+4. **Use `--jofId`** quando a LLM sugerir uma jornada específica e quiser forçá-la
+5. **Use `--sentiment` + `--intention`** para curar filmes em jornadas específicas
+6. **Confie no Jev Engine** — ele frequentemente identifica jornadas contraintuitivas mas mais precisas que a análise LLM
+
+---
+
+**vibesfilm Curation System v3.0** — Powered by Jev Engine + OpenAI + Gemini + DeepSeek 🎬🤖
