@@ -23,14 +23,48 @@ interface PendingCuration {
   expiresAt: number;
 }
 
-const pendingStore = new Map<string, PendingCuration>();
+import * as fs from 'fs';
+import * as path from 'path';
+
+const CACHE_FILE = path.join(process.cwd(), '.curations_pending.json');
+
+function loadPendingStore(): Map<string, PendingCuration> {
+  try {
+    if (fs.existsSync(CACHE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
+      const map = new Map<string, PendingCuration>();
+      const now = Date.now();
+      for (const [k, v] of Object.entries(data)) {
+        if ((v as PendingCuration).expiresAt > now) {
+          map.set(k, v as PendingCuration);
+        }
+      }
+      return map;
+    }
+  } catch {}
+  return new Map<string, PendingCuration>();
+}
+
+function savePendingStore(map: Map<string, PendingCuration>) {
+  try {
+    const obj = Object.fromEntries(map.entries());
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(obj, null, 2), 'utf-8');
+  } catch {}
+}
+
+const pendingStore = loadPendingStore();
 
 // Limpar entradas expiradas a cada 10 minutos
 setInterval(() => {
   const now = Date.now();
-  for (const [key, value] of pendingStore.entries()) {
-    if (value.expiresAt < now) pendingStore.delete(key);
+  let changed = false;
+  for (const [key, value] of Array.from(pendingStore.entries())) {
+    if (value.expiresAt < now) {
+      pendingStore.delete(key);
+      changed = true;
+    }
   }
+  if (changed) savePendingStore(pendingStore);
 }, 10 * 60 * 1000);
 
 // ====================================================
@@ -64,6 +98,7 @@ router.post('/preview', async (req, res) => {
       topSelections: result.topSelections,
       expiresAt: Date.now() + 30 * 60 * 1000
     });
+    savePendingStore(pendingStore);
 
     return res.json({
       success: true,
@@ -103,7 +138,13 @@ router.post('/preview', async (req, res) => {
 router.post('/confirm-pending/:pendingId', async (req, res) => {
   try {
     const { pendingId } = req.params;
-    const pending = pendingStore.get(pendingId);
+    let pending = pendingStore.get(pendingId);
+    if (!pending) {
+      // Tentar recarregar do disco caso outro processo tenha escrito
+      const reloaded = loadPendingStore();
+      pending = reloaded.get(pendingId);
+      if (pending) pendingStore.set(pendingId, pending);
+    }
 
     if (!pending) {
       return res.status(404).json({
@@ -121,6 +162,7 @@ router.post('/confirm-pending/:pendingId', async (req, res) => {
     );
 
     pendingStore.delete(pendingId);
+    savePendingStore(pendingStore);
 
     return res.json({
       success: true,
@@ -184,6 +226,7 @@ router.post('/confirm-direct', async (req, res) => {
 router.post('/cancel-pending/:pendingId', (req, res) => {
   const { pendingId } = req.params;
   const existed = pendingStore.delete(pendingId);
+  if (existed) savePendingStore(pendingStore);
   return res.json({ success: true, cancelled: existed });
 });
 
