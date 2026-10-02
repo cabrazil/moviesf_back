@@ -443,7 +443,7 @@ async function generatePillarArticle() {
     O leitor deve sentir que cada obra acrescentou uma nova forma de compreender o tema da curadoria.
     
     <p>📖 <a href='/artigo/[Slug do Filme da requisição]'>Análise emocional completa de [Título do Filme]</a></p>
-    <p>🎬 <a href='/onde-assistir/[Slug do Filme da requisição]'>Onde Assistir Agora</a></p>
+    <p>🎬 <a href='/filme/[Slug do Filme da requisição]'>Onde Assistir Agora</a></p>
 
     (Repita essa exata mesma estrutura para TODOS os filmes listados no contexto).
 

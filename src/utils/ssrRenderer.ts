@@ -111,8 +111,8 @@ export function renderMovieHTML(
 
   const seoDescription = cleanTruncate(rawDesc, 160);
 
-  // URL canônica consolidada (Sempre usar /onde-assistir/ para evitar conteúdo duplicado)
-  const routePath = `/onde-assistir/${slug}`;
+  // URL canônica consolidada (Ficha editorial oficial /filme/)
+  const routePath = `/filme/${slug}`;
   const canonicalUrl = `https://vibesfilm.com${routePath}`;
 
   // Schema.org JSON-LD

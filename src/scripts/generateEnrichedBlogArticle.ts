@@ -667,7 +667,7 @@ Em seguida, escolha 2 ou 3 das "Jornadas Emocionais" fornecidas nos dados e tran
 
 ## Sua Vibe Encontra o Filme Certo no Vibesfilm
 Conclusão emocional. Reforce que o Vibesfilm entende que cinema é mais que entretenimento.
-Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /onde-assistir/${movieSlug} com texto '${movie.title} (${movie.year})']."
+Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /filme/${movieSlug} com texto '${movie.title} (${movie.year})']."
 
 **Rodapé:**
 <hr>

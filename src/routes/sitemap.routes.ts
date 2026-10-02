@@ -108,19 +108,9 @@ router.get('/movies.xml', async (req, res, next) => {
   }
 });
 
-router.get('/movie-landings.xml', async (req, res) => {
-  try {
-    await generateMovieSitemap(res, {
-      cacheKey: 'sitemap_movie_landings_xml',
-      pathPrefix: '/onde-assistir/',
-      changefreq: 'weekly',
-      priority: '0.7',
-      logLabel: 'landing'
-    });
-  } catch (error) {
-    console.error('Erro ao gerar sitemap de landing pages:', error);
-    res.status(500).send('Erro interno do servidor');
-  }
+router.get('/movie-landings.xml', (req, res) => {
+  // Redirecionamento permanente para o sitemap canônico unificado
+  return res.redirect(301, 'https://api.vibesfilm.com/sitemap/movies.xml');
 });
 
 router.get('/articles.xml', async (req, res) => {

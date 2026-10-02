@@ -708,7 +708,7 @@ Escolha 2 ou 3 Jornadas Emocionais dos dados e transforme-as em mini-convites us
 
 ## Esse filme é a resposta para o que você está sentindo?
 Conclusão emocional. NÃO faça um resumo do artigo. Faça uma última pergunta ou afirmação que deixe o leitor com vontade de apertar play.
-Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /onde-assistir/${movieSlug} com texto '${movie.title} (${movie.year})']."
+Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Confira nosso guia completo de [Link para /filme/${movieSlug} com texto '${movie.title} (${movie.year})']."
 
 **Rodapé:**
 <hr>
