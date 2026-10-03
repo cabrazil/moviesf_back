@@ -734,13 +734,23 @@ Opções:
   // 1. Campeã Principal (1º Maior Score)
   const champion1 = topResults[0];
 
-  // 2. Segunda Campeã: buscar a melhor de um OUTRO estado de humor; se não houver, a 2ª colocada geral
+  // 2. Segunda Campeã:
+  // - Preferência A: Melhor jornada de OUTRO estado de humor, desde que atinja score mínimo (>= 5.0)
+  // - Fallback B: Se o melhor outro humor for fraco (< 5.0), seleciona a 2ª colocada geral desde que score >= 5.0
+  // - Se nenhuma outra jornada atingir 5.0, o filme terá apenas 1 opção curada (evita recomendações espúrias)
+  const MIN_SCORE_OPTION2 = 5.0;
+
   let champion2 = results.find(
-    r => r.jofId !== champion1.jofId && r.mainSentimentName !== champion1.mainSentimentName
+    r => r.jofId !== champion1.jofId &&
+         r.mainSentimentName !== champion1.mainSentimentName &&
+         r.score >= MIN_SCORE_OPTION2
   );
 
-  if (!champion2 && results.length > 1) {
-    champion2 = results.find(r => r.jofId !== champion1.jofId);
+  if (!champion2) {
+    champion2 = results.find(
+      r => r.jofId !== champion1.jofId &&
+           r.score >= MIN_SCORE_OPTION2
+    );
   }
 
   // ==========================================
