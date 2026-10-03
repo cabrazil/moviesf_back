@@ -378,7 +378,7 @@ export class JevService {
         : '';
       questions[`sub_${cand.id}`] = {
         type: 'noul',
-        instructions: `Considerando a jornada "${input.journeyOptionText}" e o tom do filme, a obra aborda de forma evidente e relevante o sentimento/tema "${cand.name}"${kwHint}?`
+        instructions: `Considerando a jornada "${input.journeyOptionText}" (Lente Emocional: ${input.mainSentimentName || 'Geral'}) e a atmosfera real da obra, o filme aborda de forma genuína e compatível com a proposta desta jornada o sentimento "${cand.name}"${kwHint}? Se o tom da obra for manifestamente antagônico à experiência da jornada (por exemplo, terror visceral/pânico puro frente a uma jornada de acolhimento reflexivo e tristeza profunda), desconsidere coincidências superficiais.`
       };
     }
 
