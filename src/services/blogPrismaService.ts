@@ -43,7 +43,6 @@ export class BlogPrismaService {
         SELECT 
           a.id,
           a.title,
-          a.content,
           a.description,
           a.date,
           a."imageUrl",
@@ -55,6 +54,7 @@ export class BlogPrismaService {
           a."updatedAt",
           a.slug,
           a."blogId",
+          CEIL(GREATEST(LENGTH(a.content), 200) / 1000.0)::int as "readingTime",
           au.id as author_id,
           au.name as author_name,
           au.role as author_role,
@@ -278,7 +278,6 @@ export class BlogPrismaService {
         SELECT 
           a.id,
           a.title,
-          a.content,
           a.description,
           a.date,
           a."imageUrl",
@@ -290,6 +289,7 @@ export class BlogPrismaService {
           a."updatedAt",
           a.slug,
           a."blogId",
+          CEIL(GREATEST(LENGTH(a.content), 200) / 1000.0)::int as "readingTime",
           au.id as author_id,
           au.name as author_name,
           au.role as author_role,

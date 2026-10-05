@@ -24,6 +24,7 @@ router.get('/posts', async (req, res) => {
       return res.status(500).json(result);
     }
 
+    res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600');
     res.json(result);
   } catch (error) {
     console.error('Erro na rota de artigos:', error);
@@ -46,6 +47,7 @@ router.get('/posts/featured', async (req, res) => {
       return res.status(500).json(result);
     }
 
+    res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600');
     res.json(result);
   } catch (error) {
     console.error('Erro na rota de artigos em destaque:', error);
@@ -93,6 +95,7 @@ router.get('/categories', async (req, res) => {
       return res.status(500).json(result);
     }
 
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1200');
     res.json(result);
   } catch (error) {
     console.error('Erro na rota de categorias:', error);
@@ -122,6 +125,7 @@ router.get('/categories/:slug/posts', async (req, res) => {
       return res.status(500).json(result);
     }
 
+    res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600');
     res.json(result);
   } catch (error) {
     console.error('Erro na rota de artigos por categoria:', error);
@@ -144,6 +148,7 @@ router.get('/tags', async (req, res) => {
       return res.status(500).json(result);
     }
 
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1200');
     res.json(result);
   } catch (error) {
     console.error('Erro na rota de tags:', error);
