@@ -619,12 +619,19 @@ export async function evaluateMovie(
   }
 
   const champion1 = results[0];
+  const MIN_SCORE_OPTION2 = 5.0;
+
   let champion2 = results.find(
-    r => r.jofId !== champion1.jofId && r.mainSentimentName !== champion1.mainSentimentName
+    r => r.jofId !== champion1.jofId &&
+         r.mainSentimentName !== champion1.mainSentimentName &&
+         r.score >= MIN_SCORE_OPTION2
   );
 
-  if (!champion2 && results.length > 1) {
-    champion2 = results.find(r => r.jofId !== champion1.jofId);
+  if (!champion2) {
+    champion2 = results.find(
+      r => r.jofId !== champion1.jofId &&
+           r.score >= MIN_SCORE_OPTION2
+    );
   }
 
   const topSelections = [champion1];
