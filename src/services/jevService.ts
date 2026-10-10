@@ -86,7 +86,7 @@ export const DEFAULT_CATEGORY_THRESHOLDS: Record<string, number> = {
   insinuacoes_sexuais: 0.60,
   drogas_alcool: 0.50,
   linguagem_forte: 0.55,
-  perturbador_angustia: 0.40,
+  perturbador_angustia: 0.55,
   preconceito_discriminacao: 0.55,
   humor_acido: 0.60
 };
@@ -208,12 +208,16 @@ export class JevService {
 
       const probabilities: Record<string, number> = {};
       for (const [key, val] of Object.entries(data.answers)) {
-        if (typeof val.noul === 'number') {
-          probabilities[key] = val.noul;
+        const noulVal = (val as any)?.noul;
+        if (typeof noulVal === 'number') {
+          probabilities[key] = noulVal;
         }
       }
 
-      const warning = this.synthesizeWarning(probabilities, options?.thresholds);
+      const warning = this.synthesizeWarning(probabilities, options?.thresholds, {
+        genres: movie.genres,
+        certification: movie.certification
+      });
 
       return {
         success: true,
@@ -254,13 +258,25 @@ export class JevService {
 
   synthesizeWarning(
     probs: Record<string, number>,
-    thresholdInput?: Record<string, number> | number
+    thresholdInput?: Record<string, number> | number,
+    movieMetadata?: {
+      genres?: string[];
+      certification?: string;
+    }
   ): string {
     const isGlobal = typeof thresholdInput === 'number';
     const getThresh = (cat: string) =>
       isGlobal
         ? (thresholdInput as number)
         : getCategoryThreshold(cat, thresholdInput as Record<string, number>);
+
+    // Detectar se é filme de Animação / Família com classificação livre ou não adulta
+    const isAnimationOrFamily = movieMetadata?.genres?.some(g =>
+      /anima(ção|cao)|animation|fam[íi]lia|family|infantil/i.test(g)
+    );
+    const certRaw = (movieMetadata?.certification || '').trim().toUpperCase();
+    const isRestrictedAdult = ['14', '16', '18', 'R', 'NC-17', 'TV-MA'].some(r => certRaw.includes(r));
+    const isFamilyFriendly = Boolean(isAnimationOrFamily && !isRestrictedAdult);
 
     const clauses: string[] = [];
 
@@ -284,7 +300,11 @@ export class JevService {
       } else if (hasViolenciaBrutalidade) {
         clauses.push('cenas de violência física e brutalidade');
       } else if (hasViolenciaModerada) {
-        clauses.push('cenas de violência e perigo');
+        if (isFamilyFriendly) {
+          clauses.push('momentos de ação e perigo em animação');
+        } else {
+          clauses.push('cenas de violência e perigo');
+        }
       }
     }
 
@@ -317,7 +337,15 @@ export class JevService {
 
     // 6. Angústia / Perturbador
     if ((probs.perturbador_angustia || 0) >= getThresh('perturbador_angustia')) {
-      clauses.push('situações emocionalmente angustiantes ou perturbadoras');
+      if (isFamilyFriendly) {
+        // Para animação/família livre, ignora falsos positivos de angústia (ex: dilemas existenciais de brinquedos ou animais)
+        // Só emite se a carga for altíssima (>= 0.85, estilo Túmulo dos Vagalumes) com linguagem suave
+        if ((probs.perturbador_angustia || 0) >= 0.85) {
+          clauses.push('momentos de maior carga dramática e sensibilidade emocional');
+        }
+      } else {
+        clauses.push('situações emocionalmente angustiantes ou perturbadoras');
+      }
     }
 
     // 7. Preconceito / Discriminação
