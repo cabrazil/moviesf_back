@@ -735,10 +735,10 @@ Opções:
   const champion1 = topResults[0];
 
   // 2. Segunda Campeã:
-  // - Preferência A: Melhor jornada de OUTRO estado de humor, desde que atinja score mínimo (>= 5.0)
-  // - Fallback B: Se o melhor outro humor for fraco (< 5.0), seleciona a 2ª colocada geral desde que score >= 5.0
-  // - Se nenhuma outra jornada atingir 5.0, o filme terá apenas 1 opção curada (evita recomendações espúrias)
-  const MIN_SCORE_OPTION2 = 5.0;
+  // - Preferência A: Melhor jornada de OUTRO estado de humor, desde que atinja score mínimo (>= 6.0)
+  // - Fallback B: Se o melhor outro humor for fraco (< 6.0), seleciona a 2ª colocada geral desde que score >= 6.0
+  // - Se nenhuma outra jornada atingir 6.0, o filme terá apenas 1 opção curada (evita recomendações espúrias)
+  const MIN_SCORE_OPTION2 = 6.0;
 
   let champion2 = results.find(
     r => r.jofId !== champion1.jofId &&

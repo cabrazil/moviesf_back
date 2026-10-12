@@ -619,7 +619,7 @@ export async function evaluateMovie(
   }
 
   const champion1 = results[0];
-  const MIN_SCORE_OPTION2 = 5.0;
+  const MIN_SCORE_OPTION2 = 6.0;
 
   let champion2 = results.find(
     r => r.jofId !== champion1.jofId &&
