@@ -500,7 +500,8 @@ async function getMovieDirectors(movieId: number): Promise<string | null> {
   }
 }
 
-function getCharacterType(name: string): string {
+export function getCharacterType(name: string): string {
+  if (/[\u0400-\u04FF]/.test(name)) return 'cirílico/russo';
   if (/[\u0590-\u05FF]/.test(name)) return 'hebraico';
   if (/[\u0600-\u06FF]/.test(name)) return 'árabe';
   if (/[\uAC00-\uD7AF]/.test(name)) return 'coreano';
@@ -509,7 +510,92 @@ function getCharacterType(name: string): string {
   if (/[\uFB50-\uFDFF]/.test(name)) return 'formas de apresentação árabe';
   if (/[\uFE70-\uFEFF]/.test(name)) return 'formas especiais árabes';
   if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\u3400-\u4DBF]/.test(name)) return 'japonês/chinês';
+  if (/[\u0900-\u097F]/.test(name)) return 'hindi';
+  if (/[\u0E00-\u0E7F]/.test(name)) return 'tailandês';
   return 'desconhecido';
+}
+
+export function hasNonLatinCharacters(text: string): boolean {
+  if (!text) return false;
+  return /[\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\uAC00-\uD7AF\u1100-\u11FF\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\u3400-\u4DBF\u0900-\u097F\u0E00-\u0E7F]/.test(text);
+}
+
+export async function resolveLocalizedMovieTitle(
+  tmdbId: number,
+  currentTitle: string,
+  originalTitle: string
+): Promise<string> {
+  // Se o título NÃO possui caracteres não-latinos, usa o título normal
+  if (!hasNonLatinCharacters(currentTitle)) {
+    return currentTitle;
+  }
+
+  const charType = getCharacterType(currentTitle);
+  console.log(`🌐 Título "${currentTitle}" possui caracteres não-latinos (${charType}). Resolvendo tradução para pt-BR...`);
+
+  try {
+    // 1. Consultar endpoint de traduções oficiais do TMDB
+    const transRes = await axios.get(`${TMDB_API_URL}/movie/${tmdbId}/translations`, {
+      params: { api_key: TMDB_API_KEY }
+    });
+
+    const translations = (transRes.data as any)?.translations || [];
+
+    // Tentar tradução oficial pt-BR
+    const ptBrTrans = translations.find((t: any) => t.iso_639_1 === 'pt' && t.iso_3166_1 === 'BR');
+    if (ptBrTrans?.data?.title && !hasNonLatinCharacters(ptBrTrans.data.title)) {
+      console.log(`   ✅ Título oficial pt-BR encontrado no TMDB: "${ptBrTrans.data.title}"`);
+      return ptBrTrans.data.title;
+    }
+
+    // Tentar tradução pt (Portugal)
+    const ptPtTrans = translations.find((t: any) => t.iso_639_1 === 'pt');
+    if (ptPtTrans?.data?.title && !hasNonLatinCharacters(ptPtTrans.data.title)) {
+      console.log(`   ✅ Título em português encontrado no TMDB: "${ptPtTrans.data.title}"`);
+      return ptPtTrans.data.title;
+    }
+
+    // Tentar título internacional em inglês (en)
+    const enTrans = translations.find((t: any) => t.iso_639_1 === 'en');
+    const enTitle = enTrans?.data?.title;
+
+    if (enTitle && !hasNonLatinCharacters(enTitle)) {
+      console.log(`   🇺🇸 Título internacional em inglês encontrado: "${enTitle}"`);
+      // Tentar traduzir o título internacional para português
+      try {
+        const ptTranslated = await translateText(enTitle);
+        if (ptTranslated && !hasNonLatinCharacters(ptTranslated) && ptTranslated.toLowerCase() !== enTitle.toLowerCase()) {
+          console.log(`   🇧🇷 Tradução adaptada para Português: "${ptTranslated}"`);
+          return ptTranslated;
+        }
+      } catch (_e) {}
+
+      return enTitle;
+    }
+
+    // Fallback: buscar movie com language=en-US diretamente
+    const enMovieRes = await axios.get(`${TMDB_API_URL}/movie/${tmdbId}`, {
+      params: { api_key: TMDB_API_KEY, language: 'en-US' }
+    });
+    const fallbackEnTitle = (enMovieRes.data as any)?.title;
+    if (fallbackEnTitle && !hasNonLatinCharacters(fallbackEnTitle)) {
+      console.log(`   🇺🇸 Título latino (en-US) adotado: "${fallbackEnTitle}"`);
+      return fallbackEnTitle;
+    }
+  } catch (err) {
+    console.warn(`   ⚠️ Erro ao consultar traduções no TMDB:`, err);
+  }
+
+  // 2. Se não encontrou no TMDB, tentar traduzir o título diretamente via translateText
+  try {
+    const directTrans = await translateText(currentTitle);
+    if (directTrans && !hasNonLatinCharacters(directTrans)) {
+      console.log(`   🇧🇷 Título traduzido diretamente: "${directTrans}"`);
+      return directTrans;
+    }
+  } catch (_e) {}
+
+  return currentTitle;
 }
 
 async function getActorNameInEnglish(tmdbId: number): Promise<string | null> {
@@ -526,6 +612,7 @@ async function getActorNameInEnglish(tmdbId: number): Promise<string | null> {
     return null;
   }
 }
+
 
 async function getMovieCast(movieId: number): Promise<Array<{
   tmdbId: number;
@@ -979,6 +1066,13 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
       return null;
     }
 
+    // Resolver título localizado caso o TMDB retorne título em alfabeto não-latino
+    const resolvedTitle = await resolveLocalizedMovieTitle(
+      parseInt(movie.id),
+      details.data.title || movie.title,
+      details.data.original_title || movie.original_title
+    );
+
     // Buscar os diretores
     const directors = await getMovieDirectors(parseInt(movie.id));
     if (directors) {
@@ -1009,7 +1103,14 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
     console.log(`Duração: ${details.data.runtime} minutos`);
 
     return {
-      movie: { ...movie, id: movie.id.toString(), genres: details.data.genres, runtime: details.data.runtime },
+      movie: {
+        ...movie,
+        title: resolvedTitle,
+        original_title: details.data.original_title || movie.original_title,
+        id: movie.id.toString(),
+        genres: details.data.genres,
+        runtime: details.data.runtime
+      },
       platforms,
       streamingData,
       director: directors || null,
@@ -1017,6 +1118,7 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
       keywords,
       cast
     };
+
   } catch (error) {
     console.error(`Erro ao buscar filme ${title}:`, error);
     return null;
@@ -1152,8 +1254,9 @@ export async function processSingleMovie(title: string, year?: number, dryRun: b
 
         // Gerar slug único para o filme
         const movieYear = movie.release_date ? new Date(movie.release_date).getFullYear() : undefined;
-        const slug = await generateUniqueSlug(movie.title, movieYear);
+        const slug = await generateUniqueSlug(movie.title, movieYear, parseInt(movie.id));
         console.log(`🔗 Slug gerado: ${slug}`);
+
 
         // Fazer upload da imagem para o Supabase (se houver poster_path)
         let thumbnailUrl: string | undefined;

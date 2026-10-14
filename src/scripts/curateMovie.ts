@@ -7,7 +7,9 @@ import { OscarDataService } from '../services/OscarDataService';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 import { updateRelevanceRankingForMovie } from '../utils/relevanceRanking';
 import { inferEntryType } from '../utils/emotionalEntryType';
-import { processSingleMovie } from './populateMovies';
+import { processSingleMovie, hasNonLatinCharacters, resolveLocalizedMovieTitle } from './populateMovies';
+import { generateUniqueSlug } from '../utils/slugGenerator';
+
 
 const prisma = new PrismaClient();
 
@@ -385,8 +387,9 @@ async function main() {
       searchTitle = arg.split('=')[1].replace(/^["']|["']$/g, '');
     } else if (arg.startsWith('--year=') || arg.startsWith('-y=')) {
       searchYear = parseInt(arg.split('=')[1], 10);
-    } else if (arg.startsWith('--tmdb=') || arg.startsWith('--id=')) {
+    } else if (arg.startsWith('--tmdb=') || arg.startsWith('--tmdbId=') || arg.startsWith('--id=')) {
       tmdbId = parseInt(arg.split('=')[1], 10);
+
     } else if (arg.startsWith('--sentiment=') || arg.startsWith('--lens=')) {
       targetSentiment = arg.split('=')[1].toLowerCase().replace(/^["']|["']$/g, '');
     } else if (arg.startsWith('--intention=') || arg.startsWith('-i=')) {
@@ -479,6 +482,22 @@ Opções:
     console.error(`❌ Não foi possível carregar os dados completos do filme.`);
     process.exit(1);
   }
+
+  // Auto-healing: verificar se o título possui caracteres não-latinos
+  if (hasNonLatinCharacters(movie.title)) {
+    console.log(`   🌐 Título possui caracteres não-latinos: "${movie.title}". Resolvendo localização...`);
+    const localizedTitle = await resolveLocalizedMovieTitle(movie.tmdbId, movie.title, movie.title);
+    if (localizedTitle !== movie.title) {
+      const newSlug = await generateUniqueSlug(localizedTitle, movie.year || undefined, movie.tmdbId);
+      await prisma.movie.update({
+        where: { id: movie.id },
+        data: { title: localizedTitle, slug: newSlug }
+      });
+      console.log(`   ✅ Título e slug atualizados no banco: "${localizedTitle}" (slug: "${newSlug}")`);
+      movie.title = localizedTitle;
+    }
+  }
+
 
   // Enriquecer dados do Oscar
   try {

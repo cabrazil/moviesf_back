@@ -8,24 +8,31 @@ const prisma = new PrismaClient();
  * @returns Slug formatado
  */
 export function generateSlug(title: string): string {
-  return title
+  const clean = title
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // Remove acentos
     .replace(/[^a-z0-9\s-]/g, '') // Remove caracteres especiais
     .replace(/\s+/g, '-') // Substitui espaços por hífens
     .replace(/-+/g, '-') // Remove hífens duplicados
+    .replace(/^-+|-+$/g, '') // Remove hífens no início e fim
     .trim();
+
+  return clean;
 }
 
 /**
  * Gera um slug único verificando se já existe no banco
  * @param title - Título do filme
+ * @param year - Ano de lançamento
+ * @param tmdbId - ID TMDB para fallback se o título for não-latino
  * @returns Slug único
  */
-export async function generateUniqueSlug(title: string, year?: number): Promise<string> {
+export async function generateUniqueSlug(title: string, year?: number, tmdbId?: number): Promise<string> {
   let baseSlug = generateSlug(title);
-  if (!baseSlug) baseSlug = 'filme';
+  if (!baseSlug || baseSlug === '-') {
+    baseSlug = tmdbId ? `filme-${tmdbId}` : (year ? `filme-${year}` : 'filme');
+  }
   
   let slug = baseSlug;
   let counter = 1;
@@ -47,6 +54,7 @@ export async function generateUniqueSlug(title: string, year?: number): Promise<
   
   return slug;
 }
+
 
 /**
  * Gera URL amigável para filme

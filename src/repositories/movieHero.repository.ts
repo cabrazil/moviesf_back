@@ -16,6 +16,7 @@ import {
   MovieQueryResult,
   SuggestionFlow
 } from '../types/movieHero.types';
+import { calculateVibeAffinityScore } from '../utils/vibeAffinity.util';
 
 export class MovieHeroRepository {
 
@@ -44,6 +45,15 @@ export class MovieHeroRepository {
       journeyOptionFlowId: result.rows[0].journeyOptionFlowId,
       displayTitle: result.rows[0].displayTitle
     };
+  }
+
+  /**
+   * Busca filmes com afinidade de vibe em relação ao filme alvo
+   */
+  async getSimilarMovies(movieId: string): Promise<SimilarMovie[]> {
+    const query = this.getSimilarMoviesQuery();
+    const result = await dbConnection.query(query, [movieId]);
+    return this.mapSimilarMovies(result.rows);
   }
 
   /**
@@ -318,29 +328,59 @@ export class MovieHeroRepository {
 
   private getSimilarMoviesQuery(): string {
     return `
-      WITH best_journey AS (
+      WITH target_movie AS (
+        SELECT 
+          m.id,
+          m.genres,
+          m.keywords,
+          COALESCE(
+            (
+              SELECT jsonb_object_agg(ms."subSentimentId", ms.relevance)
+              FROM "MovieSentiment" ms
+              WHERE ms."movieId" = m.id
+            ),
+            '{}'::jsonb
+          ) as sentiments
+        FROM "Movie" m
+        WHERE m.id = $1::uuid
+      ),
+      best_journey AS (
         SELECT msf."journeyOptionFlowId"
         FROM "MovieSuggestionFlow" msf
-        WHERE msf."movieId" = $1
+        WHERE msf."movieId" = $1::uuid
         ORDER BY msf."relevanceScore" DESC
         LIMIT 1
       )
-      SELECT DISTINCT
+      SELECT 
         m.id,
         m.title,
         m.year,
         m.thumbnail,
         m.slug,
+        m.genres,
+        m.keywords,
         msf."relevanceScore",
         msf."journeyOptionFlowId",
-        jof."displayTitle"
+        jof."displayTitle",
+        COALESCE(
+          (
+            SELECT jsonb_object_agg(ms."subSentimentId", ms.relevance)
+            FROM "MovieSentiment" ms
+            WHERE ms."movieId" = m.id
+          ),
+          '{}'::jsonb
+        ) as sentiments,
+        tm.genres as target_genres,
+        tm.keywords as target_keywords,
+        tm.sentiments as target_sentiments
       FROM "MovieSuggestionFlow" msf
       JOIN "Movie" m ON msf."movieId" = m.id
       JOIN "JourneyOptionFlow" jof ON msf."journeyOptionFlowId" = jof.id
       JOIN best_journey bj ON msf."journeyOptionFlowId" = bj."journeyOptionFlowId"
-      WHERE msf."movieId" != $1
+      CROSS JOIN target_movie tm
+      WHERE msf."movieId" != $1::uuid
       ORDER BY msf."relevanceScore" DESC
-      LIMIT 6
+      LIMIT 40
     `;
   }
 
@@ -432,16 +472,41 @@ export class MovieHeroRepository {
   }
 
   private mapSimilarMovies(rows: any[]): SimilarMovie[] {
-    return rows.map(row => ({
-      id: row.id,
-      title: row.title,
-      year: row.year,
-      thumbnail: row.thumbnail,
-      slug: row.slug,
-      relevanceScore: row.relevanceScore,
-      journeyOptionFlowId: row.journeyOptionFlowId,
-      displayTitle: row.displayTitle
-    }));
+    if (!rows || rows.length === 0) return [];
+
+    const firstRow = rows[0];
+    const target = {
+      genres: firstRow.target_genres || [],
+      keywords: firstRow.target_keywords || [],
+      sentiments: firstRow.target_sentiments || {}
+    };
+
+    const scored = rows.map(row => {
+      const candidate = {
+        id: row.id,
+        genres: row.genres || [],
+        keywords: row.keywords || [],
+        sentiments: row.sentiments || {},
+        jofScore: parseFloat(row.relevanceScore) || 0
+      };
+
+      const affinity = calculateVibeAffinityScore(target, candidate);
+
+      return {
+        id: row.id,
+        title: row.title,
+        year: row.year,
+        thumbnail: row.thumbnail,
+        slug: row.slug,
+        relevanceScore: affinity.finalScore,
+        journeyOptionFlowId: row.journeyOptionFlowId,
+        displayTitle: row.displayTitle
+      };
+    });
+
+    // Ordenar por afinidade decrescente e retornar Top 6
+    scored.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    return scored.slice(0, 6);
   }
 
   private mapPillarArticles(rows: any[]): Array<{

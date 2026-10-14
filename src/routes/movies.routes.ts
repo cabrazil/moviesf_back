@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prismaApp as prisma } from '../prisma';
 import { shouldHideLogosForIos } from '../utils/appleReview';
+import { movieHeroRepository } from '../repositories/movieHero.repository';
 
 const router = Router();
 
@@ -112,56 +113,8 @@ router.get('/:id/similar', async (req, res) => {
       return res.status(400).json({ error: 'ID do filme inválido' });
     }
 
-    // Usar a mesma query da Landing Page (baseada em RelevanceScore + JourneyOptionFlow)
-    const { Pool } = require('pg');
-    const { getSSLConfig } = require('../utils/ssl-config');
-    const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
-    const pool = new Pool({
-      connectionString: connectionString,
-      ssl: getSSLConfig(connectionString)
-    });
-
-    const similarMoviesResult = await pool.query(`
-      WITH best_journey AS (
-        SELECT msf."journeyOptionFlowId"
-        FROM "MovieSuggestionFlow" msf
-        WHERE msf."movieId" = $1
-          AND msf.relevance = 1
-        LIMIT 1
-      )
-      SELECT DISTINCT
-        m.id,
-        m.title,
-        m.year,
-        m.thumbnail,
-        m.slug,
-        msf."relevanceScore",
-        msf."journeyOptionFlowId",
-        jof."displayTitle",
-        RANDOM() as random_order
-      FROM "MovieSuggestionFlow" msf
-      JOIN "Movie" m ON msf."movieId" = m.id
-      JOIN "JourneyOptionFlow" jof ON msf."journeyOptionFlowId" = jof.id
-      JOIN best_journey bj ON msf."journeyOptionFlowId" = bj."journeyOptionFlowId"
-      WHERE msf."movieId" != $1
-      ORDER BY msf."relevanceScore" DESC, random_order
-      LIMIT 6
-    `, [id]);
-
-    await pool.end();
-
-    const similarMovies = similarMoviesResult.rows.map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      year: row.year,
-      thumbnail: row.thumbnail,
-      slug: row.slug,
-      relevanceScore: row.relevanceScore,
-      journeyOptionFlowId: row.journeyOptionFlowId,
-      displayTitle: row.displayTitle
-    }));
-
-    console.log(`✅ Filmes similares encontrados: ${similarMovies.length}`);
+    const similarMovies = await movieHeroRepository.getSimilarMovies(id);
+    console.log(`✅ Filmes similares com afinidade de vibe encontrados: ${similarMovies.length}`);
     res.json(similarMovies);
 
   } catch (error) {
