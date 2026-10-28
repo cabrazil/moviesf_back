@@ -291,14 +291,6 @@ export function renderMovieHTML(
   <!-- Meta tags adicionais -->
   <meta name="robots" content="index, follow">
   <meta name="author" content="vibesfilm">
-  
-  <!-- Redirect para SPA após carregar (para usuários) -->
-  <script>
-    // Se não for bot, redirecionar para frontend SPA
-    if (!navigator.userAgent.match(/Googlebot|Google-InspectionTool|Bingbot|Chrome-Lighthouse|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
-      window.location.href = 'https://vibesfilm.com${routePath}';
-    }
-  </script>
 </head>
 <body>
   <div id="root">
@@ -496,14 +488,6 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
   <!-- Meta tags adicionais -->
   <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="author" content="${escapeHtml(article.author_name || 'VibesFilm Blog')}">
-  
-  <!-- Redirect para SPA após carregar (para usuários) -->
-  <script>
-    // Se não for bot, redirecionar para frontend SPA
-    if (!navigator.userAgent.match(/Googlebot|Google-InspectionTool|Bingbot|Chrome-Lighthouse|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
-      window.location.href = 'https://vibesfilm.com${route}';
-    }
-  </script>
 </head>
 <body>
   <div id="root">
@@ -585,13 +569,6 @@ export function renderHomeHTML(posts: any[]): string {
   <meta name="twitter:description" content="${escapeHtml(description)}">
   
   <meta name="robots" content="index, follow, max-image-preview:large">
-  
-  <script>
-    // Se não for bot, redirecionar para o frontend SPA normal
-    if (!navigator.userAgent.match(/Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
-      window.location.href = '${canonicalUrl}';
-    }
-  </script>
 </head>
 <body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #FDFFFC;">
   <header style="border-bottom: 2px solid #011627; padding-bottom: 20px; margin-bottom: 30px;">
@@ -806,13 +783,6 @@ export function renderStaticPageHTML(pageType: string): string {
   <meta property="og:site_name" content="VibesFilm">
   
   <meta name="robots" content="index, follow">
-  
-  <script>
-    // Se não for bot, redirecionar para o frontend SPA normal
-    if (!navigator.userAgent.match(/Googlebot|Bingbot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
-      window.location.href = '${canonicalUrl}';
-    }
-  </script>
 </head>
 <body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #FDFFFC;">
   <header style="border-bottom: 2px solid #011627; padding-bottom: 20px; margin-bottom: 30px;">
@@ -883,13 +853,6 @@ export function renderArchiveHTML(posts: any[], archiveTitle: string, archiveDes
   <link rel="canonical" href="${canonicalUrl}">
   
   <meta name="robots" content="index, follow">
-  
-  <script>
-    // Se não for bot, redirecionar para o frontend SPA normal
-    if (!navigator.userAgent.match(/Googlebot|Google-InspectionTool|Bingbot|Chrome-Lighthouse|PageSpeed|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i)) {
-      window.location.href = '${canonicalUrl}';
-    }
-  </script>
 </head>
 <body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #FDFFFC;">
   <header style="border-bottom: 2px solid #011627; padding-bottom: 20px; margin-bottom: 30px;">

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prismaApp, prismaBlog } from '../prisma';
+import { vibeLandingService } from '../services/vibeLanding.service';
 
 const router = Router();
 
@@ -18,7 +19,8 @@ router.get('/index.xml', (req, res) => {
     'movies.xml',
     'articles.xml',
     'categories.xml',
-    'tags.xml'
+    'tags.xml',
+    'vibes.xml'
   ];
 
   sitemaps.forEach(s => {
@@ -238,6 +240,44 @@ router.get('/tags.xml', async (req, res) => {
     res.send(sitemap);
   } catch (error) {
     console.error('Erro ao gerar sitemap de tags:', error);
+    res.status(500).send('Erro interno do servidor');
+  }
+});
+
+/**
+ * GET /sitemap/vibes.xml
+ * Sitemap para as páginas de Vibes / Programmatic SEO
+ */
+router.get('/vibes.xml', async (req, res) => {
+  try {
+    const cacheKey = 'sitemap_vibes_xml';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      res.header('Content-Type', 'application/xml');
+      return res.send(cached);
+    }
+
+    const vibes = await vibeLandingService.getAllVibes();
+
+    let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    sitemap += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    vibes.forEach((v) => {
+      sitemap += `  <url>\n`;
+      sitemap += `    <loc>${FRONTEND_URL}/filmes-para/${v.slug}</loc>\n`;
+      sitemap += `    <lastmod>${new Date().toISOString()}</lastmod>\n`;
+      sitemap += `    <changefreq>weekly</changefreq>\n`;
+      sitemap += `    <priority>0.8</priority>\n`;
+      sitemap += `  </url>\n`;
+    });
+
+    sitemap += `</urlset>`;
+
+    cache.set(cacheKey, sitemap, 3600); // 1 hora de cache
+    res.header('Content-Type', 'application/xml');
+    res.send(sitemap);
+  } catch (error) {
+    console.error('Erro ao gerar sitemap de vibes:', error);
     res.status(500).send('Erro interno do servidor');
   }
 });

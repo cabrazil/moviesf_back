@@ -26,6 +26,7 @@ import sitemapRoutes from '../src/routes/sitemap.routes';
 import rephraseHookRoutes from '../src/routes/rephrase-hook.routes';
 import dailyCurationRoutes from '../src/routes/daily-curation.routes';
 import curateRoutes from '../src/routes/curate.routes';
+import vibeLandingRoutes from '../src/routes/vibe-landing.routes';
 
 const app = express();
 
@@ -121,6 +122,7 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/rephrase-hook', rephraseHookRoutes);
 app.use('/api/daily-curation', dailyCurationRoutes);
 app.use('/api/curate', curateRoutes);
+app.use('/api/vibe', vibeLandingRoutes);
 
 // Handler para rotas não encontradas (404)
 app.use('*', (req, res) => {

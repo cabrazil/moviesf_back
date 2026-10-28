@@ -36,7 +36,8 @@
     "studio:prod": "./src/scripts/start-remote-studio.sh",
     "db:reset-data": "ts-node src/scripts/resetData.ts",
     "db:reset-with-schema": "ts-node src/scripts/resetWithSchema.ts",
-    "db:backup-supabase": "ts-node src/scripts/backupSupabase.ts"
+    "db:backup-supabase": "ts-node src/scripts/backupSupabase.ts",
+    "jof:remove": "ts-node src/scripts/removeMovieFromJof.ts"
   },
   "keywords": [],
   "author": "",

@@ -47,8 +47,7 @@ router.get('/ssr-home', async (req: Request, res: Response) => {
     return res.redirect(302, frontendUrl);
   } catch (error) {
     console.error('❌ Erro no SSR da home:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, frontendUrl);
+    return res.status(500).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Erro temporário | VibesFilm</title></head><body><h1>Erro temporário</h1><p>Não foi possível carregar a página inicial no momento.</p></body></html>');
   }
 });
 
@@ -86,8 +85,7 @@ router.get('/', async (req: Request, res: Response) => {
     return res.redirect(302, frontendUrl);
   } catch (error) {
     console.error('❌ Erro no SSR da raiz (/):', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, frontendUrl);
+    return res.status(500).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Erro temporário | VibesFilm</title></head><body><h1>Erro temporário</h1><p>Não foi possível carregar a página inicial no momento.</p></body></html>');
   }
 });
 
@@ -152,9 +150,19 @@ router.get('/filme/:slug', async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('❌ Erro no SSR editorial de filme:', error);
-
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/filme/${req.params.slug}`);
+    return res.status(500).send(`
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Erro temporário | VibesFilm</title>
+      </head>
+      <body>
+        <h1>Erro temporário</h1>
+        <p>Não foi possível carregar a página do filme no momento.</p>
+      </body>
+      </html>
+    `);
   }
 });
 
@@ -212,8 +220,19 @@ const articleBotHandler = async (req: Request, res: Response) => {
     return res.redirect(302, `${frontendUrl}/blog/artigo/${slug}`);
   } catch (error) {
     console.error('❌ Erro no SSR de artigo:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/blog/artigo/${req.params.slug}`);
+    return res.status(500).send(`
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Erro temporário | VibesFilm</title>
+      </head>
+      <body>
+        <h1>Erro temporário</h1>
+        <p>Não foi possível carregar o artigo no momento.</p>
+      </body>
+      </html>
+    `);
   }
 };
 
@@ -266,8 +285,7 @@ const staticPagesHandler = async (req: Request, res: Response) => {
     return res.redirect(302, `${frontendUrl}/${pageType}`);
   } catch (error) {
     console.error('❌ Erro no SSR da página institucional:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, frontendUrl);
+    return res.status(500).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Erro temporário | VibesFilm</title></head><body><h1>Erro temporário</h1><p>Não foi possível carregar a página no momento.</p></body></html>');
   }
 };
 
@@ -325,8 +343,7 @@ router.get('/categorias', async (req: Request, res: Response) => {
     return res.redirect(302, `${frontendUrl}/categorias`);
   } catch (error) {
     console.error('❌ Erro no SSR de categorias:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/categorias`);
+    return res.status(500).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Erro temporário | VibesFilm</title></head><body><h1>Erro temporário</h1><p>Não foi possível carregar as categorias no momento.</p></body></html>');
   }
 });
 
@@ -364,8 +381,7 @@ router.get('/categoria/:categorySlug', async (req: Request, res: Response) => {
     return res.redirect(302, `${frontendUrl}/categoria/${categorySlug}`);
   } catch (error) {
     console.error(`❌ Erro no SSR da categoria ${req.params.categorySlug}:`, error);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/categoria/${req.params.categorySlug}`);
+    return res.status(500).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Erro temporário | VibesFilm</title></head><body><h1>Erro temporário</h1><p>Não foi possível carregar a categoria no momento.</p></body></html>');
   }
 });
 
@@ -402,8 +418,7 @@ const tagBotHandler = async (req: Request, res: Response) => {
     return res.redirect(302, `${frontendUrl}/blog/tag/${tagSlug}`);
   } catch (error) {
     console.error(`❌ Erro no SSR da tag ${req.params.tagSlug}:`, error);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://vibesfilm.com';
-    return res.redirect(302, `${frontendUrl}/blog/tag/${req.params.tagSlug}`);
+    return res.status(500).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Erro temporário | VibesFilm</title></head><body><h1>Erro temporário</h1><p>Não foi possível carregar a tag no momento.</p></body></html>');
   }
 };
 

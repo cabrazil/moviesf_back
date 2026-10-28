@@ -43,7 +43,7 @@ interface ProcessedImage {
 }
 
 function parseArgs(): CLIArgs {
-  const args: CLIArgs = { title: '' };
+  const args: CLIArgs = { title: '', blogId: 3 };
 
   process.argv.slice(2).forEach(arg => {
     if (arg.startsWith('--title=')) {
@@ -138,11 +138,57 @@ async function getOrCreateCategory(blogId: number): Promise<number> {
   return category.id;
 }
 
-async function getOrCreateTags(blogId: number, sentiments: string[], genres: string[]): Promise<number[]> {
-  const tagIds: number[] = [];
-  const tagNames = [...new Set([...sentiments, ...genres])].slice(0, 5);
+function extractResonanceTags(bodyPart: string, fallbackSentiments: string[]): string[] {
+  const extractedTags: string[] = [];
 
-  for (const name of tagNames) {
+  // Localizar a seção "O que ressoa nesta experiência:"
+  const sectionRegex = /###\s*O que ressoa nesta experi[êe]ncia:?([\s\S]*?)(?=##|$)/i;
+  const match = bodyPart.match(sectionRegex);
+
+  if (match) {
+    const sectionText = match[1];
+
+    // Padrão HTML: <li><strong>Nome</strong> ou <strong>Nome:</strong>
+    const strongRegex = /<strong>([^<:]+)(?::|<\/strong>)/gi;
+    let m;
+    while ((m = strongRegex.exec(sectionText)) !== null) {
+      const tag = m[1].trim().replace(/^["']|["']$/g, '').trim();
+      if (tag && !extractedTags.includes(tag)) {
+        extractedTags.push(tag);
+      }
+    }
+
+    // Padrão Markdown alternativo: - **Nome**:
+    if (extractedTags.length === 0) {
+      const mdRegex = /(?:^|\n)\s*[-*]\s*\*\*([^*:]+)\*\*/gi;
+      let mdMatch;
+      while ((mdMatch = mdRegex.exec(sectionText)) !== null) {
+        const tag = mdMatch[1].trim().replace(/^["']|["']$/g, '').trim();
+        if (tag && !extractedTags.includes(tag)) {
+          extractedTags.push(tag);
+        }
+      }
+    }
+  }
+
+  // Se extraiu menos de 3 tags, completa usando a lista de SubSentimentos do filme
+  for (const fallback of fallbackSentiments) {
+    if (extractedTags.length >= 3) break;
+    const cleanFallback = fallback.trim();
+    if (cleanFallback && !extractedTags.includes(cleanFallback)) {
+      extractedTags.push(cleanFallback);
+    }
+  }
+
+  return extractedTags.slice(0, 3);
+}
+
+async function getOrCreateTags(blogId: number, tagNames: string[]): Promise<number[]> {
+  const tagIds: number[] = [];
+  // Restringir estritamente para apenas 3 tags
+  const uniqueTags = [...new Set(tagNames.map(t => t.trim()))].filter(Boolean).slice(0, 3);
+
+  for (const name of uniqueTags) {
     const slug = name.toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
@@ -215,11 +261,9 @@ async function uploadToSupabase(localPath: string, remotePath: string): Promise<
       return null;
     }
 
-    const { data: publicUrlData } = supabase.storage
-      .from('movie-images')
-      .getPublicUrl(remotePath);
-
-    return publicUrlData.publicUrl;
+    // Retorna a URL pública servida pela CDN Cloudflare images.vibesfilm.com
+    const cdnUrl = `https://images.vibesfilm.com/${remotePath}`;
+    return cdnUrl;
   } catch (error) {
     console.error('❌ Erro no upload:', error);
     return null;
@@ -230,33 +274,65 @@ async function generateImageAlt(
   movieTitle: string,
   movieYear: number,
   imageType: 'backdrop' | 'still',
-  actorNames: string[],
+  castWithCharacters: { actor: string; character?: string | null }[],
+  imageNum: number,
   aiProvider: any
 ): Promise<string> {
-  const prompt = `Gere um texto ALT descritivo e acessível para uma imagem de ${imageType === 'backdrop' ? 'fundo/cena panorâmica' : 'cena'} do filme "${movieTitle}" (${movieYear}).
-
-Atores principais: ${actorNames.join(', ')}
-
-REGRAS:
-- Máximo 120 caracteres
-- Seja específico e descritivo
-- Mencione atores se relevante
-- Evite palavras genéricas como "imagem de"
-- Use formato: "[Atores] em cena de [Filme]" ou "[Descrição da cena] em [Filme]"
-
-Retorne APENAS o texto ALT, sem aspas ou formatação.`;
-
-  const response = await aiProvider.generateResponse(
-    "Você é um especialista em acessibilidade web.",
-    prompt,
-    { maxTokens: 100, temperature: 0.3 }
-  );
-
-  if (!response.success) {
-    return `Cena do filme ${movieTitle} (${movieYear})`;
+  const top2 = castWithCharacters.slice(0, 2);
+  let actorsDesc = '';
+  if (top2.length >= 2) {
+    const p1 = top2[0].character ? `${top2[0].actor} como ${top2[0].character}` : top2[0].actor;
+    const p2 = top2[1].character ? `${top2[1].actor} como ${top2[1].character}` : top2[1].actor;
+    actorsDesc = `${p1} e ${p2}`;
+  } else if (top2.length === 1) {
+    actorsDesc = top2[0].character ? `${top2[0].actor} como ${top2[0].character}` : top2[0].actor;
   }
 
-  return response.content.trim().replace(/^["']|["']$/g, '');
+  const defaultAdjective = imageNum === 1 ? 'dramática' : 'reflexiva';
+  const fallbackAlt = actorsDesc
+    ? `${actorsDesc} em cena ${defaultAdjective} do filme ${movieTitle} (${movieYear}).`
+    : `Cena ${defaultAdjective} do filme ${movieTitle} (${movieYear}).`;
+
+  if (!actorsDesc) {
+    return fallbackAlt;
+  }
+
+  const prompt = `Gere um texto ALT para a imagem ${imageNum} (${imageType === 'backdrop' ? 'cena panorâmica/aberta' : 'frame/cena de atuação'}) do filme "${movieTitle}" (${movieYear}).
+
+Protagonistas e personagens principais: ${actorsDesc}
+
+FORMATO OBRIGATÓRIO (siga exatamente este padrão):
+"${actorsDesc} em cena [adjetivo da cena adequado ao filme, ex: dramática, reflexiva, contemplativa, intensa ou emocionante] do filme ${movieTitle} (${movieYear})."
+
+Exemplo:
+"Frances McDormand como Fern e David Strathairn como Dave em cena dramática do filme Nomadland (2021)."
+
+REGRAS:
+- Deve conter obrigatoriamente: "${actorsDesc}"
+- Adicione um adjetivo coerente com a cena (ex: dramática, reflexiva, contemplativa, intensa, marcante)
+- Termine exatamente com "do filme ${movieTitle} (${movieYear})."
+- Mantenha em uma única linha, sem aspas adicionais, sem markdown.
+
+Retorne APENAS o texto ALT final.`;
+
+  try {
+    const response = await aiProvider.generateResponse(
+      "Você é um especialista em acessibilidade web e cinema.",
+      prompt,
+      { maxTokens: 80, temperature: 0.3 }
+    );
+
+    if (response.success && response.content) {
+      const cleanAlt = response.content.trim().replace(/^["']|["']$/g, '').trim();
+      if (cleanAlt.length > 25 && cleanAlt.includes(movieTitle)) {
+        return cleanAlt;
+      }
+    }
+  } catch (err) {
+    console.warn(`⚠️  Falha ao gerar ALT com IA, usando padrão estruturado`);
+  }
+
+  return fallbackAlt;
 }
 
 async function fetchIMDbIds(movieId: number): Promise<{ [key: string]: string }> {
@@ -322,19 +398,27 @@ async function processImages(
     console.warn(`⚠️  Aviso de Qualidade: Nenhum frame (still) atingiu 1200px. Usando o de maior média.`);
   }
 
-  const bestBackdropPool = highResBackdrops.length > 0 ? highResBackdrops : images.backdrops;
-  const bestStillPool = highResStills.length > 0 ? highResStills : images.stills;
+  const sortedBackdrops = (highResBackdrops.length > 0 ? highResBackdrops : images.backdrops)
+    .sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
 
-  const bestBackdrop = bestBackdropPool.sort((a, b) => b.vote_average - a.vote_average)[0];
-  const bestStill = bestStillPool.sort((a, b) => b.vote_average - a.vote_average)[0];
-
-  const selectedImages = [
-    { type: 'backdrop' as const, data: bestBackdrop },
-    { type: 'still' as const, data: bestStill }
-  ].filter(img => img.data);
+  const selectedImages: { type: 'backdrop' | 'still'; data: TMDBImage }[] = [];
+  if (sortedBackdrops[0]) {
+    selectedImages.push({ type: 'backdrop', data: sortedBackdrops[0] });
+  }
+  // Se houver stills no TMDB usa still; caso contrário usa o 2º melhor backdrop para garantir sempre 2 imagens
+  if (highResStills.length > 0 || images.stills.length > 0) {
+    const stillPool = highResStills.length > 0 ? highResStills : images.stills;
+    const bestStill = stillPool.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0))[0];
+    selectedImages.push({ type: 'still', data: bestStill });
+  } else if (sortedBackdrops[1]) {
+    selectedImages.push({ type: 'still', data: sortedBackdrops[1] });
+  }
 
   const processedImages: ProcessedImage[] = [];
-  const actorNames = movie.cast.map((c: any) => c.actor.name);
+  const castWithCharacters: { actor: string; character?: string | null }[] = (movie.cast || []).map((c: any) => ({
+    actor: c.actor?.name || '',
+    character: c.characterName || null
+  })).filter((c: any) => Boolean(c.actor));
 
   // Pasta temporária dentro do workspace para conformidade higiênica e evitar uso do /tmp global
   const tempDir = path.join(__dirname, '../temp');
@@ -355,7 +439,7 @@ async function processImages(
     console.log(`    ✓ Download e conversão WebP`);
 
     const safeTitle = movie.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const remotePath = `blog-articles/${safeTitle}_${movie.year}_${imageNum}.webp`;
+    const remotePath = `blog-content/${safeTitle}_${movie.year}_${imageNum}.webp`;
 
     const publicUrl = await uploadToSupabase(tempPath, remotePath);
 
@@ -366,7 +450,7 @@ async function processImages(
 
     console.log(`    ✓ Upload Supabase`);
 
-    const alt = await generateImageAlt(movie.title, movie.year, type, actorNames, aiProvider);
+    const alt = await generateImageAlt(movie.title, movie.year, type, castWithCharacters, imageNum, aiProvider);
     console.log(`    ✓ ALT gerado: "${alt}"`);
 
     processedImages.push({
@@ -539,14 +623,19 @@ async function generateBlogArticle() {
       for (const [name, url] of Object.entries(imdbIds)) {
         imdbLinksSection += `- ${name}: <a href="${url}" target="_blank" rel="noopener">${name}</a>\n`;
       }
+      imdbLinksSection += `\n⚠️ REGRA CRÍTICA PARA CITAÇÕES DE DIRETORES E ATORES:
+Nas citações de diretores e atores do filme, restrinja para no MÁXIMO 4 exibições com link no texto todo do artigo (exemplo: <a href="https://www.imdb.com/name/nm0000520/" target="_blank" rel="noopener">Michael Mann</a>). Se mencionar outros nomes além desses 4 ou repetir menções, cite apenas em texto puro, sem a tag <a>.\n`;
     }
 
     let imagesSection = '';
     if (processedImages.length > 0) {
-      imagesSection = '\n\n**IMAGENS PROCESSADAS (INSIRA NO ARTIGO):**\n';
-      processedImages.forEach((img, idx) => {
-        imagesSection += `\nImagem ${idx + 1}:\n<p><img src="${img.url}" alt="${img.alt}"></p>\n`;
-      });
+      imagesSection = '\n\n**IMAGENS PROCESSADAS (POSIÇÕES OBRIGATÓRIAS):**\n';
+      if (processedImages[0]) {
+        imagesSection += `- Imagem 1 (Inserir OBRIGATORIAMENTE logo após o primeiro parágrafo da introdução):\n<p><img src="${processedImages[0].url}" alt="${processedImages[0].alt}"></p>\n`;
+      }
+      if (processedImages[1]) {
+        imagesSection += `- Imagem 2 (Inserir OBRIGATORIAMENTE logo após o parágrafo introdutório de "## A Atmosfera Dominante...", antes de "### O que ressoa nesta experiência:"):\n<p><img src="${processedImages[1].url}" alt="${processedImages[1].alt}"></p>\n`;
+      }
     }
 
     const prompt = `
@@ -613,9 +702,13 @@ excerpt_2: "[Opção 2 de resumo curto com foco diferente. TEXTO PURO, SEM HTML 
 ## [Subtítulo H2 Curto e Impactante]
 [Escreva logo abaixo do subtítulo UMA ÚNICA FRASE ou parágrafo minúsculo (máx. 2 linhas) contendo um "gancho" que desperte curiosidade atraente sobre a emoção da obra. PROIBIDO citar nomes do elenco ou diretor nesta seção de Subtítulo]
 
-## Introdução
+[TEXTO INTRODUTÓRIO - REGRA CRÍTICA: NÃO crie o cabeçalho "## Introdução" nem "<h2>Introdução</h2>". Os parágrafos introdutórios devem começar diretamente abaixo do gancho]:
 Desenvolva a introdução em **pelo menos 2 parágrafos** bem estruturados.
 No primeiro parágrafo, defina a premissa central e o impacto imediato do filme. É OBRIGATÓRIO citar o diretor (${movie.director}) e o elenco principal (${castNames}) diretamente no corpo deste primeiro parágrafo da introdução.
+
+Logo após este primeiro parágrafo, insira a Imagem 1:
+${processedImages[0] ? `<p><img src="${processedImages[0].url}" alt="${processedImages[0].alt}"></p>` : ''}
+
 No segundo parágrafo, aprofunde o tom da obra e prepare o leitor para o que sentirá, terminando com uma frase original que defina a vibe ou o tom emocional geral (por exemplo, conectando a atmosfera da história com uma sensação cotidiana, sem usar frases prontas ou o nome do blog).
 
 <h3>⚠️ Nota de Curadoria: ${movie.title} (${movie.year})</h3>
@@ -643,10 +736,14 @@ Nesta seção, faça a **Análise Conceitual e Semântica**.
 
 ## A Atmosfera Dominante [Use variações: "O Clima", "A Emoção Central", "A Vibe"]
 Comece com um parágrafo introdutório (2-3 frases) que descreva a sensação geral que permeia o filme, destacando qual é a emoção primária (ex: Melancolia, Tensão, Euforia).
-SOMENTE DEPOIS deste parágrafo, pule uma linha e escreva exatamente: "### O que ressoa nesta experiência:"
 
-Depois, liste 3 **Tags Emocionais Chave** em formato HTML usando <ul> e <li>:
-⚠️ **REGRA CRÍTICA:** Você **OBRIGATORIAMENTE** deve escolher essas tags da lista fornecida na seção "ANÁLISE DE SENTIMENTOS (IA VIBESFILM)". **NÃO INVENTE** novos nomes de sentimentos. Use *exatamente* o nome do SubSentimento fornecido (ex: "Nostalgia Positiva").
+Logo após este parágrafo introdutório, insira a Imagem 2:
+${processedImages[1] ? `<p><img src="${processedImages[1].url}" alt="${processedImages[1].alt}"></p>` : ''}
+
+SOMENTE DEPOIS desta imagem, pule uma linha e escreva exatamente: "### O que ressoa nesta experiência:"
+
+Depois, liste exatamente 3 **Tags Emocionais Chave** em formato HTML usando <ul> e <li>:
+⚠️ **REGRA CRÍTICA PARA AS TAGS:** Você **OBRIGATORIAMENTE** deve escolher apenas 3 tags que reflitam a seção "O que ressoa nesta experiência:", selecionando-as da lista fornecida na seção "ANÁLISE DE SENTIMENTOS (IA VIBESFILM)". **NÃO INVENTE** novos nomes de sentimentos. Use *exatamente* o nome do SubSentimento fornecido (ex: "Nostalgia Positiva"). Estas 3 tags serão as tags oficiais do artigo.
 
 Exemplo de formato para as tags:
 <ul>
@@ -703,30 +800,72 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
       frontmatter = cleanAndValidateSEO(frontmatter);
     }
 
-    // 1. Inserir primeira imagem antes da Seção "O Que Torna..." (se a IA não inseriu sozinha)
-    if (processedImages.length > 0 && !bodyPart.includes(processedImages[0].url)) {
-      const nextH2Regex = /(## O Que Torna)/;
-      if (nextH2Regex.test(bodyPart)) {
-        const imageHtml = `<p><img src="${processedImages[0].url}" alt="${processedImages[0].alt}"></p>\n\n`;
-        bodyPart = bodyPart.replace(nextH2Regex, `${imageHtml}$1`);
-        console.log('  ✓ Imagem 1 inserida via Fallback do Script');
+    // Remover <h2>Introdução</h2> ou ## Introdução se gerado pela IA
+    bodyPart = bodyPart.replace(/<h[23]>\s*Introdu[çc][ãa]o\s*<\/h[23]>\s*/gi, '');
+    bodyPart = bodyPart.replace(/^##\s*Introdu[çc][ãa]o\s*$/gmi, '');
+    bodyPart = bodyPart.replace(/\n{3,}/g, '\n\n');
+
+    // Limpar quaisquer imagens pré-existentes no corpo gerado para garantir posicionamento exato
+    bodyPart = bodyPart.replace(/<p><img\s+[^>]*><\/p>\s*/gi, '');
+
+    // 1. Inserir primeira imagem DEPOIS DO PRIMEIRO PARÁGRAFO da introdução
+    if (processedImages.length > 0) {
+      const imageHtml1 = `<p><img src="${processedImages[0].url}" alt="${processedImages[0].alt}"></p>`;
+      
+      const introMatch = bodyPart.match(/(##[^\n]+\n(?:[^\n]+\n)*?\n)([\s\S]*?)(<h3>\s*⚠️\s*Nota de Curadoria|##\s*O Que Torna)/i);
+      let insertedImg1 = false;
+
+      if (introMatch) {
+        const introParagraphsText = introMatch[2];
+        const paragraphs = introParagraphsText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+        
+        if (paragraphs.length >= 1) {
+          let targetIndex = 0;
+          if (paragraphs.length > 1 && paragraphs[0].length < 120) {
+            targetIndex = 1;
+          }
+          const targetParagraph = paragraphs[targetIndex];
+          bodyPart = bodyPart.replace(targetParagraph, `${targetParagraph}\n\n${imageHtml1}`);
+          insertedImg1 = true;
+          console.log('  ✓ Imagem 1 posicionada depois do primeiro parágrafo');
+        }
+      }
+
+      if (!insertedImg1) {
+        const fallbackRegex = /(## O Que Torna|<h3>\s*⚠️\s*Nota de Curadoria)/i;
+        if (fallbackRegex.test(bodyPart)) {
+          bodyPart = bodyPart.replace(fallbackRegex, `${imageHtml1}\n\n$1`);
+          console.log('  ✓ Imagem 1 posicionada via fallback');
+        }
       }
     }
 
-    // 2. Inserir segunda imagem antes da conclusão (se a IA não inseriu sozinha)
-    if (processedImages.length > 1 && !bodyPart.includes(processedImages[1].url)) {
-      const conclusionRegex = /(## Sua Vibe Encontra o Filme Certo no Vibesfilm)/;
-      if (conclusionRegex.test(bodyPart)) {
-        const imageHtml = `<p><img src="${processedImages[1].url}" alt="${processedImages[1].alt}"></p>\n\n`;
-        bodyPart = bodyPart.replace(conclusionRegex, `${imageHtml}$1`);
-        console.log('  ✓ Imagem 2 inserida via Fallback do Script');
+    // 2. Inserir segunda imagem DEPOIS DO PARÁGRAFO DE "A Atmosfera Dominante" (antes de "O que ressoa...")
+    if (processedImages.length > 1) {
+      const imageHtml2 = `<p><img src="${processedImages[1].url}" alt="${processedImages[1].alt}"></p>`;
+      const resonanceRegex = /(###\s*O que ressoa nesta experi[êe]ncia:?)/i;
+
+      if (resonanceRegex.test(bodyPart)) {
+        bodyPart = bodyPart.replace(resonanceRegex, `${imageHtml2}\n\n$1`);
+        console.log('  ✓ Imagem 2 posicionada depois do parágrafo de "A Atmosfera Dominante"');
+      } else {
+        const fallbackRegex = /(## Sua Vibe Encontra o Filme Certo no Vibesfilm|## Quando Escolher)/i;
+        if (fallbackRegex.test(bodyPart)) {
+          bodyPart = bodyPart.replace(fallbackRegex, `${imageHtml2}\n\n$1`);
+          console.log('  ✓ Imagem 2 posicionada via fallback');
+        }
       }
     }
 
-    // 3. Inserir links IMDb nos nomes (Apenas no Corpo do Artigo)
+    // 3. Inserir links IMDb nos nomes (Apenas no Corpo do Artigo, máximo 4 exibições no total)
+    const MAX_IMDB_LINKS = 4;
     if (Object.keys(imdbIds).length > 0) {
+      let currentLinksCount = (bodyPart.match(/<a\s+[^>]*href=["']https:\/\/www\.imdb\.com\/name\/[^"']+["'][^>]*>/gi) || []).length;
       let linksInserted = 0;
+
       for (const [name, url] of Object.entries(imdbIds)) {
+        if (currentLinksCount >= MAX_IMDB_LINKS) break;
+
         // Escapar caracteres especiais de regex e flexibilizar espaços/hífens
         // Ex: "Bong Joon Ho" aceitará "Bong Joon-ho", "Bong Joon Ho", "bong joon ho", etc.
         const flexibleNamePattern = name
@@ -734,11 +873,12 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
           .replace(/[-\s]/g, '[-\\s]');          // Tornar hífens e espaços intercambiáveis
 
         const patterns = [
-          new RegExp(`\\*\\*${flexibleNamePattern}\\*\\*(?!<)`, 'gi'),
-          new RegExp(`\\b${flexibleNamePattern}\\b(?![^<]*>|[^<]*<\/a>)`, 'gi')
+          new RegExp(`\\*\\*${flexibleNamePattern}\\*\\*(?!<)`, 'i'),
+          new RegExp(`\\b${flexibleNamePattern}\\b(?![^<]*>|[^<]*<\/a>)`, 'i')
         ];
 
         for (const pattern of patterns) {
+          if (currentLinksCount >= MAX_IMDB_LINKS) break;
           if (pattern.test(bodyPart)) {
             bodyPart = bodyPart.replace(pattern, (match) => {
               // Limpar a marcação de negrito mantendo a escrita exata do texto
@@ -746,12 +886,32 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
               return `<a href="${url}" target="_blank" rel="noopener">${cleanMatch}</a>`;
             });
             linksInserted++;
+            currentLinksCount++;
             break; // Evita dupla substituição para o mesmo nome
           }
         }
       }
-      console.log(`  ✓ ${linksInserted} link(s) IMDb inserido(s)`);
+      if (linksInserted > 0) {
+        console.log(`  ✓ ${linksInserted} link(s) IMDb inserido(s) via script`);
+      }
     }
+
+    // Fiscal estrito: Garantir que não existam mais de 4 links IMDb em todo o texto
+    const imdbLinkRegex = /<a\s+[^>]*href=["']https:\/\/www\.imdb\.com\/name\/[^"']+["'][^>]*>(.*?)<\/a>/gi;
+    let imdbOccurrence = 0;
+    bodyPart = bodyPart.replace(imdbLinkRegex, (fullMatch, linkText) => {
+      imdbOccurrence++;
+      if (imdbOccurrence > MAX_IMDB_LINKS) {
+        // Remove a tag <a> excedente mantendo apenas o nome do ator/diretor
+        return linkText;
+      }
+      return fullMatch;
+    });
+    console.log(`  ✓ Total final de links IMDb no artigo: ${Math.min(imdbOccurrence, MAX_IMDB_LINKS)} (máximo permitido: ${MAX_IMDB_LINKS})`);
+
+    // Extrair as 3 tags baseadas estritamente na seção "O que ressoa nesta experiência:"
+    const subSentimentNames = movie.movieSentiments.map(ms => ms.subSentiment.name);
+    const chosenTags = extractResonanceTags(bodyPart, subSentimentNames);
 
     // Reagrupar conteúdo com YAML protegido
     enrichedContent = frontmatter + bodyPart;
@@ -770,12 +930,13 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
     console.log(`\n✅ Artigo gerado e enriquecido!`);
     console.log(`📂 ${filePath}`);
     console.log(`📸 Imagens: ${processedImages.length}`);
-    console.log(`🔗 Links IMDb: ${Object.keys(imdbIds).length}`);
+    console.log(`🏷️  Tags (O que ressoa nesta experiência): ${chosenTags.join(', ')}`);
+    console.log(`🔗 Links IMDb: ${Math.min(imdbOccurrence, MAX_IMDB_LINKS)}`);
 
     // Inserção opcional no Banco de Dados do Blog
     if (args.insertDb) {
       console.log('\n📦 Inserindo artigo no banco de dados do blog...');
-      const blogId = args.blogId || 1;
+      const blogId = args.blogId || 3;
       const published = args.published || false;
 
       const yamlMetadata = parseYaml(frontmatter);
@@ -800,10 +961,13 @@ Feche com: "Quer saber onde assistir, ver o elenco completo e mais detalhes? Con
       const authorId = await getOrCreateAuthor(blogId);
       const categoryId = await getOrCreateCategory(blogId);
       
-      const sentimentNames = movie.movieSentiments.map(ms => ms.subSentiment.name);
-      const tagIds = await getOrCreateTags(blogId, sentimentNames, movie.genres);
+      const tagIds = await getOrCreateTags(blogId, chosenTags);
 
-      const imageUrl = processedImages[0]?.url || movie.thumbnail || '';
+      const rawImageUrl = processedImages[0]?.url || movie.thumbnail || '';
+      const imageUrl = rawImageUrl.replace(
+        'https://dadrodpfylduydjbdxpy.supabase.co/storage/v1/object/public/movie-images/',
+        'https://images.vibesfilm.com/'
+      );
       const imageAlt = processedImages[0]?.alt || `Cena do filme ${movie.title}`;
 
       const aiModelUsed = args.model || aiConfig.model;
