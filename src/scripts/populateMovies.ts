@@ -1001,8 +1001,12 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
 
     // Função para calcular similaridade entre strings
     function calculateSimilarity(str1: string, str2: string): number {
-      const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const s1 = (str1 || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const s2 = (str2 || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      if (!s1 || !s2) {
+        return 0;
+      }
 
       // Se uma string contém a outra, retorna alta similaridade
       if (s1.includes(s2) || s2.includes(s1)) {
@@ -1017,20 +1021,16 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
       return commonWords.length / Math.max(words1.length, words2.length);
     }
 
-    // Verificar se encontramos o filme correto
-    const movie = response.data.results.find(m => {
+    // Verificar se encontramos o filme correto (primeiro tenta ano exato, depois tolerância de ±1 ano de festival vs cinema)
+    const matchByYear = (tolerance: number) => response.data.results.find(m => {
       const releaseYear = m.release_date ? parseInt(m.release_date.split('-')[0]) : null;
 
-      // Verificar se o ano corresponde
-      if (year && releaseYear !== year) {
+      if (year && (!releaseYear || Math.abs(releaseYear - year) > tolerance)) {
         return false;
       }
 
-      // Calcular similaridade entre os títulos
       const titleSimilarity = calculateSimilarity(cleanTitle, m.title);
       const originalTitleSimilarity = calculateSimilarity(cleanTitle, m.original_title);
-
-      // Se a similaridade for alta o suficiente, considera como match
       const isMatch = titleSimilarity > 0.6 || originalTitleSimilarity > 0.6;
 
       if (isMatch) {
@@ -1039,6 +1039,8 @@ export async function searchMovie(title?: string, year?: number, tmdbId?: number
 
       return isMatch;
     });
+
+    const movie = matchByYear(0) || matchByYear(1);
 
     if (!movie) {
       console.log(`Filme exato não encontrado para: ${title}`);

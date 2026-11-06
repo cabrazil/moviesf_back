@@ -69,6 +69,7 @@ export interface SentimentAlignmentItemResult {
 export interface JevSentimentAlignmentResult {
   success: boolean;
   alignments?: SentimentAlignmentItemResult[];
+  jofAffinity?: number;
   rawAnswers?: Record<string, any>;
   cost?: number;
   durationMs?: number;
@@ -398,15 +399,20 @@ export class JevService {
     }
 
     const state = this.buildSentimentState(input);
-    const questions: Record<string, { type: 'noul'; instructions: string }> = {};
+    const questions: Record<string, { type: 'noul'; instructions: string }> = {
+      jof_affinity: {
+        type: 'noul',
+        instructions: `Na curadoria de cinema, o filme "${input.title}" (Gêneros: ${input.genres?.join(', ') || 'N/A'}) é uma indicação coerente, autêntica e certeira para a prateleira "${input.journeyOptionText}"? Dê nota alta (0.75 a 0.98) se o gênero, o tom e a experiência central do filme entregarem exatamente o que a prateleira "${input.journeyOptionText}" promete; dê nota MUITO BAIXA (< 0.25) se o gênero principal contradisser a prateleira (ex: filmes de Terror/Horror NUNCA pertencem a prateleiras de solidão introspectiva, laços humanos, melancolia ou mente inquieta reflexiva — pertencem apenas a prateleiras de tensão/medo/desconhecido/inexplicável).`
+      }
+    };
 
     for (const cand of input.candidates) {
       const kwHint = cand.keywords && cand.keywords.length > 0
-        ? ` (conceitos associados: ${cand.keywords.slice(0, 4).join(', ')})`
+        ? ` (conceitos associados: ${cand.keywords.slice(0, 5).join(', ')})`
         : '';
       questions[`sub_${cand.id}`] = {
         type: 'noul',
-        instructions: `Considerando a jornada "${input.journeyOptionText}" (Lente Emocional: ${input.mainSentimentName || 'Geral'}) e a atmosfera real da obra, o filme aborda de forma genuína e compatível com a proposta desta jornada o sentimento "${cand.name}"${kwHint}? Se o tom da obra for manifestamente antagônico à experiência da jornada (por exemplo, terror visceral/pânico puro frente a uma jornada de acolhimento reflexivo e tristeza profunda), desconsidere coincidências superficiais.`
+        instructions: `Considerando especificamente a proposta da prateleira "${input.journeyOptionText}" e os gêneros da obra (${input.genres?.join(', ') || 'N/A'}), o filme aborda de forma compatível com essa prateleira o elemento "${cand.name}"${kwHint}? Se o filme for de Terror/Horror visceral e a prateleira for de introspecção, solidão, luto ou reflexão psicológica (sem foco em terror/medo), responda NÃO (< 0.20).`
       };
     }
 
@@ -441,6 +447,8 @@ export class JevService {
 
       const threshold = options?.threshold ?? 0.55;
       const alignments: SentimentAlignmentItemResult[] = [];
+      const rawAffinity = data.answers['jof_affinity']?.noul;
+      const jofAffinity = typeof rawAffinity === 'number' ? Number(rawAffinity.toFixed(3)) : undefined;
 
       for (const cand of input.candidates) {
         const ans = data.answers[`sub_${cand.id}`];
@@ -460,6 +468,7 @@ export class JevService {
       return {
         success: true,
         alignments,
+        jofAffinity,
         rawAnswers: data.answers,
         cost: data.usage?.cost,
         durationMs
@@ -487,20 +496,21 @@ export class JevService {
       parts.push(`Sinopse: ${input.description}`);
     }
     if (input.mainSentimentName) {
-      parts.push(`Lente Emocional Principal: ${input.mainSentimentName}${input.mainSentimentKeywords?.length ? ` (Keywords da Lente: ${input.mainSentimentKeywords.join(', ')})` : ''}`);
+      const includeMainKws = input.intentionType === 'MAINTAIN' || input.intentionType === 'PROCESS';
+      parts.push(`Ponto de Partida do Espectador: ${input.mainSentimentName}${includeMainKws && input.mainSentimentKeywords?.length ? ` (Keywords: ${input.mainSentimentKeywords.join(', ')})` : ''}`);
     }
     if (input.intentionType) {
       parts.push(`Intenção Emocional do Espectador: [${input.intentionType}]${input.intentionDescription ? ` "${input.intentionDescription}"` : ''}`);
     }
-    parts.push(`Opção de Jornada Específica: "${input.journeyOptionText}"`);
+    parts.push(`Prateleira Alvo (Experiência Buscada): "${input.journeyOptionText}"`);
 
     // Identificar conexões semânticas explícitas (interseção ou proximidade de keywords)
     if (input.keywords && input.keywords.length > 0) {
       const movieKwLower = new Set(input.keywords.map(k => k.toLowerCase().trim()));
       const matchedConcepts: string[] = [];
 
-      // Checar com keywords do MainSentiment
-      if (input.mainSentimentKeywords) {
+      // Checar com keywords do MainSentiment apenas quando a intenção é manter/processar o estado inicial
+      if ((input.intentionType === 'MAINTAIN' || input.intentionType === 'PROCESS') && input.mainSentimentKeywords) {
         for (const mk of input.mainSentimentKeywords) {
           const mkLow = mk.toLowerCase().trim();
           if (movieKwLower.has(mkLow) || [...movieKwLower].some(mk2 => mk2.length >= 4 && (mk2.includes(mkLow) || mkLow.includes(mk2)))) {

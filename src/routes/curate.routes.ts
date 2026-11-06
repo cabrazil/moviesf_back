@@ -19,6 +19,7 @@ interface PendingCuration {
   tmdbId: number;
   slug?: string;
   provider: any;
+  replace?: boolean;
   topSelections: JofEvaluationResult[];
   expiresAt: number;
 }
@@ -69,11 +70,11 @@ setInterval(() => {
 
 // ====================================================
 // POST /api/curate/preview
-// Body: { title: string, year?: number, sentiment?: string, intention?: string, provider?: string }
+// Body: { title: string, year?: number, sentiment?: string, intention?: string, jofId?: number, replace?: boolean, provider?: string }
 // ====================================================
 router.post('/preview', async (req, res) => {
   try {
-    const { title, year, sentiment, intention, provider = 'deepseek' } = req.body;
+    const { title, year, sentiment, intention, jofId, replace, provider = 'deepseek' } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'Campo "title" é obrigatório.' });
@@ -84,6 +85,8 @@ router.post('/preview', async (req, res) => {
     const result = await evaluateMovie(title, year ? Number(year) : undefined, {
       sentiment,
       intention,
+      jofId: jofId ? Number(jofId) : undefined,
+      replace: Boolean(replace),
       provider: provider as any
     });
 
@@ -95,6 +98,7 @@ router.post('/preview', async (req, res) => {
       tmdbId: result.movie.tmdbId,
       slug: result.movie.slug,
       provider,
+      replace: Boolean(replace),
       topSelections: result.topSelections,
       expiresAt: Date.now() + 30 * 60 * 1000
     });
@@ -113,6 +117,7 @@ router.post('/preview', async (req, res) => {
       topOptions: result.topSelections.map(opt => ({
         jofId: opt.jofId,
         score: Number(opt.score.toFixed(3)),
+        jofAffinity: opt.jofAffinity,
         tier: opt.tier,
         sentiment: opt.mainSentimentName,
         intention: opt.intentionType,
@@ -158,7 +163,8 @@ router.post('/confirm-pending/:pendingId', async (req, res) => {
     const savedOutput = await commitCurations(
       pending.movieId,
       pending.topSelections,
-      pending.provider
+      pending.provider,
+      Boolean(pending.replace || req.body?.replace)
     );
 
     pendingStore.delete(pendingId);
@@ -192,7 +198,7 @@ router.post('/confirm-pending/:pendingId', async (req, res) => {
 // ====================================================
 router.post('/confirm-direct', async (req, res) => {
   try {
-    const { movieId, topSelections, provider = 'deepseek', title } = req.body;
+    const { movieId, topSelections, provider = 'deepseek', replace = false, title } = req.body;
 
     if (!movieId || !topSelections || !Array.isArray(topSelections) || topSelections.length === 0) {
       return res.status(400).json({
@@ -203,7 +209,7 @@ router.post('/confirm-direct', async (req, res) => {
 
     console.log(`💾 [API /curate/confirm-direct] Gravando: "${title || movieId}"...`);
 
-    const savedOutput = await commitCurations(movieId, topSelections, provider as any);
+    const savedOutput = await commitCurations(movieId, topSelections, provider as any, Boolean(replace));
 
     return res.json({
       success: true,
@@ -233,11 +239,11 @@ router.post('/cancel-pending/:pendingId', (req, res) => {
 // ====================================================
 // POST /api/curate/auto
 // Executa preview + confirm em uma única chamada (ideal para n8n/automações)
-// Body: { title: string, year?: number, sentiment?: string, intention?: string, provider?: string }
+// Body: { title: string, year?: number, sentiment?: string, intention?: string, jofId?: number, replace?: boolean, provider?: string }
 // ====================================================
 router.post('/auto', async (req, res) => {
   try {
-    const { title, year, sentiment, intention, provider = 'deepseek' } = req.body;
+    const { title, year, sentiment, intention, jofId, replace, provider = 'deepseek' } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'Campo "title" é obrigatório.' });
@@ -249,6 +255,8 @@ router.post('/auto', async (req, res) => {
     const result = await evaluateMovie(title, year ? Number(year) : undefined, {
       sentiment,
       intention,
+      jofId: jofId ? Number(jofId) : undefined,
+      replace: Boolean(replace),
       provider: provider as any
     });
 
@@ -256,7 +264,8 @@ router.post('/auto', async (req, res) => {
     const savedOutput = await commitCurations(
       result.movie.id,
       result.topSelections,
-      provider as any
+      provider as any,
+      Boolean(replace)
     );
 
     return res.json({
@@ -266,6 +275,7 @@ router.post('/auto', async (req, res) => {
       topOptions: result.topSelections.map(opt => ({
         jofId: opt.jofId,
         score: Number(opt.score.toFixed(3)),
+        jofAffinity: opt.jofAffinity,
         tier: opt.tier,
         sentiment: opt.mainSentimentName,
         intention: opt.intentionType,

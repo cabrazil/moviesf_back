@@ -24,6 +24,7 @@ src/scripts/obsidian/
 temp
 .agent
 jofs*
+backups/
 
 # Scripts
 sql/*

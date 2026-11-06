@@ -4,7 +4,8 @@ import { OscarDataService } from './OscarDataService';
 import { createAIProvider, getDefaultConfig, AIProvider } from '../utils/aiProvider';
 import { updateRelevanceRankingForMovie } from '../utils/relevanceRanking';
 import { inferEntryType } from '../utils/emotionalEntryType';
-import { processSingleMovie } from '../scripts/populateMovies';
+import { processSingleMovie, hasNonLatinCharacters, resolveLocalizedMovieTitle } from '../scripts/populateMovies';
+import { generateUniqueSlug } from '../utils/slugGenerator';
 
 /**
  * Limita uma Promise a um tempo máximo (ms). Se exceder, rejeita com timeout.
@@ -30,6 +31,7 @@ export interface JofEvaluationResult {
   totalExpected: number;
   coverageRatio: number;
   averageRelevance: number;
+  jofAffinity?: number;
   activeAlignments: Array<{ id: number; name: string; relevance: number }>;
 }
 
@@ -69,27 +71,64 @@ export interface CurationSavedOutput {
 }
 
 /**
- * Fórmula oficial de RelevanceScore do Vibesfilm
+ * Fórmula oficial de RelevanceScore do Vibesfilm (com ponderação por expectedWeight, afinidade direta JOF e suavização de superlotação)
  */
-export function computeScore(relevances: number[], totalExpected: number): {
+export function computeScore(
+  activeAlignments: Array<{ relevance: number; expectedWeight?: number }>,
+  allCandidates: Array<{ expectedWeight?: number }>,
+  jofAffinity?: number,
+  currentJofMovieCount?: number,
+  isForcedJof: boolean = false
+): {
   score: number;
   tier: 'Ouro' | 'Prata' | 'Bronze' | 'Sem Bônus';
   coverageRatio: number;
   averageRelevance: number;
 } {
-  if (relevances.length === 0 || totalExpected === 0) {
+  const totalExpected = allCandidates.length;
+  if (activeAlignments.length === 0 || totalExpected === 0) {
     return { score: 0, tier: 'Sem Bônus', coverageRatio: 0, averageRelevance: 0 };
   }
-  const avg = relevances.reduce((acc, r) => acc + r, 0) / relevances.length;
-  const intensity = Math.pow(avg, 1.5) * 10;
-  const coverageRatio = relevances.length / totalExpected;
 
+  // 1. Média ponderada pelo quadrado do expectedWeight (privilegia subSentiments nucleares da JOF, weight >= 0.90)
+  let weightedSum = 0;
+  let weightTotalActive = 0;
+  let hasCoreSubActivated = false;
+
+  for (const a of activeAlignments) {
+    const w = a.expectedWeight ?? 0.8;
+    const wSq = w * w;
+    weightedSum += a.relevance * wSq;
+    weightTotalActive += wSq;
+    if (w >= 0.95 && a.relevance >= 0.65) {
+      hasCoreSubActivated = true;
+    }
+  }
+
+  const weightedAvg = weightTotalActive > 0
+    ? weightedSum / weightTotalActive
+    : activeAlignments.reduce((acc, r) => acc + r.relevance, 0) / activeAlignments.length;
+
+  // Se jofAffinity (coerência direta do filme com a prateleira) estiver presente, combina 75% subSentiments + 25% afinidade direta
+  const effectiveAvg = typeof jofAffinity === 'number'
+    ? weightedAvg * 0.75 + jofAffinity * 0.25
+    : weightedAvg;
+
+  const intensity = Math.pow(effectiveAvg, 1.5) * 10;
+
+  // 2. Cobertura inteligente sobre o núcleo (máx 9 quando jofAffinity >= 0.72)
+  const highShelfAffinity = typeof jofAffinity === 'number' && jofAffinity >= 0.72;
+  const effectiveDenominator = highShelfAffinity ? Math.min(totalExpected, 9) : totalExpected;
+  const coverageRatio = Math.min(1.0, activeAlignments.length / effectiveDenominator);
+
+  // 3. Bônus de Cobertura (exige que pelo menos 1 subSentiment nuclear >= 0.95 esteja ativo e afinidade mínima com a prateleira)
+  const affinityOkForGold = typeof jofAffinity === 'number' ? jofAffinity >= 0.68 : true;
   let bonus = 0;
   let tier: 'Ouro' | 'Prata' | 'Bronze' | 'Sem Bônus' = 'Sem Bônus';
-  if (coverageRatio >= 0.75) {
+  if (coverageRatio >= 0.75 && hasCoreSubActivated && affinityOkForGold) {
     bonus = 0.6;
     tier = 'Ouro';
-  } else if (coverageRatio >= 0.65) {
+  } else if (coverageRatio >= 0.65 && hasCoreSubActivated) {
     bonus = 0.4;
     tier = 'Prata';
   } else if (coverageRatio >= 0.50) {
@@ -97,25 +136,44 @@ export function computeScore(relevances: number[], totalExpected: number): {
     tier = 'Bronze';
   }
 
-  const rawScore = intensity * Math.sqrt(coverageRatio) + bonus;
-  const score = Math.min(Number(rawScore.toFixed(3)), 10.0);
+  let rawScore = intensity * Math.sqrt(coverageRatio) + bonus;
+
+  // 4. Penalidade de incoerência de prateleira (ex: filmes de ação/terror/comédia caindo em prateleiras incompatíveis)
+  if (typeof jofAffinity === 'number' && jofAffinity < 0.58) {
+    const penaltyFactor = Math.max(0.35, jofAffinity / 0.68);
+    rawScore *= penaltyFactor;
+  }
+
+  // 5. Balanceamento de catálogo (evita concentração excessiva nas mesmas JOFs superlotadas)
+  if (!isForcedJof && typeof currentJofMovieCount === 'number') {
+    if (currentJofMovieCount > 35) {
+      const saturationPenalty = Math.min(0.45, (currentJofMovieCount - 35) * 0.012);
+      rawScore -= saturationPenalty;
+    } else if (currentJofMovieCount < 18) {
+      const scarcityBoost = Math.min(0.20, (18 - currentJofMovieCount) * 0.02);
+      rawScore += scarcityBoost;
+    }
+  }
+
+  const score = Math.max(0, Math.min(Number(rawScore.toFixed(3)), 10.0));
 
   return {
     score,
     tier,
     coverageRatio,
-    averageRelevance: Number(avg.toFixed(3))
+    averageRelevance: Number(effectiveAvg.toFixed(3))
   };
 }
 
 /**
- * Enriquece o filme com keywords semânticas profundas
+ * Enriquece o filme com keywords emocionais e semânticas fiéis ao gênero e tom real da obra
  */
 export async function enrichMovieKeywords(
   movieId: string,
   tmdbId: number,
   title: string,
   year: number | null,
+  genres: string[] | null,
   description: string | null,
   currentKeywords: string[],
   provider: AIProvider = 'deepseek'
@@ -126,15 +184,14 @@ export async function enrichMovieKeywords(
 
     const systemPrompt = "Você é um especialista em análise cinematográfica e metadados semânticos.";
     const prompt = `Filme: '${title}' (${year || 'N/A'}).
+Gêneros oficiais: ${genres?.join(', ') || 'N/A'}
 Keywords atuais: ${currentKeywords.slice(0, 30).join(', ')}
 Sinopse: ${description || 'Sinopse não disponível.'}
 
-Sua tarefa é gerar uma lista de 10 a 15 keywords enriquecidas em português para este filme.
-Você deve focar em:
-- Análise semântica da sinopse e tom dramático
-- Temas emocionais profundos (ex: amadurecimento, perda, reencontro, crise de identidade)
-- Atmosfera e sensação psicológica transmitida ao espectador
-- Conexões com sentimentos e jornadas de vida
+Sua tarefa é gerar uma lista de 10 a 15 keywords enriquecidas em português para este filme, sendo 100% FIEL ao tom predominante e aos gêneros da obra:
+- Se for Comédia, Sátira, Animação, Aventura, Romance ou Família: respeite o subgênero exato da obra (ex: humor ácido, sátira social, ironia afiada e situações absurdas para comédias satíricas/irreverentes; ou humor contagiante, aventura encantadora, leveza familiar e romance solar para obras leves/familiares).
+- Se for Ação, Ficção Científica, Crime, Thriller ou Terror: foque no ritmo, tensão, medo, sobrenatural, espetáculo ou intriga (ex: tensão sobrenatural, pavor crescente, adrenalina pura, ritmo eletrizante, reviravolta inteligente, ação visceral).
+- APENAS use termos de melancolia, luto, solidão, tristeza íntima ou esgotamento se o filme for genuinamente um Drama focado nesses temas. NUNCA dramatize artificialmente filmes de ação, aventura, comédia, animação ou terror/horror.
 
 As novas keywords devem:
 - Ser em português (minúsculas)
@@ -142,7 +199,7 @@ As novas keywords devem:
 - NÃO REPETIR as keywords atuais
 
 Formatação estrita: retorne APENAS os termos separados por VÍRGULA, sem numeração, sem aspas, sem introdução.
-Exemplo: nostalgia afetiva, busca por pertencimento, inocência infantil, choque de realidade, calor familiar`;
+Exemplo: humor contagiante, ritmo eletrizante, encanto visual, calor familiar, mistério engenhoso`;
 
     const response = await withTimeout(
       ai.generateResponseWithFallback(systemPrompt, prompt, {
@@ -392,6 +449,7 @@ export async function evaluateMovie(
     sentiment?: string;
     intention?: string;
     jofId?: number;
+    replace?: boolean;
     provider?: AIProvider;
     threshold?: number;
   }
@@ -410,7 +468,8 @@ export async function evaluateMovie(
     keywords: true,
     description: true,
     tmdbId: true,
-    slug: true
+    slug: true,
+    certification: true
   };
 
   let movie = await prisma.movie.findFirst({
@@ -433,6 +492,20 @@ export async function evaluateMovie(
     throw new Error('Não foi possível carregar os dados completos do filme.');
   }
 
+  // Auto-healing: verificar se o título possui caracteres não-latinos
+  if (hasNonLatinCharacters(movie.title)) {
+    const localizedTitle = await resolveLocalizedMovieTitle(movie.tmdbId, movie.title, movie.title);
+    if (localizedTitle !== movie.title) {
+      const newSlug = await generateUniqueSlug(localizedTitle, movie.year || undefined, movie.tmdbId);
+      await prisma.movie.update({
+        where: { id: movie.id },
+        data: { title: localizedTitle, slug: newSlug }
+      });
+      movie.title = localizedTitle;
+      movie.slug = newSlug;
+    }
+  }
+
   // Enriquecer Oscars
   try {
     const oscarService = new OscarDataService();
@@ -447,6 +520,7 @@ export async function evaluateMovie(
     movie.tmdbId,
     movie.title,
     movie.year,
+    movie.genres || [],
     movie.description,
     movie.keywords || [],
     provider
@@ -460,6 +534,15 @@ export async function evaluateMovie(
   // Carregar SubSentiments e JOFs
   const allSubSentiments = await prisma.subSentiment.findMany();
   const subMap = new Map(allSubSentiments.map(s => [s.id, s]));
+
+  // Contagem de filmes atuais por JOF para balanceamento de superlotação
+  const jofCountsRaw = await prisma.movieSuggestionFlow.groupBy({
+    by: ['journeyOptionFlowId'],
+    _count: { id: true }
+  });
+  const jofMovieCountsMap = new Map<number, number>(
+    jofCountsRaw.map(c => [c.journeyOptionFlowId, c._count.id])
+  );
 
   const allJofs = await prisma.journeyOptionFlow.findMany({
     where: forcedJofId ? { id: forcedJofId } : undefined,
@@ -505,7 +588,19 @@ export async function evaluateMovie(
     candidates: SubSentimentCandidate[];
   }> = [];
 
+  const horrorInGenres = (movie.genres || []).some(g => /terror|horror/i.test(g));
+  const horrorInText = /(terror|horror|sobrenatural|supernatural|esp[íi]rito|possess[ãa]o|possession|embalsamad|exorcismo|dem[ôo]nio|maldi[çc][ãa]o|assombra[çc][ãa]o|seance|haunting|slasher|macabro)/i.test(
+    `${(movie.keywords || []).join(' ')} ${movie.description || ''}`
+  );
+  const isHorrorGenre = horrorInGenres || horrorInText;
+  const isFamilyOrAnimGenre = (movie.genres || []).some(g => /anima(ção|cao)|fam[íi]lia/i.test(g.trim()));
+  const HORROR_ELIGIBLE_JOFS = new Set([10, 60, 87, 98, 99, 100, 101, 105, 180]);
+
   for (const jof of allJofs) {
+    if (!jof.isEndState && !forcedJofId) continue;
+    if (!forcedJofId && isHorrorGenre && !isFamilyOrAnimGenre && !HORROR_ELIGIBLE_JOFS.has(jof.id)) {
+      continue;
+    }
     const rels = jofRelsMap.get(jof.id) || [];
     if (rels.length < 4 && !forcedJofId) continue;
 
@@ -528,15 +623,21 @@ export async function evaluateMovie(
       continue;
     }
 
-    const candidates: SubSentimentCandidate[] = rels.map(rel => {
+    const seenNames = new Set<string>();
+    const candidates: SubSentimentCandidate[] = [];
+    for (const rel of rels) {
       const s = subMap.get(rel.subSentimentId);
-      return {
+      const name = s?.name || `Sub ${rel.subSentimentId}`;
+      const normName = name.toLowerCase().trim();
+      if (seenNames.has(normName)) continue;
+      seenNames.add(normName);
+      candidates.push({
         id: rel.subSentimentId,
-        name: s?.name || `Sub ${rel.subSentimentId}`,
+        name,
         keywords: s?.keywords || [],
         expectedWeight: Number(rel.weight)
-      };
-    });
+      });
+    }
 
     evaluationCandidates.push({
       jofId: jof.id,
@@ -556,7 +657,7 @@ export async function evaluateMovie(
 
   // Avaliação Jev em lotes
   const results: JofEvaluationResult[] = [];
-  const BATCH_SIZE = 8;
+  const BATCH_SIZE = 10;
 
   for (let i = 0; i < evaluationCandidates.length; i += BATCH_SIZE) {
     const chunk = evaluationCandidates.slice(i, i + BATCH_SIZE);
@@ -582,9 +683,13 @@ export async function evaluateMovie(
         if (!jevRes.success || !jevRes.alignments) return null;
 
         const active = jevRes.alignments.filter(a => a.isActivated);
+        const currentCount = jofMovieCountsMap.get(item.jofId) || 0;
         const { score, tier, coverageRatio, averageRelevance } = computeScore(
-          active.map(a => a.relevance),
-          item.candidates.length
+          active.map(a => ({ relevance: a.relevance, expectedWeight: a.expectedWeight })),
+          item.candidates.map(c => ({ expectedWeight: c.expectedWeight })),
+          jevRes.jofAffinity,
+          currentCount,
+          Boolean(forcedJofId)
         );
 
         return {
@@ -599,6 +704,7 @@ export async function evaluateMovie(
           totalExpected: item.candidates.length,
           coverageRatio,
           averageRelevance,
+          jofAffinity: jevRes.jofAffinity,
           activeAlignments: active.map(a => ({ id: a.subSentimentId, name: a.name, relevance: a.relevance }))
         } as JofEvaluationResult;
       } catch {
@@ -658,7 +764,8 @@ export async function evaluateMovie(
 export async function commitCurations(
   movieId: string,
   selections: JofEvaluationResult[],
-  provider: AIProvider = 'deepseek'
+  provider: AIProvider = 'deepseek',
+  replaceExisting: boolean = false
 ): Promise<CurationSavedOutput> {
   const movie = await prisma.movie.findUnique({
     where: { id: movieId },
@@ -670,12 +777,18 @@ export async function commitCurations(
       slug: true,
       description: true,
       keywords: true,
-      genres: true
+      genres: true,
+      certification: true
     }
   });
 
   if (!movie || !movie.tmdbId) {
     throw new Error(`Filme ID ${movieId} não encontrado no banco.`);
+  }
+
+  if (replaceExisting) {
+    await prisma.movieSuggestionFlow.deleteMany({ where: { movieId: movie.id } });
+    await prisma.movieSentiment.deleteMany({ where: { movieId: movie.id } });
   }
 
   const allSubSentiments = await prisma.subSentiment.findMany();
@@ -739,7 +852,8 @@ export async function commitCurations(
       year: movie.year || undefined,
       genres: movie.genres,
       keywords: movie.keywords,
-      description: movie.description || undefined
+      description: movie.description || undefined,
+      certification: movie.certification || undefined
     });
 
     if (warningsResult.success && warningsResult.warning) {
