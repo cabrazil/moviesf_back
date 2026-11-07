@@ -82,7 +82,7 @@ export function getJofSlug(jof: { id: number; displayTitle?: string | null; text
   const baseText = jof.displayTitle || jof.text;
   let clean = generateSlug(baseText);
   // 1. Remove prefixos de coleção redundantes
-  clean = clean.replace(/^(filmes-sobre-|filmes-que-|filmes-para-|filmes-|para-)/, '');
+  clean = clean.replace(/^(filmes-sobre-|filmes-que-|filmes-para-|filmes-com-|filmes-de-|filmes-|para-)/, '');
   // 2. Remove verbos transitivos no início para URLs mais naturais e alinhadas à busca orgânica
   clean = clean.replace(/^(oferecem-|oferece-|celebram-|celebra-|trazem-|traz-|mostram-|mostra-|proporcionam-|proporciona-|garantem-|garante-|ajudam-a-|ajuda-a-|ajudam-|ajuda-|provocam-|provoca-|despertam-|desperta-|permitem-|permita-|permite-|embarcam-|embarque-|convidam-a-|convidam-|exploram-|explore-|mergulham-|mergulhe-|inspiram-|inspire-|fazem-|faca-)/, '');
   return clean || `vibe-${jof.id}`;
@@ -116,7 +116,7 @@ export class VibeLandingService {
       targetJofId = parseInt(identifier, 10);
     } else {
       // Normalizar identificador recebido na URL
-      const cleanInput = generateSlug(identifier).replace(/^(filmes-sobre-|filmes-que-|filmes-para-|filmes-)/, '');
+      const cleanInput = generateSlug(identifier).replace(/^(filmes-sobre-|filmes-que-|filmes-para-|filmes-com-|filmes-de-|filmes-)/, '');
 
       // Buscar mapa de slugs em cache ou preencher
       let slugMap = slugCache.get<Map<string, number>>('slug_to_jof_map');
@@ -128,6 +128,10 @@ export class VibeLandingService {
         slugMap = new Map<string, number>();
         for (const j of allEndJofs) {
           const s = getJofSlug(j);
+          const textSlug = getJofSlug({ id: j.id, text: j.text });
+          if (textSlug && !slugMap.has(textSlug)) {
+            slugMap.set(textSlug, j.id);
+          }
           slugMap.set(s, j.id);
           slugMap.set(`jornada-${j.id}`, j.id);
           slugMap.set(`vibe-${j.id}`, j.id);

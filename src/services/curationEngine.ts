@@ -423,17 +423,36 @@ Responda APENAS com essa frase, sem aspas.`;
     const emotionalBenefit = emotionalResp.content?.trim().replace(/^["']|["']$/g, '') || `uma jornada marcante de ${sentimentName.toLowerCase()}`;
     const targetAudience = `Este filme pode ser perfeito para quem busca ${emotionalBenefit}.`;
 
+    const MAX_HOOK_CHARS = 140;
     const hookPrompt = `Filme: '${title}' (${year || 'N/A'}). Gêneros: ${genres?.join(', ') || 'N/A'}. Keywords: ${keywords?.slice(0, 10).join(', ') || 'N/A'}.
-Crie um gancho emocional imersivo (cerca de 25-35 palavras) para a página do filme.
-Capture a atmosfera, o impacto e a vibe do filme sem clichês de marketing (NUNCA use "Prepare-se", "Imperdível", "Assista", nem cite nomes de personagens).
+Crie um gancho emocional imersivo e conciso (entre 110 e 135 caracteres, MÁXIMO ABSOLUTO de ${MAX_HOOK_CHARS} caracteres; cerca de 16 a 22 palavras) para a página do filme.
+Capture a atmosfera, o impacto e a vibe do filme em uma única frase marcante, sem clichês de marketing (NUNCA use "Prepare-se", "Imperdível", "Assista", "Uma jornada inesquecível", nem cite nomes de personagens).
 Responda APENAS com a frase direta, sem aspas.`;
 
     const hookResp = await withTimeout(
-      ai.generateResponseWithFallback("Você é um redator cinematográfico de elite.", hookPrompt, { maxTokens: 150, temperature: 0.7 }),
+      ai.generateResponseWithFallback("Você é um redator cinematográfico de elite (máximo de 140 caracteres).", hookPrompt, { maxTokens: 150, temperature: 0.7 }),
       20000, 'landing page hook'
     );
     let hook = hookResp.content?.trim().replace(/^["']|["']$/g, '') || '';
     hook = hook.replace(/```[\s\S]*?```/g, '').trim();
+
+    if (hook.length > MAX_HOOK_CHARS) {
+      try {
+        const shortenPrompt = `Reescreva a frase abaixo mantendo a mesma atmosfera poética e sentido completo, mas reduzindo obrigatoriamente para NO MÁXIMO ${MAX_HOOK_CHARS} caracteres (atualmente tem ${hook.length} caracteres):
+"${hook}"
+Responda APENAS com a frase reescrita, sem aspas.`;
+        const shortenResp = await withTimeout(
+          ai.generateResponseWithFallback("Você é um editor conciso de cinema.", shortenPrompt, { maxTokens: 120, temperature: 0.5 }),
+          15000, 'shorten landing page hook'
+        );
+        const shortened = shortenResp.content?.trim().replace(/^["']|["']$/g, '').replace(/```[\s\S]*?```/g, '').trim() || '';
+        if (shortened.length > 0 && shortened.length <= MAX_HOOK_CHARS + 5) {
+          hook = shortened;
+        }
+      } catch {
+        // mantém hook original se falhar o segundo passo
+      }
+    }
 
     if (targetAudience && hook) {
       await prisma.movie.update({
