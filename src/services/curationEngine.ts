@@ -252,10 +252,15 @@ export async function saveSuggestionFlow(
   movie: { title: string; year: number | null; keywords: string[]; description: string | null },
   dnaSubSentiments: Array<{ id: number; name: string; mainSentimentId?: number }>,
   positionLabel: string = '1ª Opção',
-  provider: AIProvider = 'deepseek'
+  provider: AIProvider = 'deepseek',
+  verbose: boolean = false
 ): Promise<{ reflection: string }> {
   let reflection = '';
   const explanationsMap = new Map<string, string>();
+
+  if (verbose) {
+    console.log(`\n   ✍️ Gerando reflexão e explicações de cenas (${positionLabel}) com ${provider.toUpperCase()}...`);
+  }
 
   try {
     const ai = createAIProvider(getDefaultConfig(provider));
@@ -321,6 +326,9 @@ Retorne em formato JSON STRICT:
   }
 
   // Gravar MovieSentiment
+  if (verbose) {
+    console.log(`   💾 Gravando ${targetJof.activeAlignments.length} SubSentimentos e vínculo JOF ${targetJof.jofId}...`);
+  }
   const subMap = new Map(dnaSubSentiments.map(s => [s.name, s]));
   for (const match of targetJof.activeAlignments) {
     const sub = subMap.get(match.name) || dnaSubSentiments.find(s => s.id === match.id);
@@ -391,9 +399,13 @@ export async function generateLandingPageHook(
   keywords: string[] | null,
   description: string | null,
   sentimentName: string,
-  provider: AIProvider = 'deepseek'
+  provider: AIProvider = 'deepseek',
+  verbose: boolean = false
 ): Promise<{ success: boolean; hook?: string; targetAudience?: string }> {
   try {
+    if (verbose) {
+      console.log(`   🌐 Gerando Landing Page Hook e Target Audience...`);
+    }
     const config = getDefaultConfig(provider);
     const ai = createAIProvider(config);
 
@@ -431,6 +443,9 @@ Responda APENAS com a frase direta, sem aspas.`;
           targetAudienceForLP: targetAudience
         }
       });
+      if (verbose) {
+        console.log(`   ✅ Vitrine gerada!`);
+      }
       return { success: true, hook, targetAudience };
     }
     return { success: false };
@@ -446,19 +461,27 @@ export async function evaluateMovie(
   title: string,
   year?: number,
   options?: {
+    tmdbId?: number;
     sentiment?: string;
     intention?: string;
     jofId?: number;
     replace?: boolean;
     provider?: AIProvider;
     threshold?: number;
+    verbose?: boolean;
   }
 ): Promise<CurationPreviewOutput> {
   const provider = options?.provider || 'deepseek';
   const threshold = options?.threshold ?? 0.55;
   const forcedJofId = options?.jofId;
+  const tmdbId = options?.tmdbId;
+  const verbose = Boolean(options?.verbose);
   const targetSentiment = options?.sentiment?.toLowerCase().trim();
   const targetIntention = options?.intention?.toLowerCase().trim();
+
+  if (verbose) {
+    console.log(`\n📥 [1/4] Ingestão e Verificação do Filme...`);
+  }
 
   const selectFields = {
     id: true,
@@ -472,20 +495,30 @@ export async function evaluateMovie(
     certification: true
   };
 
-  let movie = await prisma.movie.findFirst({
-    where: {
-      title: { equals: title, mode: 'insensitive' },
-      ...(year ? { year } : {})
-    },
-    select: selectFields
-  });
+  let movie = null;
+  if (tmdbId) {
+    movie = await prisma.movie.findUnique({ where: { tmdbId }, select: selectFields });
+  } else if (title) {
+    movie = await prisma.movie.findFirst({
+      where: {
+        title: { equals: title, mode: 'insensitive' },
+        ...(year ? { year } : {})
+      },
+      select: selectFields
+    });
+  }
 
   if (!movie) {
+    if (verbose) {
+      console.log(`   🔍 Filme não encontrado no banco local. Executando ingestão multilíngue TMDB...`);
+    }
     const ingest = await processSingleMovie(title, year);
     if (!ingest.success || !ingest.movieId) {
       throw new Error(`Falha na ingestão do filme "${title}" no TMDB/OMDb.`);
     }
     movie = await prisma.movie.findUnique({ where: { id: ingest.movieId }, select: selectFields });
+  } else if (verbose) {
+    console.log(`   ✅ Filme já catalogado na base: "${movie.title}" (${movie.year || 'N/A'}) [TMDB: ${movie.tmdbId}]`);
   }
 
   if (!movie || !movie.tmdbId) {
@@ -494,6 +527,9 @@ export async function evaluateMovie(
 
   // Auto-healing: verificar se o título possui caracteres não-latinos
   if (hasNonLatinCharacters(movie.title)) {
+    if (verbose) {
+      console.log(`   🌐 Título possui caracteres não-latinos: "${movie.title}". Resolvendo localização...`);
+    }
     const localizedTitle = await resolveLocalizedMovieTitle(movie.tmdbId, movie.title, movie.title);
     if (localizedTitle !== movie.title) {
       const newSlug = await generateUniqueSlug(localizedTitle, movie.year || undefined, movie.tmdbId);
@@ -501,6 +537,9 @@ export async function evaluateMovie(
         where: { id: movie.id },
         data: { title: localizedTitle, slug: newSlug }
       });
+      if (verbose) {
+        console.log(`   ✅ Título e slug atualizados no banco: "${localizedTitle}" (slug: "${newSlug}")`);
+      }
       movie.title = localizedTitle;
       movie.slug = newSlug;
     }
@@ -515,6 +554,10 @@ export async function evaluateMovie(
   }
 
   // Enriquecer keywords
+  if (verbose) {
+    console.log(`\n🏷️ [2/4] Enriquecimento Semântico de Keywords...`);
+    console.log(`   Keywords originais TMDB (${movie.keywords?.length || 0}): ${movie.keywords?.slice(0, 8).join(', ')}...`);
+  }
   const enrichRes = await enrichMovieKeywords(
     movie.id,
     movie.tmdbId,
@@ -527,11 +570,19 @@ export async function evaluateMovie(
   );
 
   if (enrichRes.addedCount > 0) {
+    if (verbose) {
+      console.log(`   ✨ Adicionadas ${enrichRes.addedCount} keywords emocionais profundas.`);
+    }
     const updatedMovie = await prisma.movie.findUnique({ where: { id: movie.id }, select: { keywords: true } });
     if (updatedMovie?.keywords) movie.keywords = updatedMovie.keywords;
+  } else if (verbose) {
+    console.log(`   ✅ Keywords já otimizadas.`);
   }
 
   // Carregar SubSentiments e JOFs
+  if (verbose) {
+    console.log(`\n🧠 [3/4] Avaliação de Sentimentos e Jornadas (Jev Engine)...`);
+  }
   const allSubSentiments = await prisma.subSentiment.findMany();
   const subMap = new Map(allSubSentiments.map(s => [s.id, s]));
 
@@ -596,6 +647,13 @@ export async function evaluateMovie(
   const isHorrorGenre = horrorInGenres || (horrorInText && !isFamilyOrLightGenre);
   const HORROR_ELIGIBLE_JOFS = new Set([10, 60, 87, 98, 99, 100, 101, 105, 180]);
 
+  if (verbose) {
+    console.log(`   🎭 Gêneros no banco: [${(movie.genres || []).join(', ')}]`);
+    if (isHorrorGenre && !forcedJofId) {
+      console.log(`   👻 Filtro de Terror/Sobrenatural ativado -> Restringindo às 9 JOFs de Tensão/Suspense/Terror.`);
+    }
+  }
+
   for (const jof of allJofs) {
     if (!jof.isEndState && !forcedJofId) continue;
     if (!forcedJofId && isHorrorGenre && !HORROR_ELIGIBLE_JOFS.has(jof.id)) {
@@ -655,12 +713,19 @@ export async function evaluateMovie(
     throw new Error(`Nenhuma jornada elegível encontrada para os filtros fornecidos.`);
   }
 
+  if (verbose) {
+    console.log(`   🔍 Analisando ${evaluationCandidates.length} opções de jornada com Jev Engine...`);
+  }
+
   // Avaliação Jev em lotes
   const results: JofEvaluationResult[] = [];
   const BATCH_SIZE = 10;
 
   for (let i = 0; i < evaluationCandidates.length; i += BATCH_SIZE) {
     const chunk = evaluationCandidates.slice(i, i + BATCH_SIZE);
+    if (verbose) {
+      process.stdout.write(`   ⏳ Processando ${i + 1} a ${Math.min(i + BATCH_SIZE, evaluationCandidates.length)} de ${evaluationCandidates.length}...\r`);
+    }
     const chunkPromises = chunk.map(async item => {
       try {
         const jevRes = await jevService.evaluateSentimentAlignment(
@@ -765,8 +830,13 @@ export async function commitCurations(
   movieId: string,
   selections: JofEvaluationResult[],
   provider: AIProvider = 'deepseek',
-  replaceExisting: boolean = false
+  replaceExisting: boolean = false,
+  verbose: boolean = false
 ): Promise<CurationSavedOutput> {
+  if (verbose) {
+    console.log(`\n💾 [4/4] Persistindo Curadoria e Gerando Vitrine...`);
+  }
+
   const movie = await prisma.movie.findUnique({
     where: { id: movieId },
     select: {
@@ -787,8 +857,11 @@ export async function commitCurations(
   }
 
   if (replaceExisting) {
-    await prisma.movieSuggestionFlow.deleteMany({ where: { movieId: movie.id } });
-    await prisma.movieSentiment.deleteMany({ where: { movieId: movie.id } });
+    const delSug = await prisma.movieSuggestionFlow.deleteMany({ where: { movieId: movie.id } });
+    const delSent = await prisma.movieSentiment.deleteMany({ where: { movieId: movie.id } });
+    if (verbose) {
+      console.log(`   🧹 Modo --replace ativo: Removidos ${delSug.count} vínculo(s) antigos de jornada e ${delSent.count} sentimento(s).`);
+    }
   }
 
   const allSubSentiments = await prisma.subSentiment.findMany();
@@ -814,7 +887,8 @@ export async function commitCurations(
       },
       dna,
       label,
-      provider
+      provider,
+      verbose
     );
 
     savedSuggestions.push({
@@ -841,8 +915,11 @@ export async function commitCurations(
       where: { id: movie.id },
       data: { emotionalEntryType: entryType }
     });
-  } catch {
-    // ignorar
+    if (verbose) {
+      console.log(`   🎭 EmotionalEntryType inferido: ${entryType}`);
+    }
+  } catch (err) {
+    if (verbose) console.warn(`   ⚠️ Erro ao inferir emotionalEntryType: ${err}`);
   }
 
   // Content Warnings via Jev
@@ -861,9 +938,12 @@ export async function commitCurations(
         where: { id: movie.id },
         data: { contentWarnings: warningsResult.warning }
       });
+      if (verbose) {
+        console.log(`   ⚠️ Content Warning (Jev): "${warningsResult.warning}" (Custo: $${warningsResult.cost?.toFixed(6) || '0.00004'})`);
+      }
     }
-  } catch {
-    // ignorar
+  } catch (cwErr) {
+    if (verbose) console.warn(`   ⚠️ Alerta de conteúdo: pulado (${cwErr})`);
   }
 
   // Landing Page Hook & Target Audience
@@ -875,12 +955,16 @@ export async function commitCurations(
     movie.keywords,
     movie.description,
     selections[0].mainSentimentName,
-    provider
+    provider,
+    verbose
   );
 
   // Recalcular Ranking de Relevância
   try {
     await updateRelevanceRankingForMovie(movie.id);
+    if (verbose) {
+      console.log(`   🔄 Ranking de relevância recalculado.`);
+    }
   } catch {
     // ignorar
   }
