@@ -645,22 +645,22 @@ Opções:
   }
 
   const evaluationCandidates: JofEvaluationCandidate[] = [];
-  const horrorInGenres = (movie.genres || []).some(g => /terror|horror/i.test(g));
-  const horrorInText = /(terror|horror|sobrenatural|supernatural|esp[íi]rito|possess[ãa]o|possession|embalsamad|exorcismo|dem[ôo]nio|maldi[çc][ãa]o|assombra[çc][ãa]o|seance|haunting|slasher|macabro)/i.test(
+  const horrorInGenres = (movie.genres || []).some(g => /\b(terror|horror)\b/i.test(g));
+  const horrorInText = /\b(terror|horror|sobrenatural|supernatural|possess[ãa]o|possession|exorcismo|dem[ôo]nio|demoniac|maldi[çc][ãa]o|assombra[çc][ãa]o|assombrado|seance|haunting|slasher|macabr[oa]s?|gore)\b|esp[íi]rito(s)?\s+(malign|vingativ|demon|obsessor|sombri|do mal)/i.test(
     `${(movie.keywords || []).join(' ')} ${movie.description || ''}`
   );
-  const isHorrorGenre = horrorInGenres || horrorInText;
-  const isFamilyOrAnimGenre = (movie.genres || []).some(g => /anima(ção|cao)|fam[íi]lia/i.test(g.trim()));
+  const isFamilyOrLightGenre = (movie.genres || []).some(g => /anima(ção|cao)|fam[íi]lia|romance|com[eé]dia/i.test(g.trim()));
+  const isHorrorGenre = horrorInGenres || (horrorInText && !isFamilyOrLightGenre);
   const HORROR_ELIGIBLE_JOFS = new Set([10, 60, 87, 98, 99, 100, 101, 105, 180]);
 
   console.log(`   🎭 Gêneros no banco: [${(movie.genres || []).join(', ')}]`);
-  if (isHorrorGenre && !isFamilyOrAnimGenre && !forcedJofId) {
+  if (isHorrorGenre && !forcedJofId) {
     console.log(`   👻 Filtro de Terror/Sobrenatural ativado -> Restringindo às 9 JOFs de Tensão/Suspense/Terror.`);
   }
 
   for (const jof of allJofs) {
     if (!jof.isEndState && !forcedJofId) continue;
-    if (!forcedJofId && isHorrorGenre && !isFamilyOrAnimGenre && !HORROR_ELIGIBLE_JOFS.has(jof.id)) {
+    if (!forcedJofId && isHorrorGenre && !HORROR_ELIGIBLE_JOFS.has(jof.id)) {
       continue;
     }
     const rels = jofRelsMap.get(jof.id) || [];
