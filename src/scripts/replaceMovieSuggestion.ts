@@ -97,7 +97,7 @@ interface ScriptArgs {
   deleteBase?: boolean; // Se true, deleta a sugestão base (jornada de origem) após a duplicação/atualização
 }
 
-async function duplicateMovieSuggestion(args: ScriptArgs) {
+async function replaceMovieSuggestion(args: ScriptArgs) {
   try {
     console.log('🎬 Iniciando duplicação/atualização de sugestão de filme...');
     console.log('📋 Parâmetros:', args);
@@ -373,7 +373,8 @@ function parseArgs(): ScriptArgs {
 
   // Validação dos parâmetros obrigatórios
   if (!parsed.title || !parsed.year || !parsed.journeyOptionFlowId) {
-    console.log('❌ Uso: npx ts-node src/scripts/duplicateMovieSuggestion.ts --title="Nome do Filme" --year=2023 --journeyOptionFlowId=25 [--baseJourneyOptionFlowId=10] [--copyMovieSentiments] [--deleteBase]');
+    console.log('❌ Uso: npx ts-node src/scripts/replaceMovieSuggestion.ts --title="Nome do Filme" --year=2023 --journeyOptionFlowId=25 [--baseJourneyOptionFlowId=10] [--copyMovieSentiments] [--deleteBase]');
+    console.log('💡 Para SUBSTITUIR a JOF de um filme já curado: --baseJourneyOptionFlowId=<JOF antiga> --journeyOptionFlowId=<JOF nova> --deleteBase');
     console.log('📋 Parâmetros obrigatórios:');
     console.log('   --title: Título do filme');
     console.log('   --year: Ano do filme');
@@ -404,7 +405,7 @@ function parseArgs(): ScriptArgs {
 // Execução do script
 async function main() {
   const args = parseArgs();
-  await duplicateMovieSuggestion(args);
+  await replaceMovieSuggestion(args);
 }
 
 if (require.main === module) {

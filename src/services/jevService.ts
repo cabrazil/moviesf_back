@@ -82,10 +82,10 @@ export const DEFAULT_CATEGORY_THRESHOLDS: Record<string, number> = {
   violencia_brutalidade: 0.55,
   violencia_guerra: 0.60,
   violencia_moderada: 0.60,
-  abuso_coercao_sexual: 0.55,
-  sexo_explicito: 0.50,
+  abuso_coercao_sexual: 0.60,
+  sexo_explicito: 0.70,
   insinuacoes_sexuais: 0.60,
-  drogas_alcool: 0.50,
+  drogas_alcool: 0.58,
   linguagem_forte: 0.55,
   perturbador_angustia: 0.55,
   preconceito_discriminacao: 0.55,
@@ -151,11 +151,11 @@ export class JevService {
       },
       sexo_explicito: {
         type: 'noul',
-        instructions: 'O filme contém cenas de nudez frontal, sexo explícito, forte erotismo gráfico ou prostituição?'
+        instructions: 'O filme contém comprovadamente cenas de nudez frontal explícita, sexo gráfico, forte erotismo explícito ou prostituição explícita? (Atenção: romances dramáticos ou histórias de amor/paixão sem evidência explícita de erotismo gráfico ou nudez devem receber nota BAIXA < 0.25).'
       },
       insinuacoes_sexuais: {
         type: 'noul',
-        instructions: 'O filme aborda insinuações sexuais, conversas adultas de sedução ou temas maduros de relacionamento sem sexo explícito?'
+        instructions: 'O filme aborda insinuações sexuais, conversas adultas de sedução, intimidade romântica adulta ou temas maduros de relacionamento sem sexo explícito?'
       },
       drogas_alcool: {
         type: 'noul',
@@ -317,7 +317,11 @@ export class JevService {
 
     // 3. Sexo / Nudez Consensual (Hierárquica: se explícito, ignora insinuações; se há agressão sexual grave, omite insinuações brandas)
     if ((probs.sexo_explicito || 0) >= getThresh('sexo_explicito')) {
-      clauses.push('cenas de sexo explícito e nudez');
+      if ((probs.sexo_explicito || 0) >= 0.85) {
+        clauses.push('cenas de sexo explícito e nudez');
+      } else {
+        clauses.push('cenas de sexo e nudez');
+      }
     } else if (!hasAbusoCoercaoSexual && (probs.insinuacoes_sexuais || 0) >= getThresh('insinuacoes_sexuais')) {
       clauses.push('insinuações sexuais e conteúdo adulto');
     }

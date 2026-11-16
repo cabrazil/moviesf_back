@@ -27,7 +27,7 @@ O sistema de curadoria de filmes é uma ferramenta automatizada que utiliza **in
 
 4. **🛠️ Ferramentas de Suporte**
    - `testAIProviders.ts` - Comparação OpenAI vs Gemini
-   - `duplicateMovieSuggestion.ts` - Duplicação de sugestões
+   - `replaceMovieSuggestion.ts` - Duplica ou substitui (--deleteBase) sugestões
    - `healthCheck.ts` - Verificação de integridade
    - `reprocessMovieSentiments.ts` - Reprocessa relevanceScore e reflexão
    - `rephrase_reasons` - Refaz as reflexões
@@ -237,7 +237,7 @@ npx ts-node src/scripts/testAIProviders.ts
 ### **Duplicação de Sugestões**
 ```bash
 # Duplicar sugestão existente para nova jornada
-npx ts-node src/scripts/duplicateMovieSuggestion.ts \
+npx ts-node src/scripts/replaceMovieSuggestion.ts \
   "John Wick" 2014 27
 ```
 
