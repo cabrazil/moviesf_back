@@ -242,5 +242,8 @@ if (require.main === module) {
       console.error('❌ Erro fatal na curadoria:', err);
       process.exit(1);
     })
-    .finally(() => prisma.$disconnect());
+    .finally(async () => {
+      await prisma.$disconnect();
+      process.exit(0);
+    });
 }

@@ -370,41 +370,52 @@ async function main() {
     return;
   }
 
-  // Encontrar o filme
-  const movie = await findTargetMovie(options);
-  if (!movie) {
-    return;
-  }
+  // Suporte a múltiplos títulos separados por '|' (ex: --title="Filme 1|Filme 2|Filme 3")
+  const titles = options.title
+    ? options.title.split('|').map(t => t.trim()).filter(Boolean)
+    : [undefined];
 
-  // Caso 3: Passou apenas o filme (ex: --title="Viva") -> Listar JOFs do filme
-  if (options.jofIds.length === 0 && !options.removeAll) {
-    await listJofsForMovie(movie);
-    return;
-  }
+  for (const singleTitle of titles) {
+    const currentOptions = { ...options, title: singleTitle };
 
-  // Caso 4: Remover de todas as JOFs (--all)
-  if (options.removeAll) {
-    const allSuggestions = await prisma.movieSuggestionFlow.findMany({
-      where: { movieId: movie.id },
-      select: { journeyOptionFlowId: true }
-    });
-    const allJofIds = allSuggestions.map(s => s.journeyOptionFlowId);
-    if (allJofIds.length === 0) {
-      console.log(`ℹ️ O filme "${movie.title}" não tem nenhuma JOF para remover.`);
-      return;
+    // Encontrar o filme
+    const movie = await findTargetMovie(currentOptions);
+    if (!movie) {
+      continue;
     }
-    await removeMovieFromJofs(movie, allJofIds, options.preview);
-    return;
-  }
 
-  // Caso 5: Passou filme e JOF(s) específica(s) -> Remover das JOFs indicadas
-  await removeMovieFromJofs(movie, options.jofIds, options.preview);
+    // Caso 3: Passou apenas o filme (ex: --title="Viva") -> Listar JOFs do filme
+    if (currentOptions.jofIds.length === 0 && !currentOptions.removeAll) {
+      await listJofsForMovie(movie);
+      continue;
+    }
+
+    // Caso 4: Remover de todas as JOFs (--all)
+    if (currentOptions.removeAll) {
+      const allSuggestions = await prisma.movieSuggestionFlow.findMany({
+        where: { movieId: movie.id },
+        select: { journeyOptionFlowId: true }
+      });
+      const allJofIds = allSuggestions.map(s => s.journeyOptionFlowId);
+      if (allJofIds.length === 0) {
+        console.log(`ℹ️ O filme "${movie.title}" não tem nenhuma JOF para remover.`);
+        continue;
+      }
+      await removeMovieFromJofs(movie, allJofIds, currentOptions.preview);
+      continue;
+    }
+
+    // Caso 5: Passou filme e JOF(s) específica(s) -> Remover das JOFs indicadas
+    await removeMovieFromJofs(movie, currentOptions.jofIds, currentOptions.preview);
+  }
 }
 
 main()
   .catch(err => {
     console.error('❌ Erro inesperado durante a execução:', err);
+    process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
+    process.exit(0);
   });
