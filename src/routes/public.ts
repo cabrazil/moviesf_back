@@ -337,9 +337,11 @@ router.get('/search', async (req, res) => {
       };
     }
 
-    const movies = await prisma.movie.findMany({
+    const searchStr = typeof q === 'string' ? q.trim() : '';
+
+    const rawMovies = await prisma.movie.findMany({
       where: whereClause,
-      take: 20,
+      take: 80,
       include: {
         platforms: {
           include: {
@@ -352,10 +354,50 @@ router.get('/search', async (req, res) => {
           }
         }
       },
-      orderBy: {
-        vote_average: 'desc'
-      }
+      orderBy: [
+        { vote_average: 'desc' },
+        { year: 'desc' }
+      ]
     });
+
+    let movies = rawMovies;
+
+    if (searchStr) {
+      const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Filtra apenas ocorrências no início de palavra (ex: "Vida" ou "Vidas" passa; "Gravidade" não passa)
+      const wordStartRegex = new RegExp(`(^|[\\s("'\\-/:;,.!?])${escaped}`, 'i');
+      // Identifica palavra inteira exata (ou plural simples com 's') para priorizar na ordenação
+      const exactWordRegex = new RegExp(`(^|[\\s("'\\-/:;,.!?])${escaped}s?($|[\\s)"'\\-/:;,.!?])`, 'i');
+      const startsWithRegex = new RegExp(`^${escaped}`, 'i');
+
+      const wordMatched = rawMovies.filter(m =>
+        wordStartRegex.test(m.title || '') || wordStartRegex.test(m.original_title || '')
+      );
+
+      // Se encontrou filmes por início de palavra, usa apenas eles (descarta falsos positivos no meio da palavra)
+      if (wordMatched.length > 0) {
+        movies = wordMatched;
+      }
+
+      movies.sort((a, b) => {
+        const aTitle = a.title || '';
+        const bTitle = b.title || '';
+        const aOrig = a.original_title || '';
+        const bOrig = b.original_title || '';
+
+        const aStarts = startsWithRegex.test(aTitle) || startsWithRegex.test(aOrig) ? 1 : 0;
+        const bStarts = startsWithRegex.test(bTitle) || startsWithRegex.test(bOrig) ? 1 : 0;
+        if (aStarts !== bStarts) return bStarts - aStarts;
+
+        const aExact = exactWordRegex.test(aTitle) || exactWordRegex.test(aOrig) ? 1 : 0;
+        const bExact = exactWordRegex.test(bTitle) || exactWordRegex.test(bOrig) ? 1 : 0;
+        if (aExact !== bExact) return bExact - aExact;
+
+        const voteA = a.vote_average ? Number(a.vote_average) : 0;
+        const voteB = b.vote_average ? Number(b.vote_average) : 0;
+        return voteB - voteA;
+      });
+    }
 
     res.json(movies);
   } catch (error) {
