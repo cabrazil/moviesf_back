@@ -12,7 +12,7 @@ export function renderMovieHTML(
   slug: string,
   routeType: 'landing' | 'editorial' = 'landing'
 ): string {
-  const { movie, subscriptionPlatforms = [], rentalPurchasePlatforms = [] } = movieData;
+  const { movie, subscriptionPlatforms = [], rentalPurchasePlatforms = [], similarMovies = [] } = movieData;
   const isEditorial = routeType === 'editorial';
 
   // Converter vote_count para número e validar
@@ -295,25 +295,66 @@ export function renderMovieHTML(
 <body>
   <div id="root">
     <header>
+      <nav>
+        <a href="/">VibesFilm Home</a> |
+        <a href="/categorias">Categorias</a> |
+        <a href="/app">Descobrir Filme por Vibe</a> |
+        <a href="/sobre">Sobre</a>
+      </nav>
       <h1>${escapeHtml(movie.title)}${movie.year ? ` (${movie.year})` : ''}</h1>
+      ${movie.original_title && movie.original_title !== movie.title ? `<p><em>Título original: ${escapeHtml(movie.original_title)}</em></p>` : ''}
       <p><strong>${escapeHtml(seoDescription)}</strong></p>
     </header>
 
     <main>
+      ${movie.landingPageHook ? `
+      <section id="essencia-emocional">
+        <h2>A Essência Emocional de ${escapeHtml(movie.title)}</h2>
+        <blockquote>${escapeHtml(movie.landingPageHook)}</blockquote>
+      </section>` : ''}
+
       <section id="detalhes">
-        <h2>Sobre o filme</h2>
+        <h2>Sinopse e Detalhes de ${escapeHtml(movie.title)}</h2>
         ${movie.description ? `<p>${escapeHtml(movie.description)}</p>` : ''}
-        ${movie.thumbnail ? `<img src="${movie.thumbnail}" alt="${escapeHtml(movie.title)}" style="max-width: 300px; height: auto; border-radius: 8px;">` : ''}
+        ${movie.thumbnail ? `<img src="${movie.thumbnail}" alt="Pôster do filme ${escapeHtml(movie.title)}" style="max-width: 300px; height: auto; border-radius: 8px;">` : ''}
+        ${movie.targetAudienceForLP ? `<p><strong>Para quem este filme é indicado:</strong> ${escapeHtml(movie.targetAudienceForLP)}</p>` : ''}
+        ${movie.contentWarnings ? `<p><strong>Alerta de Conteúdo:</strong> ${escapeHtml(movie.contentWarnings)}</p>` : ''}
       </section>
+
+      ${movie.movieSuggestionFlows && movie.movieSuggestionFlows.length > 0 ? `
+      <section id="curadoria-jornadas">
+        <h2>Por que assistir ${escapeHtml(movie.title)}? (Curadoria Emocional VibesFilm)</h2>
+        <ul>
+          ${movie.movieSuggestionFlows.map((sf: any) => `
+          <li>
+            <h3>${escapeHtml(sf.displayTitle || sf.optionText || 'Jornada Emocional')}</h3>
+            ${sf.reason ? `<p>${escapeHtml(sf.reason)}</p>` : ''}
+          </li>`).join('\n          ')}
+        </ul>
+      </section>` : ''}
+
+      ${movie.hasAnalysisArticle && movie.analysisArticleSlug ? `
+      <section id="analise-completa">
+        <h2>Análise Profunda do Filme</h2>
+        <p>Leia nossa análise emocional e cinematográfica completa sobre ${escapeHtml(movie.title)}: <a href="/blog/artigo/${escapeHtml(movie.analysisArticleSlug)}">Análise de ${escapeHtml(movie.title)} no VibesFilm Blog</a>.</p>
+      </section>` : ''}
+
+      ${movie.pillarArticles && movie.pillarArticles.length > 0 ? `
+      <section id="artigos-relacionados">
+        <h2>Artigos e Listas Relacionados</h2>
+        <ul>
+          ${movie.pillarArticles.map((art: any) => `<li><a href="/blog/artigo/${escapeHtml(art.slug)}">${escapeHtml(art.title)}</a></li>`).join('\n          ')}
+        </ul>
+      </section>` : ''}
 
       <section id="onde-assistir">
         <h2>Onde assistir ${escapeHtml(movie.title)}</h2>
-        <p>Disponível nas seguintes plataformas: ${uniquePlatforms.length > 0 ? uniquePlatforms.map((p: any) => p.name).join(', ') : 'Consulte disponibilidade local.'}</p>
+        <p>Disponível nas seguintes plataformas: ${uniquePlatforms.length > 0 ? uniquePlatforms.map((p: any) => p.name).join(', ') : 'Consulte disponibilidade local nas plataformas de streaming e aluguel digital.'}</p>
       </section>
 
       ${movie.emotionalTags && movie.emotionalTags.length > 0 ? `
       <section id="vibe-emocional">
-        <h2>Vibe e Sentimentos</h2>
+        <h2>Vibe e Sentimentos Mapeados</h2>
         <ul>
           ${movie.emotionalTags.map((t: any) => `<li><strong>${escapeHtml(t.mainSentiment)}</strong>: ${escapeHtml(t.subSentiment)}</li>`).join('\n          ')}
         </ul>
@@ -322,25 +363,48 @@ export function renderMovieHTML(
       ${movie.oscarAwards && (movie.oscarAwards.totalWins > 0 || movie.oscarAwards.totalNominations > 0) ? `
       <section id="premios">
         <h2>Reconhecimentos e Prêmios</h2>
-        <p>${movie.title} possui ${movie.oscarAwards.totalWins} vitórias e ${movie.oscarAwards.totalNominations} indicações ao Oscar.</p>
+        <p>${escapeHtml(movie.awardsSummary || `${movie.title} possui ${movie.oscarAwards.totalWins} vitórias e ${movie.oscarAwards.totalNominations} indicações ao Oscar.`)}</p>
       </section>` : ''}
 
       ${movie.mainCast && movie.mainCast.length > 0 ? `
       <section id="elenco">
         <h2>Elenco Principal</h2>
         <ul>
-          ${movie.mainCast.slice(0, 10).map((c: any) => `<li>${escapeHtml(c.actorName)} como ${escapeHtml(c.characterName)}</li>`).join('\n          ')}
+          ${movie.mainCast.slice(0, 10).map((c: any) => `<li>${escapeHtml(c.actorName)}${c.characterName ? ` como ${escapeHtml(c.characterName)}` : ''}</li>`).join('\n          ')}
         </ul>
       </section>` : ''}
       
       <section id="direcao">
+        <h2>Ficha Técnica</h2>
         <p>Direção: ${escapeHtml(movie.director || 'Informação não disponível')}</p>
         <p>Gêneros: ${escapeHtml(movie.genres?.join(', ') || 'Informação não disponível')}</p>
+        ${movie.runtime ? `<p>Duração: ${movie.runtime} minutos</p>` : ''}
+        ${movie.imdbRating ? `<p>Nota IMDb: ${movie.imdbRating}/10</p>` : ''}
+        ${movie.rottenTomatoesRating ? `<p>Aprovação Rotten Tomatoes: ${movie.rottenTomatoesRating}%</p>` : ''}
       </section>
+
+      ${similarMovies && similarMovies.length > 0 ? `
+      <section id="filmes-similares">
+        <h2>Filmes com a Mesma Vibe Emocional de ${escapeHtml(movie.title)}</h2>
+        <ul>
+          ${similarMovies.filter((sm: any) => sm.slug).map((sm: any) => `
+          <li>
+            <a href="/filme/${escapeHtml(sm.slug)}">${escapeHtml(sm.title)}${sm.year ? ` (${sm.year})` : ''}</a>
+            ${sm.sharedSubSentiments && sm.sharedSubSentiments.length > 0 ? ` — Compartilha: ${escapeHtml(sm.sharedSubSentiments.slice(0, 3).join(', '))}` : ''}
+          </li>`).join('\n          ')}
+        </ul>
+      </section>` : ''}
     </main>
 
     <footer>
-      <p>Encontre o filme certo para o seu momento no VibesFilm.</p>
+      <p>Encontre o filme certo para o seu momento no <a href="/">VibesFilm</a>.</p>
+      <p>
+        <a href="/categorias">Categorias</a> |
+        <a href="/sobre">Sobre</a> |
+        <a href="/contato">Contato</a> |
+        <a href="/privacidade">Privacidade</a> |
+        <a href="/termos">Termos de Uso</a>
+      </p>
     </footer>
   </div>
 </body>
@@ -389,7 +453,7 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
     "author": {
       "@type": "Person",
       "name": article.author_name || "VibesFilm Blog",
-      "url": "https://vibesfilm.com/blog"
+      "url": "https://vibesfilm.com/sobre"
     },
     "publisher": {
       "@type": "Organization",
@@ -491,10 +555,33 @@ export function renderArticleHTML(article: any, slug: string, articleType: 'anal
 </head>
 <body>
   <div id="root">
-    <h1>${escapeHtml(title)}</h1>
-    <p>${escapeHtml(seoDescription)}</p>
-    ${article.imageUrl ? `<img src="${article.imageUrl}" alt="${escapeHtml(article.imageAlt || title)}" style="max-width: 100%; height: auto;">` : ''}
-    ${article.content ? `<div>${article.content}</div>` : ''}
+    <header>
+      <nav>
+        <a href="/">VibesFilm Home</a> |
+        <a href="/categorias">Categorias</a> |
+        <a href="/app">Descobrir Filme por Vibe</a> |
+        <a href="/sobre">Sobre</a>
+      </nav>
+    </header>
+    <main>
+      <article>
+        <h1>${escapeHtml(title)}</h1>
+        ${article.category_slug && article.category_title ? `<p>Categoria: <a href="/categoria/${escapeHtml(article.category_slug)}">${escapeHtml(article.category_title)}</a></p>` : ''}
+        <p>${escapeHtml(seoDescription)}</p>
+        ${article.imageUrl ? `<img src="${article.imageUrl}" alt="${escapeHtml(article.imageAlt || title)}" style="max-width: 100%; height: auto;">` : ''}
+        ${article.content ? `<div>${article.content}</div>` : ''}
+        ${article.tags && article.tags.length > 0 ? `
+        <section id="tags-artigo">
+          <h2>Temas e Tags Relacionados</h2>
+          <ul>
+            ${article.tags.filter((t: any) => t.slug || t.name).map((t: any) => `<li><a href="/blog/tag/${escapeHtml(t.slug || t.name.toLowerCase().replace(/\s+/g, '-'))}">${escapeHtml(t.name)}</a></li>`).join('\n            ')}
+          </ul>
+        </section>` : ''}
+      </article>
+    </main>
+    <footer>
+      <p><a href="/">Voltar para VibesFilm Home</a> | <a href="/categorias">Categorias</a> | <a href="/sobre">Sobre</a></p>
+    </footer>
   </div>
 </body>
 </html>`;
@@ -516,14 +603,17 @@ function escapeHtml(text: string): string {
 /**
  * Gera HTML completo para a página inicial (Home) do blog
  */
-export function renderHomeHTML(posts: any[]): string {
+export function renderHomeHTML(
+  posts: any[],
+  recentMovies: Array<{ title: string; year?: number | null; slug: string; landingPageHook?: string | null }> = [],
+  vibes: Array<{ title: string; slug: string; sentiment?: string; movieCount?: number }> = []
+): string {
   const title = "Descubra o filme certo para o seu momento | Vibesfilm";
   const description = "O Vibesfilm recomenda filmes pela experiência emocional que eles oferecem. Descubra histórias que conversem com o momento que você está vivendo.";
   const canonicalUrl = "https://vibesfilm.com/";
   
   const postsHtml = posts.map((post: any) => {
-    const isList = post.category_slug === 'lista' || post.type === 'lista';
-    const postRoute = `/${isList ? 'lista' : 'analise'}/${post.slug}`;
+    const postRoute = `/blog/artigo/${post.slug}`;
     const postDate = post.date ? new Date(post.date).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'long',
@@ -532,7 +622,7 @@ export function renderHomeHTML(posts: any[]): string {
     
     return `
       <article style="margin-bottom: 40px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
-        <h2><a href="${postRoute}" style="color: #011627; text-decoration: none;">${escapeHtml(post.title)}</a></h2>
+        <h3><a href="${postRoute}" style="color: #011627; text-decoration: none;">${escapeHtml(post.title)}</a></h3>
         <p style="color: #666; font-size: 0.9rem;">Publicado em ${postDate} por ${escapeHtml(post.author_name || 'VibesFilm')}</p>
         ${post.imageUrl ? `<img src="${post.imageUrl}" alt="${escapeHtml(post.imageAlt || post.title)}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0;">` : ''}
         <p>${escapeHtml(post.description || '')}</p>
@@ -540,6 +630,30 @@ export function renderHomeHTML(posts: any[]): string {
       </article>
     `;
   }).join('\n');
+
+  const moviesHtml = recentMovies.length > 0 ? `
+    <section id="filmes-curados" style="margin-top: 40px;">
+      <h2 style="border-bottom: 1px solid #011627; padding-bottom: 10px; color: #011627;">Filmes Curados por Vibe Emocional</h2>
+      <ul>
+        ${recentMovies.map(m => `
+        <li>
+          <a href="/filme/${escapeHtml(m.slug)}"><strong>${escapeHtml(m.title)}${m.year ? ` (${m.year})` : ''}</strong></a>
+          ${m.landingPageHook ? ` — ${escapeHtml(m.landingPageHook)}` : ''}
+        </li>`).join('\n        ')}
+      </ul>
+    </section>` : '';
+
+  const vibesHtml = vibes.length > 0 ? `
+    <section id="colecoes-vibes" style="margin-top: 40px;">
+      <h2 style="border-bottom: 1px solid #011627; padding-bottom: 10px; color: #011627;">Coleções de Filmes para Cada Momento</h2>
+      <ul>
+        ${vibes.map(v => `
+        <li>
+          <a href="/filmes-para/${escapeHtml(v.slug)}">${escapeHtml(v.title)}</a>
+          ${v.sentiment ? ` (${escapeHtml(v.sentiment)})` : ''}
+        </li>`).join('\n        ')}
+      </ul>
+    </section>` : '';
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -576,6 +690,7 @@ export function renderHomeHTML(posts: any[]): string {
     <p style="font-size: 1.1rem; color: #555; margin-top: 0;">Cada emoção tem um filme.</p>
     <nav>
       <a href="/" style="margin-right: 15px; font-weight: bold; color: #011627; text-decoration: none;">Blog Home</a>
+      <a href="/categorias" style="margin-right: 15px; color: #555; text-decoration: none;">Categorias</a>
       <a href="/sobre" style="margin-right: 15px; color: #555; text-decoration: none;">Sobre</a>
       <a href="/contato" style="margin-right: 15px; color: #555; text-decoration: none;">Contato</a>
       <a href="/privacidade" style="margin-right: 15px; color: #555; text-decoration: none;">Privacidade</a>
@@ -594,11 +709,15 @@ export function renderHomeHTML(posts: any[]): string {
       <h2 style="border-bottom: 1px solid #011627; padding-bottom: 10px; color: #011627;">Últimas Análises de Filmes</h2>
       ${postsHtml}
     </section>
+
+    ${moviesHtml}
+    ${vibesHtml}
   </main>
 
   <footer style="margin-top: 60px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 0.9rem; color: #777; text-align: center;">
     <p>© 2026 VibesFilm. Todos os direitos reservados.</p>
     <p>
+      <a href="/categorias" style="color: #777; text-decoration: underline;">Categorias</a> | 
       <a href="/privacidade" style="color: #777; text-decoration: underline;">Política de Privacidade</a> | 
       <a href="/termos" style="color: #777; text-decoration: underline;">Termos de Uso</a> | 
       <a href="/cookies" style="color: #777; text-decoration: underline;">Cookies</a>
@@ -607,12 +726,72 @@ export function renderHomeHTML(posts: any[]): string {
 </body>
 </html>`;
 }
+
+/**
+ * Gera HTML SSR para Landing Pages de Vibe (/filmes-para/:slug)
+ */
+export function renderVibeLandingHTML(vibeData: any): string {
+  const { vibe, movies = [] } = vibeData;
+  const title = vibe.seo?.title || `${vibe.title} | VibesFilm`;
+  const description = vibe.seo?.description || `Seleção curada de ${vibe.title.toLowerCase()} para quando você está se sentindo ${vibe.sentiment?.name?.toLowerCase() || ''}.`;
+  const canonicalUrl = vibe.seo?.canonicalUrl || `https://vibesfilm.com/filmes-para/${vibe.slug}`;
+
+  const moviesListHtml = movies.map((m: any, idx: number) => `
+    <article style="margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
+      <h2>${idx + 1}. <a href="/filme/${escapeHtml(m.slug)}">${escapeHtml(m.title)}${m.year ? ` (${m.year})` : ''}</a></h2>
+      ${m.reason ? `<p><strong>Por que assistir nesta vibe:</strong> ${escapeHtml(m.reason)}</p>` : ''}
+      ${m.synopsis ? `<p>${escapeHtml(m.synopsis)}</p>` : ''}
+      <p>
+        ${m.genres?.length ? `Gêneros: ${escapeHtml(m.genres.join(', '))} | ` : ''}
+        ${m.imdbRating ? `IMDb: ${m.imdbRating}/10 | ` : ''}
+        ${m.streamingPlatforms?.length ? `Onde assistir: ${escapeHtml(m.streamingPlatforms.map((p: any) => p.name).join(', '))}` : ''}
+      </p>
+      ${m.blogArticle ? `<p><a href="/blog/artigo/${escapeHtml(m.blogArticle.slug)}">Ler análise completa de ${escapeHtml(m.title)} →</a></p>` : ''}
+    </article>
+  `).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(description)}">
+  <link rel="canonical" href="${canonicalUrl}">
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:url" content="${canonicalUrl}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="VibesFilm">
+  <meta name="robots" content="index, follow">
+</head>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+  <header>
+    <nav>
+      <a href="/">VibesFilm Home</a> |
+      <a href="/categorias">Categorias</a> |
+      <a href="/app">Descobrir Filme por Vibe</a> |
+      <a href="/sobre">Sobre</a>
+    </nav>
+    <h1>${escapeHtml(vibe.title)}</h1>
+    <p>${escapeHtml(description)}</p>
+  </header>
+  <main>
+    ${moviesListHtml}
+  </main>
+  <footer>
+    <p><a href="/">Voltar para VibesFilm Home</a></p>
+  </footer>
+</body>
+</html>`;
+}
+
 /**
  * Detecta se a requisição é de um bot
  */
 export function isBot(userAgent: string | undefined): boolean {
   if (!userAgent) return false;
-  return /Googlebot|Google-InspectionTool|Bingbot|Chrome-Lighthouse|PageSpeed|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i.test(userAgent);
+  return /Googlebot|Google-InspectionTool|GoogleOther|Google-Extended|Google-Safety|APIs-Google|Storebot-Google|Bingbot|Chrome-Lighthouse|PageSpeed|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Applebot|Mediapartners-Google|AdsBot-Google|Google-AdSense/i.test(userAgent);
 }
 
 /**
